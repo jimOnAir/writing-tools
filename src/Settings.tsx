@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ISettings } from './interfaces/ISettings';
+import { isValidShortcut, normalizeShortcut } from './utils/globalShortcuts';
 
 const Settings: React.FC = () => {
   const [settings, setSettings] = useState<ISettings>({
@@ -7,10 +8,13 @@ const Settings: React.FC = () => {
       address: 'http://localhost:11434',
       model: undefined,
     },
+    globalShortcut: undefined
   });
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [newShortcut, setNewShortcut] = useState<string>('');
+  const [success, setSuccess] = useState<string | null>(null);
 
   // Load settings from file or default values and fetch models
   useEffect(() => {
@@ -101,6 +105,48 @@ const Settings: React.FC = () => {
     }));
   };
 
+  // Handle adding a new shortcut
+  const handleAddShortcut = () => {
+    if (!newShortcut.trim()) {
+      setError('Please enter a valid shortcut combination');
+      return;
+    }
+
+    // Basic validation for shortcut format
+    if (newShortcut.trim().length < 2) {
+      setError('Shortcut must be at least 2 characters long');
+      return;
+    }
+
+    // Validate shortcut format
+    if (!isValidShortcut(newShortcut.trim())) {
+      setError('Invalid shortcut format. Please use a valid combination like Ctrl+Shift+X');
+      return;
+    }
+
+    // Set the new shortcut
+    setSettings(prev => ({
+      ...prev,
+      globalShortcut: newShortcut.trim()
+    }));
+
+    setNewShortcut('');
+    setError(null);
+    setSuccess('Shortcut set successfully');
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
+  // Handle removing a shortcut
+  const handleRemoveShortcut = () => {
+    setSettings(prev => ({
+      ...prev,
+      globalShortcut: undefined
+    }));
+
+    setSuccess('Shortcut removed successfully');
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
   // Save settings to file
   const handleSave = async () => {
     try {
@@ -145,6 +191,7 @@ const Settings: React.FC = () => {
       <h2 className="text-2xl font-bold mb-6">Settings</h2>
 
       {error && <div className="text-red-500 mb-4">{error}</div>}
+      {success && <div className="text-green-500 mb-4">{success}</div>}
 
       <div className="mb-6">
         <label className="block mb-2 font-medium">
@@ -185,6 +232,53 @@ const Settings: React.FC = () => {
           </button>
         </div>
         {loadingModels && <div className="mt-2">Fetching available models...</div>}
+      </div>
+
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold mb-4">Global Shortcuts</h3>
+        <div className="mb-4">
+          <h4 className="font-medium mb-2">Configure Shortcut</h4>
+          <div className="flex items-center space-x-4">
+            <input
+              type="text"
+              value={newShortcut}
+              onChange={(e) => setNewShortcut(e.target.value)}
+              placeholder="e.g., Ctrl+Shift+X"
+              className="flex-1 p-2 border border-gray-300 rounded bg-white text-gray-900"
+            />
+            <button
+              onClick={handleAddShortcut}
+              className="px-4 py-2 rounded border border-blue-600 bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Set Shortcut
+            </button>
+          </div>
+          <p className="mt-2 text-sm text-gray-500">
+            Enter a keyboard shortcut combination (e.g., Ctrl+Shift+X)
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            Note: Global shortcuts work even when the application is not focused
+          </p>
+        </div>
+
+        <div>
+          <h4 className="font-medium mb-2">Current Shortcut</h4>
+          {settings.globalShortcut ? (
+            <div className="flex items-center justify-between p-3 border border-gray-300 rounded">
+              <div className="flex items-center space-x-4">
+                <span className="font-mono">{settings.globalShortcut}</span>
+              </div>
+              <button
+                onClick={handleRemoveShortcut}
+                className="px-3 py-1 rounded text-sm bg-red-500 hover:bg-red-600 text-white"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <p className="text-gray-500">No global shortcut configured.</p>
+          )}
+        </div>
       </div>
 
       <div>
