@@ -6,15 +6,20 @@
   },
   "files": [
     "dist/**/*",
-    "node_modules/**/*"
+    "node_modules/**/*",
+    "public/*.png",
+    "public/favicon.ico"
   ],
   "win": {
-    "target": "nsis"
+    "target": "nsis",
+    "icon": "public/logo192.png"
   },
   "mac": {
-    "target": "dmg"
+    "target": "dmg",
+    "icon": "public/logo192.png"
   },
   "linux": {
-    "target": "AppImage"
+    "target": "AppImage",
+    "icon": "public/logo192.png"
   }
 }

@@ -9,6 +9,7 @@ Creating a writing assistance application with Electron and React that can run c
 - TypeScript
 - ESLint
 - Jest
+- Tailwind CSS
 
 ## Project Conventions
 

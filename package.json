@@ -15,8 +15,10 @@
     "@types/node": "^16.18.126",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "ollama": "^0.6.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.5",
     "react-scripts": "5.0.1",
     "rimraf": "^6.1.0",
     "typescript": "^4.9.5",
@@ -35,6 +37,15 @@
     "render:test": "react-scripts test",
     "test:electron": "node test-electron.js"
   },
+  "devDependencies": {
+    "chokidar": "^3.6.0",
+    "concurrently": "^9.2.1",
+    "electron": "^39.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-is-dev": "^3.0.1",
+    "nodemon": "^3.1.10",
+    "path-browserify": "^1.0.1"
+  },
   "eslintConfig": {
     "extends": [
       "react-app",
@@ -52,13 +63,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  },
-  "devDependencies": {
-    "chokidar": "^3.6.0",
-    "concurrently": "^9.2.1",
-    "electron": "^39.0.0",
-    "electron-builder": "^24.13.3",
-    "electron-is-dev": "^3.0.1",
-    "nodemon": "^3.1.10"
   }
 }
