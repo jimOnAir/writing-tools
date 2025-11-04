@@ -96,8 +96,9 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
     },
     width: 1280,
-    icon
+    icon,
   });
+  mainWindow.setMenu(null);
 
   const rendererUrl = isDev
     ? 'http://localhost:3000'
@@ -150,7 +151,7 @@ function createSettingsWindow() {
 
   settingsWindow = new BrowserWindow({
     height: 400,
-    width: 600,
+    width: 800,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -159,6 +160,8 @@ function createSettingsWindow() {
     icon,
     title: 'Settings',
   });
+
+  settingsWindow.setMenu(null);
 
   // For development, we'll load the settings component in the main window
   // For production, we would create a separate window with settings.html
