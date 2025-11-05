@@ -27,4 +27,21 @@ export function registerIpcHandlers() {
       return { error: error.message };
     }
   });
+
+  ipcMain.handle('send-ollama-message', async (event, { address, model, messages }) => {
+    try {
+      const ollama = new Ollama({ host: address });
+      const response = await ollama.chat({
+        model: model,
+        messages: messages,
+        stream: false
+      });
+
+      console.log(messages);
+      return { response: response.message.content };
+    } catch (error: any) {
+      console.error('Failed to send message to Ollama:', error);
+      return { error: error.message };
+    }
+  });
 }

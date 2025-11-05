@@ -1,6 +1,7 @@
 import logo from './logo.svg';
 import './App.css';
 import Settings from './Settings';
+import ChatComponent from './components/ChatComponent';
 
 // Check for query parameter to determine if we should show settings
 const getUrlParams = () => {
@@ -18,21 +19,21 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white">
-      <header className="flex flex-col items-center justify-center p-8">
-        <img src={logo} className="h-48 w-48 animate-spin" alt="logo" />
-        <p className="mt-4 text-lg">
-          Edit <code className="bg-gray-800 px-2 py-1 rounded">src/App.tsx</code> and save to reload.
+    <div className="min-h-screen flex flex-col bg-gray-900 text-white p-4">
+      <header className="flex flex-col items-center justify-center p-4 mb-4">
+        <h1 className="text-2xl font-bold">Ollama Chat Interface</h1>
+        <p className="mt-2 text-gray-400">
+          Interact with local AI models through Ollama
         </p>
-        <a
-          className="mt-4 text-cyan-400 hover:text-cyan-300 underline"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
       </header>
+
+      <main className="flex-1 flex items-center justify-center w-full">
+        <ChatComponent />
+      </main>
+
+      <footer className="mt-4 text-center text-gray-500 text-sm">
+        <p>Ollama Chat Interface - Connect to your local AI models</p>
+      </footer>
     </div>
   );
 }

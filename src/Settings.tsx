@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ISettings } from './interfaces/ISettings';
-import { isValidShortcut, normalizeShortcut } from './utils/globalShortcuts';
+import { isValidShortcut } from './utils/globalShortcuts';
+import { ButtonStyles, InputStyles } from './styles/Styles';
 
 const Settings: React.FC = () => {
   const [settings, setSettings] = useState<ISettings>({
@@ -10,6 +11,7 @@ const Settings: React.FC = () => {
     },
     globalShortcut: undefined
   });
+  const [originalSettings, setOriginalSettings] = useState<ISettings | null>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +31,7 @@ const Settings: React.FC = () => {
         const loadedSettings = await window.electronAPI.invoke('load-settings');
         console.log('Loaded settings:', loadedSettings);
         setSettings(loadedSettings);
+        setOriginalSettings(loadedSettings);
 
         // Fetch models when settings are loaded
         if (loadedSettings.ollama?.address) {
@@ -186,34 +189,42 @@ const Settings: React.FC = () => {
     // In a real implementation, you would close the window here
   };
 
-  return (
-    <div className="p-6 font-sans">
-      <h2 className="text-2xl font-bold mb-6">Settings</h2>
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = () => {
+    if (!originalSettings) {
+      return false;
+    }
+    return JSON.stringify(settings) !== JSON.stringify(originalSettings);
+  };
 
-      {error && <div className="text-red-500 mb-4">{error}</div>}
-      {success && <div className="text-green-500 mb-4">{success}</div>}
+  return (
+    <div className="min-h-screen p-6 font-sans bg-gray-900">
+      <h2 className="text-2xl font-bold mb-6 text-white">Settings</h2>
+
+      {error && <div className="text-red-400 mb-4">{error}</div>}
+      {success && <div className="text-green-400 mb-4">{success}</div>}
 
       <div className="mb-6">
-        <label className="block mb-2 font-medium">
+        <label className="block mb-2 font-medium text-gray-400">
           Ollama Address:
         </label>
         <input
           type="text"
           value={settings.ollama.address}
           onChange={handleAddressChange}
-          className="w-full p-2 border border-gray-300 rounded bg-white text-gray-900"
+          className={InputStyles}
         />
       </div>
 
       <div className="mb-6">
-        <label className="block mb-2 font-medium">
+        <label className="block mb-2 font-medium text-gray-400">
           Ollama Model:
         </label>
         <div className="flex items-center space-x-4">
           <select
             value={settings.ollama.model}
             onChange={handleModelChange}
-            className="flex-1 p-2 border border-gray-300 rounded bg-white text-gray-900"
+            className={InputStyles}
           >
             {availableModels.map(model => (
               <option key={model} value={model}>{model}</option>
@@ -222,11 +233,7 @@ const Settings: React.FC = () => {
           <button
             onClick={fetchAvailableModels}
             disabled={loadingModels}
-            className={`px-4 py-2 rounded border ${
-              loadingModels
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 border-blue-600 text-white'
-            }`}
+            className={ButtonStyles.base + " " + (loadingModels ? ButtonStyles.disabled : ButtonStyles.primary)}
           >
             {loadingModels ? 'Loading...' : 'Refresh Models'}
           </button>
@@ -235,20 +242,20 @@ const Settings: React.FC = () => {
       </div>
 
       <div className="mb-6">
-        <h3 className="text-xl font-semibold mb-4">Global Shortcuts</h3>
+        <h3 className="text-xl font-semibold mb-4 text-white">Global Shortcuts</h3>
         <div className="mb-4">
-          <h4 className="font-medium mb-2">Configure Shortcut</h4>
+          <h4 className="font-medium mb-2 text-gray-400">Configure Shortcut</h4>
           <div className="flex items-center space-x-4">
             <input
               type="text"
               value={newShortcut}
               onChange={(e) => setNewShortcut(e.target.value)}
               placeholder="e.g., Ctrl+Shift+X"
-              className="flex-1 p-2 border border-gray-300 rounded bg-white text-gray-900"
+              className={InputStyles}
             />
             <button
               onClick={handleAddShortcut}
-              className="px-4 py-2 rounded border border-blue-600 bg-blue-600 text-white hover:bg-blue-700"
+              className={ButtonStyles.base + " " + ButtonStyles.primary}
             >
               Set Shortcut
             </button>
@@ -262,15 +269,15 @@ const Settings: React.FC = () => {
         </div>
 
         <div>
-          <h4 className="font-medium mb-2">Current Shortcut</h4>
+          <h4 className="font-medium mb-2 text-gray-400">Current Shortcut</h4>
           {settings.globalShortcut ? (
-            <div className="flex items-center justify-between p-3 border border-gray-300 rounded">
+            <div className="flex items-center justify-between p-3 border border-gray-600 rounded">
               <div className="flex items-center space-x-4">
-                <span className="font-mono">{settings.globalShortcut}</span>
+                <span className="font-mono text-gray-400">{settings.globalShortcut}</span>
               </div>
               <button
                 onClick={handleRemoveShortcut}
-                className="px-3 py-1 rounded text-sm bg-red-500 hover:bg-red-600 text-white"
+                className={ButtonStyles.base + " " + ButtonStyles.primary}
               >
                 Remove
               </button>
@@ -281,16 +288,17 @@ const Settings: React.FC = () => {
         </div>
       </div>
 
-      <div>
+      <div className="flex space-x-2">
         <button
           onClick={handleSave}
-          className="px-4 py-2 mr-2 rounded border border-green-600 bg-green-600 text-white hover:bg-green-700"
+          className={ButtonStyles.base + " " + ButtonStyles.success}
         >
           Save
         </button>
         <button
           onClick={handleCancel}
-          className="px-4 py-2 rounded border border-gray-600 bg-gray-600 text-white hover:bg-gray-700"
+          disabled={!hasUnsavedChanges()}
+          className={ButtonStyles.base + " " + (hasUnsavedChanges() ? ButtonStyles.secondary : ButtonStyles.disabled)}
         >
           Cancel
         </button>
