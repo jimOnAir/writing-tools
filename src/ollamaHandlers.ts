@@ -1,9 +1,10 @@
-import { Ollama } from 'ollama';
+import { Message, Ollama } from 'ollama';
+import { loadSettings } from './settings';
 
-// Ollama-related IPC handlers
-export async function fetchOllamaModels(ollamaAddress: string) {
+export async function fetchOllamaModels() {
   try {
-    const ollama = new Ollama({ host: ollamaAddress });
+    const settings = loadSettings();
+    const ollama = new Ollama({ host: settings.ollama.address });
     const response = await ollama.list();
     return { models: response.models };
   } catch (error: any) {
@@ -12,16 +13,17 @@ export async function fetchOllamaModels(ollamaAddress: string) {
   }
 }
 
-export async function sendOllamaMessage(address: string, model: string, messages: any[]) {
+export async function sendOllamaMessages(messages: Message[]) {
   try {
+    const settings = loadSettings();
+    const { address, model } = settings.ollama;
     const ollama = new Ollama({ host: address });
     const response = await ollama.chat({
-      model: model,
-      messages: messages,
+      model: model!,
+      messages,
       stream: false
     });
 
-    console.log(messages);
     return { response: response.message.content };
   } catch (error: any) {
     console.error('Failed to send message to Ollama:', error);

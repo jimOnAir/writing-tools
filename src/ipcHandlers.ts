@@ -1,14 +1,15 @@
 import { ipcMain } from 'electron';
 import { loadSettings, saveSettings } from './settings';
-import { fetchOllamaModels, sendOllamaMessage } from './ollamaHandlers';
+import { fetchOllamaModels, sendOllamaMessages } from './ollamaHandlers';
+import { Message } from 'ollama';
+import { ISettings } from './interfaces/ISettings';
 
-// IPC handlers
 export function registerIpcHandlers() {
   ipcMain.handle('load-settings', async () => {
     return loadSettings();
   });
 
-  ipcMain.handle('save-settings', async (event, settings) => {
+  ipcMain.handle('save-settings', async (_, settings: ISettings) => {
     try {
       saveSettings(settings);
       return { success: true };
@@ -17,11 +18,11 @@ export function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('fetch-ollama-models', async (event, ollamaAddress) => {
-    return fetchOllamaModels(ollamaAddress);
+  ipcMain.handle('fetch-ollama-models', async (_) => {
+    return fetchOllamaModels();
   });
 
-  ipcMain.handle('send-ollama-message', async (event, { address, model, messages }) => {
-    return sendOllamaMessage(address, model, messages);
+  ipcMain.handle('send-ollama-message', async (_, { messages } : { messages: Message[] }) => {
+    return sendOllamaMessages(messages);
   });
 }

@@ -5,6 +5,7 @@ import ChatComponent from './ChatComponent';
 // Mock the electronAPI for testing
 const mockElectronAPI = {
   invoke: jest.fn(),
+  on: jest.fn(),
 };
 
 // Mock window.electronAPI

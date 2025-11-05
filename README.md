@@ -5,7 +5,8 @@ A desktop application that provides an interface for interacting with local AI m
 ## Features
 
 - **Ollama Chat Interface**: Chat with local AI models directly in the application
-- **Settings Management**: Configure Ollama server address and model selection
+- **Global Shortcut Processing**: Process clipboard text with a global keyboard shortcut
+- **Settings Management**: Configure Ollama server address, model selection, and global shortcut
 - **Conversation History**: Maintain chat history during conversations
 - **Error Handling**: Graceful handling of Ollama server unavailability
 
@@ -49,6 +50,15 @@ The application integrates with Ollama through IPC (Inter-Process Communication)
 2. **Message Sending**: Send messages to Ollama using the chat interface
 3. **Response Handling**: Receive and display responses from Ollama
 4. **Error Handling**: Handle connection issues or server unavailability
+
+## Global Shortcut Feature
+
+The application supports a global shortcut to process clipboard text with Ollama:
+
+1. **Configuration**: Set up a custom global shortcut in the settings
+2. **Usage**: Copy text to your clipboard and press the configured shortcut
+3. **Processing**: The application will send the clipboard text to Ollama with a custom prompt
+4. **Response**: A new chat window will open displaying the original text and Ollama's response
 
 ## Project Structure
 

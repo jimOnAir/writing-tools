@@ -2,7 +2,7 @@ import { Tray, Menu, MenuItemConstructorOptions, NativeImage, app } from 'electr
 import * as path from 'path';
 import isDev from 'electron-is-dev';
 import { nativeImage } from 'electron';
-import { createSettingsWindow, createMainWindow } from './windows';
+import { createSettingsWindow, createChatWindow } from './windows';
 
 let tray: Tray | null = null;
 
@@ -65,7 +65,7 @@ export function createTray(mainWindow: Electron.BrowserWindow | null) {
       mainWindow.focus();
     } else {
       // Create new window if it doesn't exist
-      createMainWindow();
+      createChatWindow();
     }
   });
 }

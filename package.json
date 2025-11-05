@@ -32,7 +32,7 @@
     "eject": "react-scripts eject",
     "electron-dev": "concurrently \"npm run render:start\" \"npm run electron:start\"",
     "electron-dev:watch": "concurrently \"npm run render:start\" \"tsc -p tsconfig.main.json --watch\" \"nodemon --watch dist/main.js --exec 'npm run electron:start'\"",
-    "electron:build": "tsc -p tsconfig.main.json && electron-builder",
+    "electron:build": "tsc -p tsconfig.main.json",
     "electron:start": "electron .",
     "prebuild": "rimraf dist",
     "render:build": "react-scripts build",

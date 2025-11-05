@@ -11,7 +11,16 @@
     "rootDir": "./src"
   },
   "include": [
-    "src/main.ts"
+    "src/DefaultSettings.ts",
+    "src/interfaces/**/*.ts",
+    "src/ipcHandlers.ts",
+    "src/main.ts",
+    "src/ollamaHandlers.ts",
+    "src/reportWebVitals.ts",
+    "src/settings.ts",
+    "src/shortcuts.ts",
+    "src/tray.ts",
+    "src/windows.ts",
   ],
   "exclude": [
     "node_modules",

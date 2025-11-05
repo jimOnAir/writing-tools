@@ -1,13 +1,13 @@
-import { BrowserWindow, NativeImage } from 'electron';
+import { BrowserWindow, NativeImage, nativeImage } from 'electron';
 import * as path from 'path';
 import * as url from 'url';
 import isDev from 'electron-is-dev';
-import { nativeImage } from 'electron';
 
 let mainWindow: Electron.BrowserWindow | null = null;
 let settingsWindow: Electron.BrowserWindow | null = null;
+const chatWindows: Map<string, BrowserWindow> = new Map();
 
-export function createMainWindow() {
+export function createChatWindow() {
   const iconPath = isDev
     ? path.join(__dirname, '../public/logo192.png')
     : path.join(__dirname, 'logo192.png');
@@ -21,7 +21,7 @@ export function createMainWindow() {
     icon = nativeImage.createEmpty();
   }
 
-  mainWindow = new BrowserWindow({
+  const chatWindow = new BrowserWindow({
     height: 800,
     webPreferences: {
       nodeIntegration: false,
@@ -31,7 +31,7 @@ export function createMainWindow() {
     width: 1280,
     icon,
   });
-  mainWindow.setMenu(null);
+  chatWindow.setMenu(null);
 
   const rendererUrl = isDev
     ? 'http://localhost:3000'
@@ -41,24 +41,35 @@ export function createMainWindow() {
       slashes: true,
   });
 
-  mainWindow.loadURL(rendererUrl);
+  chatWindow.loadURL(rendererUrl);
 
   // Open DevTools in development mode
   if (isDev) {
-    mainWindow.webContents.openDevTools();
+    chatWindow.webContents.openDevTools();
   }
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
+  // Track the window
+  const windowId = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9);
+  chatWindows.set(windowId, chatWindow);
+
+  chatWindow.on('closed', () => {
+    chatWindows.delete(windowId);
   });
 
-  // Minimize to tray when window is closed
-  mainWindow.on('close', (event) => {
-    // We'll handle tray reference in the main file
-    // This is a placeholder for now
-    event.preventDefault();
-    mainWindow?.hide();
-  });
+  // Return the window instance
+  return chatWindow;
+}
+
+export function getChatWindows() {
+  return chatWindows;
+}
+
+export function closeChatWindow(windowId: string) {
+  const window = chatWindows.get(windowId);
+  if (window) {
+    window.close();
+    chatWindows.delete(windowId);
+  }
 }
 
 export function createSettingsWindow() {

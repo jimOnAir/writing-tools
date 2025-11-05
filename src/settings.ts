@@ -3,15 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import isDev from 'electron-is-dev';
 import { ISettings } from './interfaces/ISettings';
-
-const DefaultSettings: ISettings = Object.freeze({
-  ollama: {
-    address: 'http://localhost:11434',
-    model: undefined,
-  },
-  globalShortcut: 'Ctrl+ALT+I',
-});
-
+import { DefaultSettings } from './DefaultSettings';
 
 // Get the app data directory
 export const getAppDataDirectory = () => {
@@ -56,7 +48,7 @@ export const loadSettings = (): ISettings => {
 };
 
 // Save settings to file
-export const saveSettings = (settings: any) => {
+export const saveSettings = (settings: ISettings) => {
   try {
     ensureSettingsDirectory();
     const settingsPath = getSettingsFilePath();

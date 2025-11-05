@@ -8,6 +8,15 @@ interface Message {
   timestamp: Date;
 }
 
+interface ChatWindowData {
+  prompt: string;
+}
+
+interface OllamaResponse {
+  result?: string;
+  error?: string;
+}
+
 const ChatComponent: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -23,6 +32,73 @@ const ChatComponent: React.FC = () => {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  // Handle receiving chat window data (initial prompt and original text)
+  useEffect(() => {
+    // Create handler functions
+    const handleChatWindowData = (data: ChatWindowData & { windowId?: string }) => {
+      if (data.prompt) {
+        // Add initial messages to the chat
+        const initialMessages: Message[] = [
+          {
+            id: 'prompt-message',
+            type: 'user',
+            content: `${data.prompt}`,
+            timestamp: new Date(),
+          },
+        ];
+
+        setMessages(initialMessages);
+        setIsLoading(true);
+      }
+    };
+
+    const handleOllamaResponse = (response: OllamaResponse) => {
+      console.log('Handling Ollama response:', response.result, response.error);
+      console.log('Current messages count:', messages.length);
+
+      // Handle error response
+      if (response.error) {
+        // Display error as a chat message instead of separate error notification
+        const errorMessage: Message = {
+          id: Date.now().toString() + '-error',
+          type: 'assistant',
+          content: `Error: ${response.error}`,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Handle successful response
+      if (response.result) {
+        const assistantMessage: Message = {
+          id: Date.now().toString() + '-response',
+          type: 'assistant',
+          content: response.result,
+          timestamp: new Date(),
+        };
+
+        setMessages(prev => [...prev, assistantMessage]);
+        setIsLoading(false);
+      }
+    };
+
+    // Set up IPC listeners
+    if (typeof window.electronAPI !== 'undefined') {
+      window.electronAPI.onChatWindowData(handleChatWindowData);
+      window.electronAPI.onOllamaResponse(handleOllamaResponse);
+    }
+
+    // Cleanup function if electronAPI is not available
+    return () => {
+      if (typeof window.electronAPI !== 'undefined') {
+        window.electronAPI.offChatWindowData(handleChatWindowData);
+        window.electronAPI.offOllamaResponse(handleOllamaResponse);
+      }
+     };
+  }, []);
 
   // Handle sending a message
   const handleSendMessage = async () => {
@@ -42,29 +118,6 @@ const ChatComponent: React.FC = () => {
     setError(null);
 
     try {
-      // Check if electronAPI is available (for development mode)
-      if (typeof window.electronAPI === 'undefined') {
-        // For development/testing, simulate a response
-        console.warn('electronAPI not available - simulating Ollama response');
-        // Simulate a response for development
-        setTimeout(() => {
-          const assistantMessage: Message = {
-            id: Date.now().toString() + '-response',
-            type: 'assistant',
-            content: `Simulated response to: "${inputValue.trim()}"`,
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, assistantMessage]);
-          setIsLoading(false);
-        }, 1000);
-        return;
-      }
-
-      // Get current settings to get Ollama configuration
-      const settings = await window.electronAPI.invoke('load-settings');
-      const ollamaAddress = settings.ollama?.address || 'http://localhost:11434';
-      const model = settings.ollama?.model || 'llama3';
-
       // Prepare messages for Ollama chat API - send all messages in conversation
       const chatMessages = messages.map(msg => ({
         role: msg.type,
@@ -79,8 +132,6 @@ const ChatComponent: React.FC = () => {
 
       // Send message to Ollama via IPC with full conversation history
       const response = await window.electronAPI.invoke('send-ollama-message', {
-        address: ollamaAddress,
-        model: model,
         messages: chatMessages
       });
 

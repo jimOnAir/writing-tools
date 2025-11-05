@@ -1,5 +1,5 @@
-import { app, globalShortcut } from 'electron';
-import { createMainWindow, mainWindow } from './windows';
+import { app } from 'electron';
+import { createChatWindow, mainWindow } from './windows';
 import { createTray } from './tray';
 import { registerIpcHandlers } from './ipcHandlers';
 import { registerGlobalShortcuts } from './shortcuts';
@@ -7,22 +7,18 @@ import { registerGlobalShortcuts } from './shortcuts';
 registerIpcHandlers();
 
 app.on('ready', () => {
-  createMainWindow();
+  // createChatWindow();
   createTray(mainWindow);
   registerGlobalShortcuts();
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    // Unregister global shortcuts before quitting
-    globalShortcut.unregisterAll();
-    app.quit();
-  }
+  // do nothing
 });
 
 app.on('activate', () => {
   if (mainWindow === null) {
-    createMainWindow();
+    createChatWindow();
   }
 });
 

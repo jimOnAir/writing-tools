@@ -2,15 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { ISettings } from './interfaces/ISettings';
 import { isValidShortcut } from './utils/globalShortcuts';
 import { ButtonStyles, InputStyles } from './styles/Styles';
+import { DefaultSettings } from './DefaultSettings';
 
 const Settings: React.FC = () => {
-  const [settings, setSettings] = useState<ISettings>({
-    ollama: {
-      address: 'http://localhost:11434',
-      model: undefined,
-    },
-    globalShortcut: undefined
-  });
+  const [settings, setSettings] = useState<ISettings>(DefaultSettings);
   const [originalSettings, setOriginalSettings] = useState<ISettings | null>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState<boolean>(false);
@@ -239,6 +234,28 @@ const Settings: React.FC = () => {
           </button>
         </div>
         {loadingModels && <div className="mt-2">Fetching available models...</div>}
+      </div>
+
+      <div className="mb-6">
+        <label className="block mb-2 font-medium text-gray-400">
+          Custom Prompt:
+        </label>
+        <textarea
+          value={settings.ollama.prompt || ''}
+          onChange={(e) => setSettings(prev => ({
+            ...prev,
+            ollama: {
+              ...prev.ollama,
+              prompt: e.target.value
+            }
+          }))}
+          placeholder="Enter a custom prompt template (use {text} as placeholder for clipboard content)"
+          className={InputStyles + " h-32"}
+        />
+        <p className="mt-2 text-sm text-gray-500">
+          The prompt will be used when processing clipboard text with the global shortcut.
+          Use &#123;text&#125; as a placeholder for the clipboard content.
+        </p>
       </div>
 
       <div className="mb-6">
