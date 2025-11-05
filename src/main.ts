@@ -7,7 +7,6 @@ import { registerGlobalShortcuts } from './shortcuts';
 registerIpcHandlers();
 
 app.on('ready', () => {
-  // createChatWindow();
   createTray(mainWindow);
   registerGlobalShortcuts();
 });

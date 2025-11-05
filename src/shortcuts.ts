@@ -2,7 +2,9 @@ import { globalShortcut, clipboard } from 'electron';
 import { loadSettings } from './settings';
 import { sendOllamaMessages } from './ollamaHandlers';
 import { createChatWindow } from './windows';
+import { logger } from './utils/logger';
 
+const TEXT_REPLACEMENT = '{text}';
 export const registerGlobalShortcuts = () => {
   const settings = loadSettings();
 
@@ -13,9 +15,9 @@ export const registerGlobalShortcuts = () => {
       globalShortcut.register(settings.globalShortcut, () => {
         processGlobalShortcut();
       });
-      console.log(`Registered global shortcut: ${settings.globalShortcut}`);
+      logger.info(`Registered global shortcut: ${settings.globalShortcut}`);
     } catch (error: any) {
-      console.error(`Failed to register global shortcut ${settings.globalShortcut}:`, error);
+      logger.error(`Failed to register global shortcut ${settings.globalShortcut}:`, error);
     }
   }
 };
@@ -27,17 +29,17 @@ export async function processGlobalShortcut() {
     const clipboardText = clipboard.readText();
 
     if (!clipboardText || !clipboardText.trim()) {
-      console.warn('Clipboard is empty, nothing to process');
+      logger.warn('Clipboard is empty, nothing to process');
       return;
     }
 
-    let promptTemplate = settings.ollama.prompt || 'Summarize the following text in one sentence: {text}';
+    let promptTemplate = settings.ollama.prompt || `Summarize the following text in one sentence: ${TEXT_REPLACEMENT}`;
 
-    if (promptTemplate.includes('{text}')) {
-      promptTemplate = promptTemplate + '\n{text}'
+    if (!promptTemplate.includes(TEXT_REPLACEMENT)) {
+      promptTemplate = promptTemplate + `\n${TEXT_REPLACEMENT}`;
     }
 
-    const prompt = promptTemplate.replace('{text}', clipboardText);
+    const prompt = promptTemplate.replace(TEXT_REPLACEMENT, clipboardText);
 
     const chatWindow = createChatWindow();
 
@@ -56,7 +58,7 @@ export async function processGlobalShortcut() {
 
     // Check for errors
     if (response.error) {
-      console.error('Ollama error:', response.error);
+      logger.error('Ollama error:', response.error);
       // Update chat window with error
       if (chatWindow && chatWindow.webContents) {
         chatWindow.webContents.send('ollama-response', {
@@ -77,6 +79,6 @@ export async function processGlobalShortcut() {
     }
 
   } catch (error: any) {
-    console.error('Error processing clipboard content:', error.message || 'Unknown error');
+    logger.error('Error processing clipboard content:', error.message || 'Unknown error');
   }
 }

@@ -2,6 +2,7 @@ import { BrowserWindow, NativeImage, nativeImage } from 'electron';
 import * as path from 'path';
 import * as url from 'url';
 import isDev from 'electron-is-dev';
+import { logger } from './utils/logger';
 
 let mainWindow: Electron.BrowserWindow | null = null;
 let settingsWindow: Electron.BrowserWindow | null = null;
@@ -16,7 +17,7 @@ export function createChatWindow() {
   try {
     icon = nativeImage.createFromPath(iconPath);
   } catch (error) {
-    console.error('Failed to create tray icon from path:', iconPath, error);
+    logger.error('Failed to create tray icon from path:', iconPath, error);
     // Fallback to a default icon or create a simple one
     icon = nativeImage.createEmpty();
   }
@@ -88,7 +89,7 @@ export function createSettingsWindow() {
   try {
     icon = nativeImage.createFromPath(iconPath);
   } catch (error) {
-    console.error('Failed to create tray icon from path:', iconPath, error);
+    logger.error('Failed to create tray icon from path:', iconPath, error);
     // Fallback to a default icon or create a simple one
     icon = nativeImage.createEmpty();
   }

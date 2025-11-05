@@ -3,6 +3,7 @@ import { ISettings } from './interfaces/ISettings';
 import { isValidShortcut } from './utils/globalShortcuts';
 import { ButtonStyles, InputStyles } from './styles/Styles';
 import { DefaultSettings } from './DefaultSettings';
+import { logger } from './utils/logger';
 
 const Settings: React.FC = () => {
   const [settings, setSettings] = useState<ISettings>(DefaultSettings);
@@ -19,12 +20,12 @@ const Settings: React.FC = () => {
       try {
         // Check if electronAPI is available (for development mode)
         if (typeof window.electronAPI === 'undefined') {
-          console.warn('electronAPI not available, using default settings');
+          logger.warn('electronAPI not available, using default settings');
           return;
         }
-        console.log('Attempting to load settings via electronAPI');
+        logger.info('Attempting to load settings via electronAPI');
         const loadedSettings = await window.electronAPI.invoke('load-settings');
-        console.log('Loaded settings:', loadedSettings);
+        logger.info('Loaded settings:', loadedSettings);
         setSettings(loadedSettings);
         setOriginalSettings(loadedSettings);
 
@@ -33,7 +34,7 @@ const Settings: React.FC = () => {
           await fetchAvailableModelsInternal(loadedSettings.ollama.address);
         }
       } catch (err) {
-        console.error('Failed to load settings:', err);
+        logger.error('Failed to load settings:', err);
         // Use default settings
       }
     };
@@ -60,7 +61,7 @@ const Settings: React.FC = () => {
       setAvailableModels(models);
     } catch (err: any) {
       setError('Failed to fetch available models from Ollama. Please check the address and ensure Ollama is running.');
-      console.error('Failed to fetch models:', err);
+      logger.error('Failed to fetch models:', err);
     } finally {
       setLoadingModels(false);
     }
@@ -69,7 +70,7 @@ const Settings: React.FC = () => {
   const fetchAvailableModels = async () => {
     // Check if electronAPI is available (for development mode)
     if (typeof window.electronAPI === 'undefined') {
-      console.warn('electronAPI not available');
+      logger.warn('electronAPI not available');
       return;
     }
 
@@ -150,7 +151,7 @@ const Settings: React.FC = () => {
         try {
           // Check if electronAPI is available (for development mode)
           if (typeof window.electronAPI === 'undefined') {
-            console.warn('electronAPI not available');
+            logger.warn('electronAPI not available');
             setError('Cannot save settings - application not running in Electron environment');
             return;
       }
@@ -161,10 +162,10 @@ const Settings: React.FC = () => {
         // In a real implementation, you would close the window here
       } else {
         setError(`Failed to save settings: ${result.error}`);
-        console.error('Failed to save settings:', result.error);
+        logger.error('Failed to save settings:', result.error);
       }
     } catch (err) {
-      console.error('Failed to save settings:', err);
+      logger.error('Failed to save settings:', err);
       setError('Failed to save settings');
     }
   };
@@ -173,7 +174,7 @@ const Settings: React.FC = () => {
   const handleCancel = () => {
     // Check if electronAPI is available (for development mode)
     if (typeof window.electronAPI === 'undefined') {
-      console.warn('electronAPI not available');
+      logger.warn('electronAPI not available');
       return;
     }
 

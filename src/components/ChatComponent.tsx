@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ButtonStyles, MessageStyles, InputStyles, ErrorStyles, LoadingStyles } from '../styles/Styles';
+import { logger } from '../utils/logger';
 
 interface Message {
   id: string;
@@ -54,8 +55,8 @@ const ChatComponent: React.FC = () => {
     };
 
     const handleOllamaResponse = (response: OllamaResponse) => {
-      console.log('Handling Ollama response:', response.result, response.error);
-      console.log('Current messages count:', messages.length);
+      logger.info('Handling Ollama response:', response.result, response.error);
+      logger.info('Current messages count:', messages.length);
 
       // Handle error response
       if (response.error) {
@@ -149,7 +150,7 @@ const ChatComponent: React.FC = () => {
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (err: any) {
-      console.error('Failed to send message to Ollama:', err);
+      logger.error('Failed to send message to Ollama:', err);
       setError(`Failed to send message: ${err.message || 'Unknown error'}`);
 
       // Add error message to chat

@@ -20,7 +20,8 @@
     "src/settings.ts",
     "src/shortcuts.ts",
     "src/tray.ts",
-    "src/windows.ts",
+    "src/utils/**/*.ts",
+    "src/windows.ts"
   ],
   "exclude": [
     "node_modules",

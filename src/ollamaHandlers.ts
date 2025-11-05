@@ -1,5 +1,6 @@
 import { Message, Ollama } from 'ollama';
 import { loadSettings } from './settings';
+import { logger } from './utils/logger';
 
 export async function fetchOllamaModels() {
   try {
@@ -8,7 +9,7 @@ export async function fetchOllamaModels() {
     const response = await ollama.list();
     return { models: response.models };
   } catch (error: any) {
-    console.error('Failed to fetch Ollama models:', error);
+    logger.error('Failed to fetch Ollama models:', error);
     return { error: error.message };
   }
 }
@@ -26,7 +27,7 @@ export async function sendOllamaMessages(messages: Message[]) {
 
     return { response: response.message.content };
   } catch (error: any) {
-    console.error('Failed to send message to Ollama:', error);
+    logger.error('Failed to send message to Ollama:', error);
     return { error: error.message };
   }
 }

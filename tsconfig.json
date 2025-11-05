@@ -23,7 +23,6 @@
   },
   "include": [
     "src",
-    "src/main.ts"
   ],
   "exclude": [
     "node_modules",

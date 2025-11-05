@@ -3,6 +3,7 @@ import * as path from 'path';
 import isDev from 'electron-is-dev';
 import { nativeImage } from 'electron';
 import { createSettingsWindow, createChatWindow } from './windows';
+import { logger } from './utils/logger';
 
 let tray: Tray | null = null;
 
@@ -23,7 +24,7 @@ export function createTray(mainWindow: Electron.BrowserWindow | null) {
   try {
     icon = nativeImage.createFromPath(iconPath);
   } catch (error) {
-    console.error('Failed to create tray icon from path:', iconPath, error);
+    logger.error('Failed to create tray icon from path:', iconPath, error);
     // Fallback to a default icon or create a simple one
     icon = nativeImage.createEmpty();
   }

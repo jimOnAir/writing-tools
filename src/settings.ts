@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import isDev from 'electron-is-dev';
 import { ISettings } from './interfaces/ISettings';
 import { DefaultSettings } from './DefaultSettings';
+import { logger } from './utils/logger';
 
 // Get the app data directory
 export const getAppDataDirectory = () => {
@@ -41,7 +42,7 @@ export const loadSettings = (): ISettings => {
       return DefaultSettings;
     }
   } catch (error) {
-    console.error('Failed to load settings:', error);
+    logger.error('Failed to load settings:', error);
     // Return default settings if there's an error
     return DefaultSettings;
   }
@@ -54,7 +55,7 @@ export const saveSettings = (settings: ISettings) => {
     const settingsPath = getSettingsFilePath();
     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
   } catch (error) {
-    console.error('Failed to save settings:', error);
+    logger.error('Failed to save settings:', error);
     throw error;
   }
 };
