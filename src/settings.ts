@@ -4,6 +4,15 @@ import * as fs from 'fs';
 import isDev from 'electron-is-dev';
 import { ISettings } from './interfaces/ISettings';
 
+const DefaultSettings: ISettings = Object.freeze({
+  ollama: {
+    address: 'http://localhost:11434',
+    model: undefined,
+  },
+  globalShortcut: 'Ctrl+ALT+I',
+});
+
+
 // Get the app data directory
 export const getAppDataDirectory = () => {
   if (isDev) {
@@ -26,6 +35,7 @@ export const ensureSettingsDirectory = () => {
   }
 };
 
+
 // Load settings from file
 export const loadSettings = (): ISettings => {
   try {
@@ -36,22 +46,12 @@ export const loadSettings = (): ISettings => {
       return JSON.parse(settingsData);
     } else {
       // Return default settings
-      return {
-        ollama: {
-          address: 'http://localhost:11434',
-          model: undefined,
-        },
-      };
+      return DefaultSettings;
     }
   } catch (error) {
     console.error('Failed to load settings:', error);
     // Return default settings if there's an error
-    return {
-      ollama: {
-        address: 'http://localhost:11434',
-        model: undefined,
-      },
-    };
+    return DefaultSettings;
   }
 };
 

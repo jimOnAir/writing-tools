@@ -3,5 +3,5 @@
     "address": "http://localhost:11434",
     "model": "qwen3-vl:30b"
   },
-  "globalShortcut": "alt + shift+ i"
+  "globalShortcut": "Alt+Ctrl+O"
 }

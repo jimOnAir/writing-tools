@@ -131,33 +131,33 @@ const Settings: React.FC = () => {
     setSettings(prev => ({
       ...prev,
       globalShortcut: newShortcut.trim()
-    }));
+        }));
 
-    setNewShortcut('');
-    setError(null);
-    setSuccess('Shortcut set successfully');
-    setTimeout(() => setSuccess(null), 3000);
-  };
+        setNewShortcut('');
+        setError(null);
+        setSuccess('Shortcut set successfully');
+        setTimeout(() => setSuccess(null), 3000);
+      };
 
-  // Handle removing a shortcut
-  const handleRemoveShortcut = () => {
-    setSettings(prev => ({
-      ...prev,
-      globalShortcut: undefined
-    }));
+      // Handle removing a shortcut
+      const handleRemoveShortcut = () => {
+        setSettings(prev => ({
+          ...prev,
+          globalShortcut: undefined
+        }));
 
-    setSuccess('Shortcut removed successfully');
-    setTimeout(() => setSuccess(null), 3000);
-  };
+        setSuccess('Shortcut removed successfully');
+        setTimeout(() => setSuccess(null), 3000);
+      };
 
-  // Save settings to file
-  const handleSave = async () => {
-    try {
-      // Check if electronAPI is available (for development mode)
-      if (typeof window.electronAPI === 'undefined') {
-        console.warn('electronAPI not available');
-        setError('Cannot save settings - application not running in Electron environment');
-        return;
+      // Save settings to file
+      const handleSave = async () => {
+        try {
+          // Check if electronAPI is available (for development mode)
+          if (typeof window.electronAPI === 'undefined') {
+            console.warn('electronAPI not available');
+            setError('Cannot save settings - application not running in Electron environment');
+            return;
       }
 
       const result = await window.electronAPI.invoke('save-settings', settings);
@@ -291,7 +291,8 @@ const Settings: React.FC = () => {
       <div className="flex space-x-2">
         <button
           onClick={handleSave}
-          className={ButtonStyles.base + " " + ButtonStyles.success}
+          disabled={!hasUnsavedChanges()}
+          className={ButtonStyles.base + " " + (hasUnsavedChanges() ? ButtonStyles.success : ButtonStyles.disabled)}
         >
           Save
         </button>

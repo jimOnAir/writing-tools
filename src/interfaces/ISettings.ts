@@ -3,5 +3,5 @@ export interface ISettings {
     address: string;
     model: string | undefined;
   };
-  globalShortcut?: string;
+  globalShortcut: string | undefined;
 }
