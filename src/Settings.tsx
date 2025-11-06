@@ -25,7 +25,7 @@ const Settings: React.FC = () => {
         }
         logger.info('Attempting to load settings via electronAPI');
         const loadedSettings = await window.electronAPI.invoke('load-settings');
-        logger.info('Loaded settings:', loadedSettings);
+        logger.info('Loaded settings: %s', loadedSettings);
         setSettings(loadedSettings);
         setOriginalSettings(loadedSettings);
 
@@ -34,7 +34,7 @@ const Settings: React.FC = () => {
           await fetchAvailableModelsInternal(loadedSettings.ollama.address);
         }
       } catch (err) {
-        logger.error('Failed to load settings:', err);
+        logger.error('Failed to load settings: %s', err);
         // Use default settings
       }
     };
@@ -61,7 +61,7 @@ const Settings: React.FC = () => {
       setAvailableModels(models);
     } catch (err: any) {
       setError('Failed to fetch available models from Ollama. Please check the address and ensure Ollama is running.');
-      logger.error('Failed to fetch models:', err);
+      logger.error('Failed to fetch models: %s', err);
     } finally {
       setLoadingModels(false);
     }
@@ -162,10 +162,10 @@ const Settings: React.FC = () => {
         // In a real implementation, you would close the window here
       } else {
         setError(`Failed to save settings: ${result.error}`);
-        logger.error('Failed to save settings:', result.error);
+        logger.error('Failed to save settings: %s', result.error);
       }
     } catch (err) {
-      logger.error('Failed to save settings:', err);
+      logger.error('Failed to save settings: %s', err);
       setError('Failed to save settings');
     }
   };

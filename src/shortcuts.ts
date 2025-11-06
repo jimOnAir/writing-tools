@@ -1,7 +1,7 @@
 import { globalShortcut, clipboard } from 'electron';
 import { loadSettings } from './settings';
 import { sendOllamaMessages } from './ollamaHandlers';
-import { createChatWindow } from './windows';
+import { getChatWindow } from './windows';
 import { logger } from './utils/logger';
 
 const TEXT_REPLACEMENT = '{text}';
@@ -17,7 +17,7 @@ export const registerGlobalShortcuts = () => {
       });
       logger.info(`Registered global shortcut: ${settings.globalShortcut}`);
     } catch (error: any) {
-      logger.error(`Failed to register global shortcut ${settings.globalShortcut}:`, error);
+      logger.error(`Failed to register global shortcut ${settings.globalShortcut}: %s`, error);
     }
   }
 };
@@ -41,13 +41,26 @@ export async function processGlobalShortcut() {
 
     const prompt = promptTemplate.replace(TEXT_REPLACEMENT, clipboardText);
 
-    const chatWindow = createChatWindow();
+    const { window: chatWindow, created: windowCreated }= getChatWindow();
 
-    chatWindow.once('ready-to-show', () => {
+    if (windowCreated) {
+      // Always wait for ready-to-show to ensure the window is properly initialized
+      chatWindow.once('ready-to-show', () => {
+        logger.info('Send chat-window-data: %s', prompt);
+
+        chatWindow.webContents.send('chat-window-data', {
+          prompt,
+        });
+      });
+    } else {
+      logger.info('Send chat-window-data: %s', prompt);
       chatWindow.webContents.send('chat-window-data', {
         prompt,
       });
-    })
+
+      chatWindow.focus();
+      chatWindow.show();
+    }
 
     const response = await sendOllamaMessages([
       {
@@ -56,11 +69,10 @@ export async function processGlobalShortcut() {
       },
     ]);
 
-    // Check for errors
     if (response.error) {
-      logger.error('Ollama error:', response.error);
+      logger.error('Ollama error: %s', response.error);
       // Update chat window with error
-      if (chatWindow && chatWindow.webContents) {
+      if (chatWindow) {
         chatWindow.webContents.send('ollama-response', {
           error: response.error,
         });
@@ -68,17 +80,12 @@ export async function processGlobalShortcut() {
       return;
     }
 
-    // Extract the response content
     const result = response.response;
-
-    // Update chat window with the response
-    if (chatWindow && chatWindow.webContents) {
-      chatWindow.webContents.send('ollama-response', {
-        result,
-      });
-    }
+    chatWindow.webContents.send('ollama-response', {
+      result,
+    });
 
   } catch (error: any) {
-    logger.error('Error processing clipboard content:', error.message || 'Unknown error');
+    logger.error('Error processing clipboard content: %s', error.message || 'Unknown error');
   }
 }

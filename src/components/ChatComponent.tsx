@@ -37,9 +37,10 @@ const ChatComponent: React.FC = () => {
   // Handle receiving chat window data (initial prompt and original text)
   useEffect(() => {
     // Create handler functions
-    const handleChatWindowData = (data: ChatWindowData & { windowId?: string }) => {
+    const handleChatWindowData = (data: ChatWindowData) => {
       if (data.prompt) {
-        // Add initial messages to the chat
+        // Clear previous conversation and start new one with the latest prompt
+        logger.info('Clearing previous conversation and starting new one with prompt: %s', data.prompt);
         const initialMessages: Message[] = [
           {
             id: 'prompt-message',
@@ -55,8 +56,8 @@ const ChatComponent: React.FC = () => {
     };
 
     const handleOllamaResponse = (response: OllamaResponse) => {
-      logger.info('Handling Ollama response:', response.result, response.error);
-      logger.info('Current messages count:', messages.length);
+      logger.info('Handling Ollama response: %s', response.result, response.error);
+      logger.info('Current messages count: %s', messages.length);
 
       // Handle error response
       if (response.error) {
@@ -150,7 +151,7 @@ const ChatComponent: React.FC = () => {
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (err: any) {
-      logger.error('Failed to send message to Ollama:', err);
+      logger.error('Failed to send message to Ollama: %s', err);
       setError(`Failed to send message: ${err.message || 'Unknown error'}`);
 
       // Add error message to chat

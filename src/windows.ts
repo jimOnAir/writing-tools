@@ -4,11 +4,17 @@ import * as url from 'url';
 import isDev from 'electron-is-dev';
 import { logger } from './utils/logger';
 
-let mainWindow: Electron.BrowserWindow | null = null;
 let settingsWindow: Electron.BrowserWindow | null = null;
-const chatWindows: Map<string, BrowserWindow> = new Map();
+let chatWindow: Electron.BrowserWindow | null = null;
 
-export function createChatWindow() {
+export function getChatWindow() {
+  // If chat window already exists, just show and focus it
+  if (chatWindow) {
+    chatWindow.show();
+    chatWindow.focus();
+    return { window: chatWindow, created: false };
+  }
+
   const iconPath = isDev
     ? path.join(__dirname, '../public/logo192.png')
     : path.join(__dirname, 'logo192.png');
@@ -17,12 +23,12 @@ export function createChatWindow() {
   try {
     icon = nativeImage.createFromPath(iconPath);
   } catch (error) {
-    logger.error('Failed to create tray icon from path:', iconPath, error);
+    logger.error('Failed to create tray icon from path: %s, %s', iconPath, error);
     // Fallback to a default icon or create a simple one
     icon = nativeImage.createEmpty();
   }
 
-  const chatWindow = new BrowserWindow({
+  chatWindow = new BrowserWindow({
     height: 800,
     webPreferences: {
       nodeIntegration: false,
@@ -49,28 +55,15 @@ export function createChatWindow() {
     chatWindow.webContents.openDevTools();
   }
 
-  // Track the window
-  const windowId = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9);
-  chatWindows.set(windowId, chatWindow);
-
+  // Handle window close event
   chatWindow.on('closed', () => {
-    chatWindows.delete(windowId);
+    chatWindow = null;
   });
 
   // Return the window instance
-  return chatWindow;
-}
-
-export function getChatWindows() {
-  return chatWindows;
-}
-
-export function closeChatWindow(windowId: string) {
-  const window = chatWindows.get(windowId);
-  if (window) {
-    window.close();
-    chatWindows.delete(windowId);
-  }
+  chatWindow.show();
+  chatWindow.focus();
+  return { window: chatWindow, created: true };
 }
 
 export function createSettingsWindow() {
@@ -89,7 +82,7 @@ export function createSettingsWindow() {
   try {
     icon = nativeImage.createFromPath(iconPath);
   } catch (error) {
-    logger.error('Failed to create tray icon from path:', iconPath, error);
+    logger.error('Failed to create tray icon from path: %s, %s', iconPath, error);
     // Fallback to a default icon or create a simple one
     icon = nativeImage.createEmpty();
   }
@@ -133,6 +126,7 @@ export function createSettingsWindow() {
   settingsWindow.on('closed', () => {
     settingsWindow = null;
   });
-}
 
-export { mainWindow, settingsWindow };
+  settingsWindow.show();
+  settingsWindow.focus();
+}

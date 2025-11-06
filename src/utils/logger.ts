@@ -61,7 +61,24 @@ export class Logger implements ILogger {
    */
   private formatMessage(level: LogLevel, message: string, ...args: any[]): string {
     const timestamp = new Date().toISOString();
-    return `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+    // For proper format string support (like %s, %d, %o), we need to process
+    // the message with the arguments before passing to console
+    let formattedMessage = message;
+
+    // If there are arguments, replace format placeholders in the message
+    if (args.length > 0) {
+      // Create a copy of args to avoid modifying the original
+      const argsCopy = [...args];
+      formattedMessage = message.replace(/%s|%d|%o/g, (match) => {
+        if (argsCopy.length > 0) {
+          const arg = argsCopy.shift();
+          return String(arg);
+        }
+        return match;
+      });
+    }
+
+    return `[${timestamp}] ${level.toUpperCase()}: ${formattedMessage}`;
   }
 
   /**

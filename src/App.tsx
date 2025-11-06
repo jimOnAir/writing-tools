@@ -19,20 +19,9 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-900 text-white p-4">
-      <header className="flex flex-col items-center justify-center p-4 mb-4">
-        <h1 className="text-2xl font-bold">Ollama Chat Interface</h1>
-        <p className="mt-2 text-gray-400">
-          Interact with local AI models through Ollama
-        </p>
-      </header>
-
-      <main className="flex-1 flex items-center justify-center w-full">
+      <main className="h-full w-full">
         <ChatComponent />
       </main>
-
-      <footer className="mt-4 text-center text-gray-500 text-sm">
-        <p>Ollama Chat Interface - Connect to your local AI models</p>
-      </footer>
     </div>
   );
 }

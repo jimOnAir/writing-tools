@@ -18,6 +18,7 @@
     "src/ollamaHandlers.ts",
     "src/reportWebVitals.ts",
     "src/settings.ts",
+    "src/preload.ts",
     "src/shortcuts.ts",
     "src/tray.ts",
     "src/utils/**/*.ts",

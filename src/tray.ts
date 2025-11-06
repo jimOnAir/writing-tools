@@ -2,12 +2,12 @@ import { Tray, Menu, MenuItemConstructorOptions, NativeImage, app } from 'electr
 import * as path from 'path';
 import isDev from 'electron-is-dev';
 import { nativeImage } from 'electron';
-import { createSettingsWindow, createChatWindow } from './windows';
+import { createSettingsWindow as showSettingsWindow, getChatWindow as showChatWindow } from './windows';
 import { logger } from './utils/logger';
 
 let tray: Tray | null = null;
 
-export function createTray(mainWindow: Electron.BrowserWindow | null) {
+export function createTray() {
   // Create tray icon - using appropriate icon for tray
   let iconPath: string;
 
@@ -24,7 +24,7 @@ export function createTray(mainWindow: Electron.BrowserWindow | null) {
   try {
     icon = nativeImage.createFromPath(iconPath);
   } catch (error) {
-    logger.error('Failed to create tray icon from path:', iconPath, error);
+    logger.error('Failed to create tray icon from path: %s, %s', iconPath, error);
     // Fallback to a default icon or create a simple one
     icon = nativeImage.createEmpty();
   }
@@ -35,16 +35,14 @@ export function createTray(mainWindow: Electron.BrowserWindow | null) {
     {
       label: 'Restore',
       click: () => {
-        if (mainWindow) {
-          mainWindow.show();
-        }
-      }
+        showChatWindow();
+      },
     },
     {
       label: 'Settings',
       click: () => {
-        createSettingsWindow();
-      }
+        showSettingsWindow();
+      },
     },
     {
       label: 'Quit',
@@ -57,18 +55,6 @@ export function createTray(mainWindow: Electron.BrowserWindow | null) {
   const contextMenu = Menu.buildFromTemplate(menuItems);
   tray.setContextMenu(contextMenu);
   tray.setIgnoreDoubleClickEvents(false);
-
-  // Handle double-click on tray icon to restore the app
-  tray.on('click', () => {
-    if (mainWindow) {
-      // Bring window to front and focus it
-      mainWindow.show();
-      mainWindow.focus();
-    } else {
-      // Create new window if it doesn't exist
-      createChatWindow();
-    }
-  });
 }
 
 export { tray };

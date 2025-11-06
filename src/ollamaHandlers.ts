@@ -9,7 +9,7 @@ export async function fetchOllamaModels() {
     const response = await ollama.list();
     return { models: response.models };
   } catch (error: any) {
-    logger.error('Failed to fetch Ollama models:', error);
+    logger.error('Failed to fetch Ollama models: %s', error);
     return { error: error.message };
   }
 }
@@ -27,7 +27,7 @@ export async function sendOllamaMessages(messages: Message[]) {
 
     return { response: response.message.content };
   } catch (error: any) {
-    logger.error('Failed to send message to Ollama:', error);
+    logger.error('Failed to send message to Ollama: %s', error);
     return { error: error.message };
   }
 }
