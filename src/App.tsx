@@ -18,8 +18,8 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-900 text-white p-4">
-      <main className="h-full w-full">
+    <div className="min-h-screen flex flex-col bg-gray-900 text-white p-4 h-full">
+      <main className="h-full w-full flex flex-col flex-1">
         <ChatComponent />
       </main>
     </div>

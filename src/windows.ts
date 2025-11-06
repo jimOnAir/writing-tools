@@ -37,6 +37,8 @@ export function getChatWindow() {
     },
     width: 1280,
     icon,
+    resizable: true,
+    maximizable: true,
   });
   chatWindow.setMenu(null);
 
