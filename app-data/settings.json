@@ -1,7 +1,0 @@
-{
-  "ollama": {
-    "address": "http://localhost:11434",
-    "model": "qwen3-vl:30b"
-  },
-  "globalShortcut": "Alt+Ctrl+O"
-}

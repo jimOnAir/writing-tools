@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "rootDir": "src/",
+    "composite": true,
+    "outDir": "dist/electron-app",
+    "paths": {
+      "@writing-tools/shared": [
+        "../shared/src"
+      ],
+      "@writing-tools/shared/*": [
+        "../shared/src/*"
+      ]
+    },
+    "sourceMap": true,
+    "types": [
+      "electron"
+    ]
+  },
+  "extends": "../../tsconfig.json",
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../shared"
+    }
+  ]
+}

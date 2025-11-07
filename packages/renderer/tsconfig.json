@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "paths": {
+      "@writing-tools/shared": [
+        "../shared/src"
+      ],
+      "@writing-tools/shared/*": [
+        "../shared/src/*"
+      ]
+    },
+    "sourceMap": true
+  },
+  "extends": "../../tsconfig.json",
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../shared"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2020",
     "lib": [
       "dom",
       "dom.iterable",
@@ -13,19 +13,16 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "module": "esnext",
+    "module": "CommonJS",
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": false,
-    "jsx": "react-jsx",
-    "types": ["electron"]
+    "noEmit": false
   },
-  "include": [
-    "src",
-  ],
   "exclude": [
-    "node_modules",
-    "build"
-  ]
+    "node_modules"
+  ],
+   "paths": {
+      "@writing-tools/shared": ["packages/shared/src"]
+  }
 }
