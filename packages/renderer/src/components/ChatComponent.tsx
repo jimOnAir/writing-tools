@@ -1,31 +1,17 @@
+import type { IChatWindowData, IChatMessage, TChatResponse, TIpcEvent } from '@writing-tools/shared';
+import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
 import React, { useState, useEffect, useRef } from 'react';
+
 import { ButtonStyles, MessageStyles, InputStyles, ErrorStyles, LoadingStyles } from '../styles/Styles';
-import { logger } from '@writing-tools/shared';
-
-interface Message {
-  id: string;
-  type: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
-
-interface ChatWindowData {
-  prompt: string;
-}
-
-interface OllamaResponse {
-  result?: string;
-  error?: string;
-}
 
 const ChatComponent: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<IChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Scroll to bottom of messages
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -34,18 +20,16 @@ const ChatComponent: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Handle receiving chat window data (initial prompt and original text)
   useEffect(() => {
     // Create handler functions
-    const handleChatWindowData = (data: ChatWindowData) => {
+    const handleChatWindowData = (data: IChatWindowData) => {
       if (data.prompt) {
-        // Clear previous conversation and start new one with the latest prompt
         logger.info('Clearing previous conversation and starting new one with prompt: %s', data.prompt);
-        const initialMessages: Message[] = [
+        const initialMessages: IChatMessage[] = [
           {
-            id: 'prompt-message',
-            type: 'user',
-            content: `${data.prompt}`,
+            id: Date.now().toString(),
+            role: 'user',
+            content: data.prompt,
             timestamp: new Date(),
           },
         ];
@@ -55,29 +39,29 @@ const ChatComponent: React.FC = () => {
       }
     };
 
-    const handleOllamaResponse = (response: OllamaResponse) => {
-      logger.info('Handling Ollama response: %s', response.result, response.error);
-      logger.info('Current messages count: %s', messages.length);
+    const handleOllamaResponse = (response: TChatResponse) => {
+      logger.info('Current messages count: %s', messages.length.toString());
 
       // Handle error response
-      if (response.error) {
+      if ('error' in response) {
         // Display error as a chat message instead of separate error notification
-        const errorMessage: Message = {
+        const errorMessage: IChatMessage = {
           id: Date.now().toString() + '-error',
-          type: 'assistant',
+          role: 'assistant',
           content: `Error: ${response.error}`,
           timestamp: new Date(),
         };
         setMessages(prev => [...prev, errorMessage]);
         setIsLoading(false);
+
         return;
       }
 
       // Handle successful response
-      if (response.result) {
-        const assistantMessage: Message = {
+      if ('result' in response) {
+        const assistantMessage: IChatMessage = {
           id: Date.now().toString() + '-response',
-          type: 'assistant',
+          role: 'assistant',
           content: response.result,
           timestamp: new Date(),
         };
@@ -99,72 +83,67 @@ const ChatComponent: React.FC = () => {
         window.electronAPI.offChatWindowData(handleChatWindowData);
         window.electronAPI.offOllamaResponse(handleOllamaResponse);
       }
-     };
-  }, []);
+    };
+  }, [messages.length]);
 
   // Handle sending a message
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
+  const handleSendMessage = () => {
+    if (!inputValue.trim() || isLoading) {
+      return;
+    }
 
-    const userMessage: Message = {
+    const userMessage: IChatMessage = {
       id: Date.now().toString(),
-      type: 'user',
+      role: 'user',
       content: inputValue.trim(),
       timestamp: new Date(),
     };
 
-    // Add user message to chat
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
     setError(null);
 
-    try {
-      // Prepare messages for Ollama chat API - send all messages in conversation
-      const chatMessages = messages.map(msg => ({
-        role: msg.type,
-        content: msg.content
-      }));
+    const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_MESSAGE> = {
+      channel: EIpcChannel.CHAT,
+      event: EIpcEvent.CHAT_SEND_MESSAGE,
+      payload: { messages },
+    };
 
-      // Add the new user message to the conversation
-      chatMessages.push({
-        role: 'user',
-        content: inputValue.trim()
+    window.electronAPI.invoke(EIpcChannel.CHAT, payload)
+      .then((response) => {
+        if ('error' in response) {
+          throw new Error(response.error);
+        }
+
+        const assistantMessage: IChatMessage = {
+          id: Date.now().toString() + '-response',
+          role: 'assistant',
+          content: response.response,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+      })
+      .catch((err: unknown) => {
+        const errorText = err instanceof Error
+          ? err.message
+          : String(err);
+
+        logger.error('Failed to send message to Ollama: %s', errorText);
+        setError(`Failed to send message: ${errorText}`);
+
+        // Add error message to chat
+        const errorMessage: IChatMessage = {
+          id: Date.now().toString() + '-error',
+          role: 'assistant',
+          content: `Error: ${errorText}`,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
-
-      // Send message to Ollama via IPC with full conversation history
-      const response = await window.electronAPI.invoke('send-ollama-message', {
-        messages: chatMessages
-      });
-
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      // Add assistant response to chat
-      const assistantMessage: Message = {
-        id: Date.now().toString() + '-response',
-        type: 'assistant',
-        content: response.response,
-        timestamp: new Date(),
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (err: any) {
-      logger.error('Failed to send message to Ollama: %s', err);
-      setError(`Failed to send message: ${err.message || 'Unknown error'}`);
-
-      // Add error message to chat
-      const errorMessage: Message = {
-        id: Date.now().toString() + '-error',
-        type: 'assistant',
-        content: `Error: ${err.message || 'Failed to get response from Ollama'}`,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   // Handle Enter key press
@@ -172,6 +151,9 @@ const ChatComponent: React.FC = () => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
     }
   };
 
@@ -187,10 +169,10 @@ const ChatComponent: React.FC = () => {
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] p-3 rounded-lg ${MessageStyles[message.type]}`}
+                  className={`max-w-[80%] p-3 rounded-lg ${MessageStyles[message.role]}`}
                 >
                   <div className="whitespace-pre-wrap">{message.content}</div>
                   <div className="text-xs mt-1">
@@ -224,7 +206,10 @@ const ChatComponent: React.FC = () => {
       <div className="flex items-center space-x-2">
         <textarea
           value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
+          ref={inputRef}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+          }}
           onKeyDown={handleKeyPress}
           placeholder="Type your message here..."
           className={InputStyles}

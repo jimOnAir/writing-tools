@@ -1,4 +1,4 @@
-import { ILogger } from '../interfaces/ILogger';
+import type { ILogger } from '../interfaces/ILogger';
 
 /**
  * Log level types
@@ -15,15 +15,51 @@ export class Logger implements ILogger {
   /**
    * Set the minimum log level
    */
-  setLevel(level: LogLevel): void {
+  public setLevel(level: LogLevel): void {
     this.currentLevel = level;
   }
 
   /**
    * Set the environment for filtering
    */
-  setEnvironment(env: 'development' | 'production' | 'test'): void {
+  public setEnvironment(env: 'development' | 'production' | 'test'): void {
     this.currentEnvironment = env;
+  }
+
+  /**
+   * Log debug message
+   */
+  public debug(message: string, ...args: string[]): void {
+    if (this.shouldLog('debug')) {
+      console.debug(this.formatMessage('debug', message, ...args));
+    }
+  }
+
+  /**
+   * Log info message
+   */
+  public info(message: string, ...args: string[]): void {
+    if (this.shouldLog('info')) {
+      console.info(this.formatMessage('info', message, ...args));
+    }
+  }
+
+  /**
+   * Log warning message
+   */
+  public warn(message: string, ...args: string[]): void {
+    if (this.shouldLog('warn')) {
+      console.warn(this.formatMessage('warn', message, ...args));
+    }
+  }
+
+  /**
+   * Log error message
+   */
+  public error(message: string, ...args: string[]): void {
+    if (this.shouldLog('error')) {
+      console.error(this.formatMessage('error', message, ...args));
+    }
   }
 
   /**
@@ -50,7 +86,7 @@ export class Logger implements ILogger {
       'debug': 0,
       'info': 1,
       'warn': 2,
-      'error': 3
+      'error': 3,
     };
 
     return levelOrder[level] >= levelOrder[minLevel];
@@ -59,7 +95,7 @@ export class Logger implements ILogger {
   /**
    * Format a log message with timestamp and context
    */
-  private formatMessage(level: LogLevel, message: string, ...args: any[]): string {
+  private formatMessage(level: LogLevel, message: string, ...args: string[]): string {
     const timestamp = new Date().toISOString();
     // For proper format string support (like %s, %d, %o), we need to process
     // the message with the arguments before passing to console
@@ -72,49 +108,15 @@ export class Logger implements ILogger {
       formattedMessage = message.replace(/%s|%d|%o/g, (match) => {
         if (argsCopy.length > 0) {
           const arg = argsCopy.shift();
+
           return String(arg);
         }
+
         return match;
       });
     }
 
     return `[${timestamp}] ${level.toUpperCase()}: ${formattedMessage}`;
-  }
-
-  /**
-   * Log debug message
-   */
-  debug(message: string, ...args: any[]): void {
-    if (this.shouldLog('debug')) {
-      console.debug(this.formatMessage('debug', message, ...args));
-    }
-  }
-
-  /**
-   * Log info message
-   */
-  info(message: string, ...args: any[]): void {
-    if (this.shouldLog('info')) {
-      console.info(this.formatMessage('info', message, ...args));
-    }
-  }
-
-  /**
-   * Log warning message
-   */
-  warn(message: string, ...args: any[]): void {
-    if (this.shouldLog('warn')) {
-      console.warn(this.formatMessage('warn', message, ...args));
-    }
-  }
-
-  /**
-   * Log error message
-   */
-  error(message: string, ...args: any[]): void {
-    if (this.shouldLog('error')) {
-      console.error(this.formatMessage('error', message, ...args));
-    }
   }
 }
 

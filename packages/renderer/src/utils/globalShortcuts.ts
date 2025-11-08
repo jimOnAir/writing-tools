@@ -1,3 +1,11 @@
+import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
+
+let platform = '';
+await (async () => {
+  const env = await window.electronAPI.invoke(EIpcChannel.ENV, { channel: EIpcChannel.ENV, event: EIpcEvent.ENV_GET, payload: {} });
+  platform = env.platform;
+})();
+
 /**
  * Validates if a shortcut string is in a valid format for Electron accelerators
  * @param shortcut The shortcut string to validate
@@ -51,7 +59,7 @@ export const isValidShortcut = (shortcut: string): boolean => {
     ')', '!', '@', '#', '$', '%', '^', '&', '*', '(', ':', ';', '+', '=', '<', ',', '_', '-', '>', '.', '?', '/', '~', '`', '{', ']', '[', '|', '\\', '}', '"',
     'plus', 'space', 'tab', 'capslock', 'numlock', 'scrolllock', 'backspace', 'delete', 'insert', 'return', 'enter', 'up', 'down', 'left', 'right',
     'home', 'end', 'pageup', 'pagedown', 'escape', 'esc', 'volumeup', 'volumedown', 'volumemute', 'medianexttrack', 'mediaprevioustrack', 'mediastop', 'mediaplaypause',
-    'printscreen', 'num0', 'num1', 'num2', 'num3', 'num4', 'num5', 'num6', 'num7', 'num8', 'num9', 'numdec', 'numadd', 'numsub', 'nummult', 'numdiv'
+    'printscreen', 'num0', 'num1', 'num2', 'num3', 'num4', 'num5', 'num6', 'num7', 'num8', 'num9', 'numdec', 'numadd', 'numsub', 'nummult', 'numdiv',
   ]);
 
   // Check each part
@@ -79,7 +87,9 @@ export const isValidShortcut = (shortcut: string): boolean => {
  * @returns normalized shortcut string
  */
 export const normalizeShortcut = (shortcut: string): string => {
-  if (!shortcut) return '';
+  if (!shortcut) {
+    return '';
+  }
 
   const trimmedShortcut = shortcut.trim();
   if (!trimmedShortcut) {
@@ -137,14 +147,11 @@ export const getCrossPlatformShortcut = (shortcut: string): string => {
   const normalized = normalizeShortcut(shortcut);
   const parts = normalized.split('+');
 
-  // Convert commandorcontrol to appropriate modifier based on platform
-  // This is a simplified approach - in a real Electron app, you'd detect the platform
-  const platform = typeof window !== 'undefined' ? (navigator.userAgent.includes('Mac') ? 'mac' : 'windows') : 'windows';
-
   const crossPlatformParts = parts.map(part => {
     if (part === 'commandorcontrol') {
-      return platform === 'mac' ? 'command' : 'control';
+      return platform === 'darwin' ? 'command' : 'control';
     }
+
     return part;
   });
 

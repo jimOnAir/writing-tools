@@ -1,4 +1,5 @@
-import { ReportHandler } from 'web-vitals';
+import { logger } from '@writing-tools/shared';
+import type { ReportHandler } from 'web-vitals';
 
 const reportWebVitals = (onPerfEntry?: ReportHandler) => {
   if (onPerfEntry && onPerfEntry instanceof Function) {
@@ -8,6 +9,11 @@ const reportWebVitals = (onPerfEntry?: ReportHandler) => {
       getFCP(onPerfEntry);
       getLCP(onPerfEntry);
       getTTFB(onPerfEntry);
+    }).catch((error: unknown) => {
+      const errorText = error instanceof Error
+        ? error.message
+        : String(error);
+      logger.error('Error loading web-vitals: %s', errorText);
     });
   }
 };

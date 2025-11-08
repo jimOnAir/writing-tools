@@ -1,16 +1,23 @@
-import { Message, Ollama } from 'ollama';
-import { loadSettings } from './settings';
 import { logger } from '@writing-tools/shared';
+import type { Message } from 'ollama';
+import { Ollama } from 'ollama';
+
+import { loadSettings } from './settings';
 
 export async function fetchOllamaModels() {
   try {
     const settings = loadSettings();
     const ollama = new Ollama({ host: settings.ollama.address });
     const response = await ollama.list();
-    return { models: response.models };
-  } catch (error: any) {
-    logger.error('Failed to fetch Ollama models: %s', error);
-    return { error: error.message };
+
+    return { models: response.models.map(m => m.name) };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error
+      ? error.message
+      : String(Error);
+    logger.error('Failed to fetch Ollama models: %s', errorMessage);
+
+    return { error: errorMessage };
   }
 }
 
@@ -19,15 +26,22 @@ export async function sendOllamaMessages(messages: Message[]) {
     const settings = loadSettings();
     const { address, model } = settings.ollama;
     const ollama = new Ollama({ host: address });
+    if (!model) {
+      throw new Error('Model not specified');
+    }
     const response = await ollama.chat({
-      model: model!,
+      model,
       messages,
-      stream: false
+      stream: false,
     });
 
     return { response: response.message.content };
-  } catch (error: any) {
-    logger.error('Failed to send message to Ollama: %s', error);
-    return { error: error.message };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error
+      ? error.message
+      : String(Error);
+    logger.error('Failed to fetch Ollama models: %s', errorMessage);
+
+    return { error: errorMessage };
   }
 }

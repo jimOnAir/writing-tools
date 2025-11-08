@@ -1,27 +1,30 @@
-import { IpcRendererEvent, contextBridge, ipcRenderer } from 'electron';
+import type { IpcRendererEvent } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 
 type TIpcRenderListener = (event: IpcRendererEvent, ...args: any[]) => void;
 
-
 if (typeof window !== 'undefined') {
-
   let chatWindowDataListener: TIpcRenderListener;
   let ollamaResonseListener: TIpcRenderListener;
   contextBridge.exposeInMainWorld('electronAPI', {
-    send: (ch: string, data: any) => ipcRenderer.send(ch, data),
-    invoke: (ch: string, data: any) => ipcRenderer.invoke(ch, data),
+    send: (ch: string, data: any) => {
+      ipcRenderer.send(ch, data);
+    },
+    invoke: async (ch: string, data: any) => ipcRenderer.invoke(ch, data),
     onChatWindowData: (cb: Function) => {
       chatWindowDataListener = (_, message: any) => cb(message);
+
       return ipcRenderer.on('chat-window-data', chatWindowDataListener);
     },
     offChatWindowData: (cb: Function) => {
       return ipcRenderer.off('chat-window-data', chatWindowDataListener);
     },
-    onOllamaResponse:  (cb: Function) => {
+    onOllamaResponse: (cb: Function) => {
       ollamaResonseListener = (_, message) => cb(message);
-      return ipcRenderer.on('ollama-response',ollamaResonseListener );
+
+      return ipcRenderer.on('ollama-response', ollamaResonseListener);
     },
-    offOllamaResponse:  () => {
+    offOllamaResponse: () => {
       return ipcRenderer.off('ollama-response', ollamaResonseListener);
     },
   });

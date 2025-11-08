@@ -1,8 +1,10 @@
-import { globalShortcut, clipboard } from 'electron';
-import { loadSettings } from './settings';
-import { sendOllamaMessages } from './ollamaHandlers';
-import { getChatWindow } from './windows';
 import { logger } from '@writing-tools/shared';
+import { globalShortcut } from 'electron';
+
+import { getSelectedText } from './getSelectedText';
+import { sendOllamaMessages } from './ollamaHandlers';
+import { loadSettings } from './settings';
+import { getChatWindow } from './windows';
 
 const TEXT_REPLACEMENT = '{text}';
 export const registerGlobalShortcuts = () => {
@@ -13,25 +15,36 @@ export const registerGlobalShortcuts = () => {
   if (settings.globalShortcut) {
     try {
       globalShortcut.register(settings.globalShortcut, () => {
-        processGlobalShortcut();
+        processGlobalShortcut().catch((error: unknown) => {
+          const errorText = error instanceof Error
+            ? error.message
+            : String(error);
+          logger.error(`Error processing shortcut: %s`, errorText);
+        });
       });
       logger.info(`Registered global shortcut: ${settings.globalShortcut}`);
-    } catch (error: any) {
-      logger.error(`Failed to register global shortcut ${settings.globalShortcut}: %s`, error);
+    } catch (error: unknown) {
+      const errorText = error instanceof Error
+        ? error.message
+        : String(error);
+      logger.error(`Failed to register global shortcut ${settings.globalShortcut}: %s`, errorText);
     }
   }
 };
 
 export async function processGlobalShortcut() {
   try {
-    const settings = loadSettings();
+    console.log('processingShortcut');
+    const selectedText = getSelectedText();
+    console.log(`selectedText`, selectedText);
 
-    const clipboardText = clipboard.readText();
+    if (!selectedText || !selectedText.trim()) {
+      logger.warn('No text selected, nothing to process');
 
-    if (!clipboardText || !clipboardText.trim()) {
-      logger.warn('Clipboard is empty, nothing to process');
       return;
     }
+
+    const settings = loadSettings();
 
     let promptTemplate = settings.ollama.prompt || `Summarize the following text in one sentence: ${TEXT_REPLACEMENT}`;
 
@@ -39,9 +52,9 @@ export async function processGlobalShortcut() {
       promptTemplate = promptTemplate + `\n${TEXT_REPLACEMENT}`;
     }
 
-    const prompt = promptTemplate.replace(TEXT_REPLACEMENT, clipboardText);
+    const prompt = promptTemplate.replace(TEXT_REPLACEMENT, selectedText);
 
-    const { window: chatWindow, created: windowCreated }= getChatWindow();
+    const { window: chatWindow, created: windowCreated } = await getChatWindow();
 
     if (windowCreated) {
       // Always wait for ready-to-show to ensure the window is properly initialized
@@ -71,12 +84,11 @@ export async function processGlobalShortcut() {
 
     if (response.error) {
       logger.error('Ollama error: %s', response.error);
-      // Update chat window with error
-      if (chatWindow) {
-        chatWindow.webContents.send('ollama-response', {
-          error: response.error,
-        });
-      }
+
+      chatWindow.webContents.send('ollama-response', {
+        error: response.error,
+      });
+
       return;
     }
 
@@ -84,8 +96,10 @@ export async function processGlobalShortcut() {
     chatWindow.webContents.send('ollama-response', {
       result,
     });
-
-  } catch (error: any) {
-    logger.error('Error processing clipboard content: %s', error.message || 'Unknown error');
+  } catch (error: unknown) {
+    const errorText = error instanceof Error
+      ? error.message
+      : String(error);
+    logger.error('Error processing clipboard content: %s', errorText);
   }
 }

@@ -1,12 +1,13 @@
 import './App.css';
-import Settings from './Settings';
 import ChatComponent from './components/ChatComponent';
+import Settings from './Settings';
 
 // Check for query parameter to determine if we should show settings
 const getUrlParams = () => {
   const urlParams = new URLSearchParams(window.location.search);
+
   return {
-    view: urlParams.get('view')
+    view: urlParams.get('view'),
   };
 };
 

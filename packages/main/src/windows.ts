@@ -1,13 +1,21 @@
 import { BrowserWindow } from 'electron';
+import isDev from 'electron-is-dev';
 import * as path from 'path';
 import * as url from 'url';
-import isDev from 'electron-is-dev';
+
 import { getAppIcon } from './icons';
 
 let settingsWindow: Electron.BrowserWindow | null = null;
 let chatWindow: Electron.BrowserWindow | null = null;
 
-export function getChatWindow() {
+export async function getChatWindow() {
+  if (chatWindow) {
+    chatWindow.show();
+    chatWindow.focus();
+
+    return { created: false, window: chatWindow };
+  }
+
   chatWindow = new BrowserWindow({
     height: 800,
     webPreferences: {
@@ -22,37 +30,39 @@ export function getChatWindow() {
   });
   chatWindow.setMenu(null);
 
-  const rendererUrl = isDev
+  const rendererUrl = getRendererUrl();
+
+  await chatWindow.loadURL(rendererUrl);
+
+  if (isDev) {
+    chatWindow.webContents.openDevTools();
+  }
+
+  chatWindow.on('closed', () => {
+    chatWindow = null;
+  });
+
+  chatWindow.show();
+  chatWindow.focus();
+
+  return { window: chatWindow, created: true };
+}
+
+function getRendererUrl() {
+  return isDev
     ? 'http://localhost:3000'
     : url.format({
       pathname: path.join(__dirname, 'index.html'),
       protocol: 'file:',
       slashes: true,
-  });
-
-  chatWindow.loadURL(rendererUrl);
-
-  // Open DevTools in development mode
-  if (isDev) {
-    chatWindow.webContents.openDevTools();
-  }
-
-  // Handle window close event
-  chatWindow.on('closed', () => {
-    chatWindow = null;
-  });
-
-  // Return the window instance
-  chatWindow.show();
-  chatWindow.focus();
-  return { window: chatWindow, created: true };
+    });
 }
 
-export function createSettingsWindow() {
+export async function createSettingsWindow() {
   if (settingsWindow) {
-    // If window already exists, focus it
     settingsWindow.show();
     settingsWindow.focus();
+
     return;
   }
 
@@ -70,22 +80,9 @@ export function createSettingsWindow() {
 
   settingsWindow.setMenu(null);
 
-  // For development, we'll load the settings component in the main window
-  // For production, we would create a separate window with settings.html
-  const rendererUrl = isDev
-    ? 'http://localhost:3000'
-    : url.format({
-      pathname: path.join(__dirname, 'index.html'),
-      protocol: 'file:',
-      slashes: true,
-  });
+  const settingsUrl = getRendererUrl() + '?view=settings';
 
-  // Add a query parameter to indicate we want to show settings
-  const settingsUrl = isDev
-    ? rendererUrl + '?view=settings'
-    : rendererUrl;
-
-  settingsWindow.loadURL(settingsUrl);
+  await settingsWindow.loadURL(settingsUrl);
 
   // Open DevTools in development mode
   if (isDev) {

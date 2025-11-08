@@ -1,10 +1,14 @@
+/* eslint-disable max-lines */
+import type { ISettings, TIpcEvent } from '@writing-tools/shared';
+import { DefaultSettings, logger, EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 import React, { useState, useEffect } from 'react';
-import { DefaultSettings, isValidShortcut, ISettings, logger } from '@writing-tools/shared/';
+
 import { ButtonStyles, InputStyles } from './styles/Styles';
+import { isValidShortcut } from './utils/globalShortcuts';
 
 const Settings: React.FC = () => {
   const [settings, setSettings] = useState<ISettings>(DefaultSettings);
-  const [originalSettings, setOriginalSettings] = useState<ISettings | null>(null);
+  const [originalSettings, setOriginalSettings] = useState<ISettings>(DefaultSettings);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,60 +22,87 @@ const Settings: React.FC = () => {
         // Check if electronAPI is available (for development mode)
         if (typeof window.electronAPI === 'undefined') {
           logger.warn('electronAPI not available, using default settings');
+
           return;
         }
-        logger.info('Attempting to load settings via electronAPI');
-        const loadedSettings = await window.electronAPI.invoke('load-settings');
-        logger.info('Loaded settings: %s', loadedSettings);
+
+        const message: TIpcEvent<EIpcChannel.SETTINGS, EIpcEvent.SETTINGS_LOAD> = {
+          channel: EIpcChannel.SETTINGS,
+          event: EIpcEvent.SETTINGS_LOAD,
+          payload: {},
+        };
+
+        const loadedSettings = await window.electronAPI.invoke(EIpcChannel.SETTINGS, message);
         setSettings(loadedSettings);
         setOriginalSettings(loadedSettings);
 
         // Fetch models when settings are loaded
-        if (loadedSettings.ollama?.address) {
-          await fetchAvailableModelsInternal(loadedSettings.ollama.address);
+        if (loadedSettings.ollama.address) {
+          fetchAvailableModelsInternal(loadedSettings.ollama.address);
         }
       } catch (err) {
-        logger.error('Failed to load settings: %s', err);
+        const errorText = err instanceof Error
+          ? err.message
+          : String(err);
+        logger.error('Failed to load settings: %s', errorText);
         // Use default settings
       }
     };
 
-    loadSettingsAndModels();
+    loadSettingsAndModels()
+      .catch((err: unknown) => {
+        const errorText = err instanceof Error
+          ? err.message
+          : String(err);
+        logger.error('Failed to load settings: %s', errorText);
+      });
   }, []);
 
-  // Fetch available models from Ollama using IPC communication
-  const fetchAvailableModelsInternal = async (address?: string) => {
-    if (!address) return;
+  const fetchAvailableModelsInternal = (address?: string) => {
+    if (!address) {
+      return;
+    }
 
     setLoadingModels(true);
     setError(null);
 
-    try {
-      // Use IPC to fetch models from main process
-      const result = await window.electronAPI.invoke('fetch-ollama-models', address);
+    // Use IPC to fetch models from main process
 
-      if (result.error) {
-        throw new Error(result.error);
-      }
+    const payload: TIpcEvent<EIpcChannel.MODEL, EIpcEvent.MODEL_LIST> = {
+      channel: EIpcChannel.MODEL,
+      event: EIpcEvent.MODEL_LIST,
+      payload: {},
+    };
 
-      const models = result.models.map((model: any) => model.name);
-      setAvailableModels(models);
-    } catch (err: any) {
-      setError('Failed to fetch available models from Ollama. Please check the address and ensure Ollama is running.');
-      logger.error('Failed to fetch models: %s', err);
-    } finally {
-      setLoadingModels(false);
-    }
+    window.electronAPI.invoke(EIpcChannel.MODEL, payload)
+      .then((result) => {
+        if ('error' in result) {
+          throw new Error(result.error);
+        }
+
+        setAvailableModels(result.models);
+      })
+      .catch((err: unknown) => {
+        const errorText = err instanceof Error
+          ? err.message
+          : String(err);
+        setError('Failed to fetch available models from Ollama. Please check the address and ensure Ollama is running.');
+        logger.error('Failed to fetch models: %s', errorText);
+      })
+      .finally(() => {
+        setLoadingModels(false);
+      });
   };
 
-  const fetchAvailableModels = async () => {
+  const fetchAvailableModels = () => {
     // Check if electronAPI is available (for development mode)
     if (typeof window.electronAPI === 'undefined') {
       logger.warn('electronAPI not available');
+
       return;
     }
 
-    await fetchAvailableModelsInternal(settings.ollama.address);
+    fetchAvailableModelsInternal(settings.ollama.address);
   };
 
   // Handle input changes
@@ -81,8 +112,8 @@ const Settings: React.FC = () => {
       ...prev,
       ollama: {
         ...prev.ollama,
-        address: newAddress
-      }
+        address: newAddress,
+      },
     }));
 
     // Automatically fetch models when address changes
@@ -96,8 +127,8 @@ const Settings: React.FC = () => {
       ...prev,
       ollama: {
         ...prev.ollama,
-        model: e.target.value
-      }
+        model: e.target.value,
+      },
     }));
   };
 
@@ -105,88 +136,91 @@ const Settings: React.FC = () => {
   const handleAddShortcut = () => {
     if (!newShortcut.trim()) {
       setError('Please enter a valid shortcut combination');
+
       return;
     }
 
     // Basic validation for shortcut format
     if (newShortcut.trim().length < 2) {
       setError('Shortcut must be at least 2 characters long');
+
       return;
     }
 
     // Validate shortcut format
     if (!isValidShortcut(newShortcut.trim())) {
       setError('Invalid shortcut format. Please use a valid combination like Ctrl+Shift+X');
+
       return;
     }
 
     // Set the new shortcut
     setSettings(prev => ({
       ...prev,
-      globalShortcut: newShortcut.trim()
-        }));
+      globalShortcut: newShortcut.trim(),
+    }));
 
-        setNewShortcut('');
-        setError(null);
-        setSuccess('Shortcut set successfully');
-        setTimeout(() => setSuccess(null), 3000);
-      };
+    setNewShortcut('');
+    setError(null);
+    setSuccess('Shortcut set successfully');
+    setTimeout(() => {
+      setSuccess(null);
+    }, 3000);
+  };
 
-      // Handle removing a shortcut
-      const handleRemoveShortcut = () => {
-        setSettings(prev => ({
-          ...prev,
-          globalShortcut: undefined
-        }));
+  // Handle removing a shortcut
+  const handleRemoveShortcut = () => {
+    setSettings(prev => ({
+      ...prev,
+      globalShortcut: undefined,
+    }));
 
-        setSuccess('Shortcut removed successfully');
-        setTimeout(() => setSuccess(null), 3000);
-      };
+    setSuccess('Shortcut removed successfully');
+    setTimeout(() => {
+      setSuccess(null);
+    }, 3000);
+  };
 
-      // Save settings to file
-      const handleSave = async () => {
-        try {
-          // Check if electronAPI is available (for development mode)
-          if (typeof window.electronAPI === 'undefined') {
-            logger.warn('electronAPI not available');
-            setError('Cannot save settings - application not running in Electron environment');
-            return;
-      }
+  const handleSave = () => {
+    // Check if electronAPI is available (for development mode)
+    if (typeof window.electronAPI === 'undefined') {
+      logger.warn('electronAPI not available');
+      setError('Cannot save settings - application not running in Electron environment');
 
-      const result = await window.electronAPI.invoke('save-settings', settings);
-      if (result.success) {
-        alert('Settings saved successfully!');
-        // In a real implementation, you would close the window here
-      } else {
-        setError(`Failed to save settings: ${result.error}`);
-        logger.error('Failed to save settings: %s', result.error);
-      }
-    } catch (err) {
-      logger.error('Failed to save settings: %s', err);
-      setError('Failed to save settings');
+      return;
     }
+
+    const message: TIpcEvent<EIpcChannel.SETTINGS, EIpcEvent.SETTINGS_SAVE> = {
+      channel: EIpcChannel.SETTINGS,
+      event: EIpcEvent.SETTINGS_SAVE,
+      payload: settings,
+    };
+
+    window.electronAPI.invoke(EIpcChannel.SETTINGS, message)
+      .then((result) => {
+        if (result.success) {
+          alert('Settings saved successfully!');
+          // In a real implementation, you would close the window here
+        } else {
+          setError(`Failed to save settings: ${result.error}`);
+          logger.error('Failed to save settings: %s', result.error);
+        }
+      }).catch((err: unknown) => {
+        const errorText = err instanceof Error
+          ? err.message
+          : String(err);
+        logger.error('Failed to save settings: %s', errorText);
+        setError('Failed to save settings');
+      });
   };
 
   // Cancel changes
   const handleCancel = () => {
-    // Check if electronAPI is available (for development mode)
-    if (typeof window.electronAPI === 'undefined') {
-      logger.warn('electronAPI not available');
-      return;
-    }
-
-    // Reload settings from main process to revert changes
-    window.electronAPI.invoke('load-settings').then((loadedSettings: ISettings) => {
-      setSettings(loadedSettings);
-    });
-    // In a real implementation, you would close the window here
+    setSettings(originalSettings);
   };
 
   // Check if there are unsaved changes
   const hasUnsavedChanges = () => {
-    if (!originalSettings) {
-      return false;
-    }
     return JSON.stringify(settings) !== JSON.stringify(originalSettings);
   };
 
@@ -226,7 +260,7 @@ const Settings: React.FC = () => {
           <button
             onClick={fetchAvailableModels}
             disabled={loadingModels}
-            className={ButtonStyles.base + " " + (loadingModels ? ButtonStyles.disabled : ButtonStyles.primary)}
+            className={ButtonStyles.base + ' ' + (loadingModels ? ButtonStyles.disabled : ButtonStyles.primary)}
           >
             {loadingModels ? 'Loading...' : 'Refresh Models'}
           </button>
@@ -240,15 +274,17 @@ const Settings: React.FC = () => {
         </label>
         <textarea
           value={settings.ollama.prompt || ''}
-          onChange={(e) => setSettings(prev => ({
-            ...prev,
-            ollama: {
-              ...prev.ollama,
-              prompt: e.target.value
-            }
-          }))}
+          onChange={(e) => {
+            setSettings(prev => ({
+              ...prev,
+              ollama: {
+                ...prev.ollama,
+                prompt: e.target.value,
+              },
+            }));
+          }}
           placeholder="Enter a custom prompt template (use {text} as placeholder for clipboard content)"
-          className={InputStyles + " h-32"}
+          className={InputStyles + ' h-32'}
         />
         <p className="mt-2 text-sm text-gray-500">
           The prompt will be used when processing clipboard text with the global shortcut.
@@ -264,13 +300,15 @@ const Settings: React.FC = () => {
             <input
               type="text"
               value={newShortcut}
-              onChange={(e) => setNewShortcut(e.target.value)}
+              onChange={(e) => {
+                setNewShortcut(e.target.value);
+              }}
               placeholder="e.g., Ctrl+Shift+X"
               className={InputStyles}
             />
             <button
               onClick={handleAddShortcut}
-              className={ButtonStyles.base + " " + ButtonStyles.primary}
+              className={ButtonStyles.base + ' ' + ButtonStyles.primary}
             >
               Set Shortcut
             </button>
@@ -292,7 +330,7 @@ const Settings: React.FC = () => {
               </div>
               <button
                 onClick={handleRemoveShortcut}
-                className={ButtonStyles.base + " " + ButtonStyles.primary}
+                className={ButtonStyles.base + ' ' + ButtonStyles.primary}
               >
                 Remove
               </button>
@@ -307,14 +345,14 @@ const Settings: React.FC = () => {
         <button
           onClick={handleSave}
           disabled={!hasUnsavedChanges()}
-          className={ButtonStyles.base + " " + (hasUnsavedChanges() ? ButtonStyles.success : ButtonStyles.disabled)}
+          className={ButtonStyles.base + ' ' + (hasUnsavedChanges() ? ButtonStyles.success : ButtonStyles.disabled)}
         >
           Save
         </button>
         <button
           onClick={handleCancel}
           disabled={!hasUnsavedChanges()}
-          className={ButtonStyles.base + " " + (hasUnsavedChanges() ? ButtonStyles.secondary : ButtonStyles.disabled)}
+          className={ButtonStyles.base + ' ' + (hasUnsavedChanges() ? ButtonStyles.secondary : ButtonStyles.disabled)}
         >
           Cancel
         </button>

@@ -1,5 +1,12 @@
-export { DefaultSettings } from './const/DefaultSettings';
-export { logger } from './utils/logger';
+export type { IChatMessage } from './interfaces/IChatMessage';
+export type { IChatWindowData } from './interfaces/IChatWindowData';
 export type { ILogger } from './interfaces/ILogger';
 export type { ISettings } from './interfaces/ISettings';
-export { isValidShortcut } from './utils/shortcuts';
+export type { TChatResponse } from './types/TChatResponse';
+export type { TFetchModelsOllamaResponse } from './types/TFetchModelsOllamaResponse';
+export { DefaultSettings } from './const/DefaultSettings';
+export { EIpcChannel } from './enum/EIpcChannel';
+export { EIpcEvent } from './enum/EIpcEvent';
+export { logger } from './utils/logger';
+export type { TIpcEvent, TIpcEventPayload } from './types/TIpcChannelEventPayload';
+export type { TIpcResponsePayload } from './types/TIpcChannelEventResponse';

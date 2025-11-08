@@ -1,5 +1,6 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import React from 'react';
+
 import ChatComponent from './ChatComponent';
 
 // Mock the electronAPI for testing
@@ -11,7 +12,7 @@ const mockElectronAPI = {
 // Mock window.electronAPI
 Object.defineProperty(window, 'electronAPI', {
   value: mockElectronAPI,
-  writable: true
+  writable: true,
 });
 
 describe('ChatComponent', () => {
@@ -30,7 +31,7 @@ describe('ChatComponent', () => {
   test('allows sending a message', async () => {
     // Mock successful response from Ollama
     mockElectronAPI.invoke.mockResolvedValue({
-      response: 'This is a simulated response from Ollama'
+      response: 'This is a simulated response from Ollama',
     });
 
     render(<ChatComponent />);
@@ -56,7 +57,7 @@ describe('ChatComponent', () => {
   test('shows error when Ollama is unavailable', async () => {
     // Mock error response from Ollama
     mockElectronAPI.invoke.mockResolvedValue({
-      error: 'Connection refused'
+      error: 'Connection refused',
     });
 
     render(<ChatComponent />);

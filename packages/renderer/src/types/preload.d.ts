@@ -1,13 +1,14 @@
-// Type definitions for preload script
+import type { EIpcChannel, TIpcResponsePayload, TIpcEvent } from '@writing-tools/shared';
+import type { EIpcEvent } from '@writing-tools/shared';
+
 declare global {
   interface Window {
     electronAPI: {
-      invoke: (channel: string, data?: any) => Promise<any>;
-      send: (channel: string, data?: any) => void;
-      onChatWindowData: (callback: (data?: any) => void) => void;
-      offChatWindowData: (callback: (data?: any) => void) => void;
-      onOllamaResponse: (callback: (data?: any) => void) => void;
-      offOllamaResponse: (callback: (data?: any) => void) => void;
+      invoke: <T extends EIpcChannel, K extends EIpcEvent>(channel: T, data: TIpcEvent<T, K>) => Promise<TIpcResponsePayload<K>>,
+      onChatWindowData: (callback: (data: { prompt: string }) => void) => void,
+      offChatWindowData: (callback: (data: { prompt: string }) => void) => void,
+      onOllamaResponse: (callback: (data?: any) => void) => void,
+      offOllamaResponse: (callback: (data?: any) => void) => void,
     };
   }
 }

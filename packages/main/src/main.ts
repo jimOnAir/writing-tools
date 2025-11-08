@@ -1,12 +1,12 @@
+import { logger } from '@writing-tools/shared';
 import { app } from 'electron';
-import { getChatWindow } from './windows';
-import { createTray } from './tray';
+
 import { registerIpcHandlers } from './ipcHandlers';
 import { registerGlobalShortcuts } from './shortcuts';
-import { logger } from '@writing-tools/shared';
+import { createTray } from './tray';
+import { getChatWindow } from './windows';
 
 registerIpcHandlers();
-logger.setEnvironment('development');
 
 app.on('ready', () => {
   createTray();
@@ -18,9 +18,19 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  getChatWindow();
+  getChatWindow().catch((error: unknown) => {
+    const errorText = error instanceof Error
+      ? error.message
+      : String(error);
+    logger.error(`Can't show window: %s`, errorText);
+  });
 });
 
 app.on('second-instance', () => {
-  getChatWindow();
+  getChatWindow().catch((error: unknown) => {
+    const errorText = error instanceof Error
+      ? error.message
+      : String(error);
+    logger.error(`Can't show window: %s`, errorText);
+  });
 });

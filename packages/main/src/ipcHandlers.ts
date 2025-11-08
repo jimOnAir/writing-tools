@@ -1,28 +1,63 @@
+import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
+import type { TIpcEvent } from '@writing-tools/shared';
 import { ipcMain } from 'electron';
-import { loadSettings, saveSettings } from './settings';
+import os from 'os';
+
 import { fetchOllamaModels, sendOllamaMessages } from './ollamaHandlers';
-import { Message } from 'ollama';
-import { ISettings } from '@writing-tools/shared/src/interfaces/ISettings'
+import { loadSettings, saveSettings } from './settings';
+
+type TChannelEventPayloadEnv = TIpcEvent<EIpcChannel.ENV, EIpcEvent.ENV_GET>;
+
+type TSettingChannelEventPayload = TIpcEvent<EIpcChannel.SETTINGS, EIpcEvent.SETTINGS_LOAD>
+  | TIpcEvent<EIpcChannel.SETTINGS, EIpcEvent.SETTINGS_SAVE>;
+
+type TChannelEventPayloadModel = TIpcEvent<EIpcChannel.MODEL, EIpcEvent.MODEL_LIST>;
+
+type TChatChannelEventPayload = TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_MESSAGE>;
 
 export function registerIpcHandlers() {
-  ipcMain.handle('load-settings', async () => {
-    return loadSettings();
+  ipcMain.handle(EIpcChannel.ENV, (_, _data: TChannelEventPayloadEnv) => {
+    return {
+      platform: os.platform(), // 'win32', 'darwin', 'linux'
+      arch: os.arch(), // 'x64', 'arm64', etc.
+      release: os.release(),
+    };
   });
 
-  ipcMain.handle('save-settings', async (_, settings: ISettings) => {
-    try {
-      saveSettings(settings);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
+  ipcMain.handle(EIpcChannel.SETTINGS, (_, data: TSettingChannelEventPayload) => {
+    const eventType = String((data as any).event);
+
+    switch (data.event) {
+      case EIpcEvent.SETTINGS_LOAD:
+        return loadSettings();
+      case EIpcEvent.SETTINGS_SAVE:
+        try {
+          saveSettings(data.payload);
+
+          return;
+        } catch (error: unknown) {
+          const errorText = error instanceof Error
+            ? error.message
+            : String(error);
+
+          return { success: false, error: errorText };
+        }
+
+      default:
+        throw new Error(`Unsupported event: ${eventType}`);
     }
   });
 
-  ipcMain.handle('fetch-ollama-models', async (_) => {
+  ipcMain.handle(EIpcChannel.MODEL, async (_, _data: TChannelEventPayloadModel) => {
     return fetchOllamaModels();
   });
 
-  ipcMain.handle('send-ollama-message', async (_, { messages } : { messages: Message[] }) => {
-    return sendOllamaMessages(messages);
+  ipcMain.handle(EIpcChannel.CHAT, async (_, data: TChatChannelEventPayload) => {
+    return sendOllamaMessages(data.payload.messages.map((message => {
+      return {
+        role: message.role,
+        content: message.content,
+      };
+    })));
   });
 }
