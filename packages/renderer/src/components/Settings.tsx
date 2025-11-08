@@ -1,10 +1,10 @@
 /* eslint-disable max-lines */
-import type { ISettings, TIpcEvent } from '@writing-tools/shared';
+import type { IPreconfiguredPrompt, ISettings, TIpcEvent } from '@writing-tools/shared';
 import { DefaultSettings, logger, EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 import React, { useState, useEffect } from 'react';
 
-import { ButtonStyles, InputStyles } from './styles/Styles';
-import { isValidShortcut } from './utils/globalShortcuts';
+import { ButtonStyles, InputStyles } from '../styles/Styles';
+import { isValidShortcut } from '../utils/globalShortcuts';
 
 const Settings: React.FC = () => {
   const [settings, setSettings] = useState<ISettings>(DefaultSettings);
@@ -181,6 +181,48 @@ const Settings: React.FC = () => {
     }, 3000);
   };
 
+  // Handle adding a new preconfigured prompt
+  const handleAddPreconfiguredPrompt = () => {
+    const newPrompt: IPreconfiguredPrompt = {
+      title: 'New Prompt',
+      prompt: 'Enter your prompt here...',
+    };
+
+    setSettings(prev => ({
+      ...prev,
+      preconfiguredPrompts: [...(prev.preconfiguredPrompts), newPrompt],
+    }));
+  };
+
+  // Handle removing a preconfigured prompt
+  const handleRemovePreconfiguredPrompt = (index: number) => {
+    setSettings(prev => {
+      const newPrompts = [...prev.preconfiguredPrompts];
+      newPrompts.splice(index, 1);
+
+      return {
+        ...prev,
+        preconfiguredPrompts: newPrompts,
+      };
+    });
+  };
+
+  // Handle updating a preconfigured prompt
+  const handleUpdatePreconfiguredPrompt = (index: number, field: keyof IPreconfiguredPrompt, value: string) => {
+    setSettings(prev => {
+      const newPrompts = [...prev.preconfiguredPrompts];
+      newPrompts[index] = {
+        ...newPrompts[index],
+        [field]: value,
+      };
+
+      return {
+        ...prev,
+        preconfiguredPrompts: newPrompts,
+      };
+    });
+  };
+
   const handleSave = () => {
     // Check if electronAPI is available (for development mode)
     if (typeof window.electronAPI === 'undefined') {
@@ -269,27 +311,56 @@ const Settings: React.FC = () => {
       </div>
 
       <div className="mb-6">
-        <label className="block mb-2 font-medium text-gray-400">
-          Custom Prompt:
-        </label>
-        <textarea
-          value={settings.ollama.prompt || ''}
-          onChange={(e) => {
-            setSettings(prev => ({
-              ...prev,
-              ollama: {
-                ...prev.ollama,
-                prompt: e.target.value,
-              },
-            }));
-          }}
-          placeholder="Enter a custom prompt template (use {text} as placeholder for clipboard content)"
-          className={InputStyles + ' h-32'}
-        />
-        <p className="mt-2 text-sm text-gray-500">
-          The prompt will be used when processing clipboard text with the global shortcut.
-          Use &#123;text&#125; as a placeholder for the clipboard content.
+        <h3 className="text-xl font-semibold mb-4 text-white">Preconfigured Prompts</h3>
+        <p className="text-gray-400 mb-4">
+          These prompts will be used when processing selected text with the global shortcut.
+          Use &#123;text&#125; as a placeholder for the selected content.
         </p>
+        <div className="space-y-4">
+          {settings.preconfiguredPrompts.map((prompt, index) => (
+            <div key={index} className="p-4 bg-gray-800 rounded-lg">
+              <div className="mb-3">
+                <label className="block mb-1 font-medium text-gray-400">
+                  Prompt Title
+                </label>
+                <input
+                  type="text"
+                  value={prompt.title}
+                  onChange={(e) => {
+                    handleUpdatePreconfiguredPrompt(index, 'title', e.target.value);
+                  }}
+                  className={InputStyles}
+                />
+              </div>
+              <div className="mb-3">
+                <label className="block mb-1 font-medium text-gray-400">
+                  Prompt Content
+                </label>
+                <textarea
+                  value={prompt.prompt}
+                  onChange={(e) => {
+                    handleUpdatePreconfiguredPrompt(index, 'prompt', e.target.value);
+                  }}
+                  className={InputStyles + ' h-24'}
+                />
+              </div>
+              <button
+                onClick={() => {
+                  handleRemovePreconfiguredPrompt(index);
+                }}
+                className={ButtonStyles.base + ' ' + ButtonStyles.error}
+              >
+                Remove Prompt
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={handleAddPreconfiguredPrompt}
+            className={ButtonStyles.base + ' ' + ButtonStyles.primary}
+          >
+            Add New Prompt
+          </button>
+        </div>
       </div>
 
       <div className="mb-6">

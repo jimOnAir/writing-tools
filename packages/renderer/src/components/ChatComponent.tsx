@@ -3,6 +3,7 @@ import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
 import React, { useState, useEffect, useRef } from 'react';
 
 import { ButtonStyles, MessageStyles, InputStyles, ErrorStyles, LoadingStyles } from '../styles/Styles';
+import type { TIpcRenderListener } from '../types/TIpcRenderListener';
 
 const ChatComponent: React.FC = () => {
   const [messages, setMessages] = useState<IChatMessage[]>([]);
@@ -71,17 +72,19 @@ const ChatComponent: React.FC = () => {
       }
     };
 
+    let chatWindowDataListener: TIpcRenderListener;
+    let ollamaResponseListener: TIpcRenderListener;
     // Set up IPC listeners
     if (typeof window.electronAPI !== 'undefined') {
-      window.electronAPI.onChatWindowData(handleChatWindowData);
-      window.electronAPI.onOllamaResponse(handleOllamaResponse);
+      chatWindowDataListener = window.electronAPI.onChatWindowData(handleChatWindowData);
+      ollamaResponseListener = window.electronAPI.onOllamaResponse(handleOllamaResponse);
     }
 
     // Cleanup function if electronAPI is not available
     return () => {
       if (typeof window.electronAPI !== 'undefined') {
-        window.electronAPI.offChatWindowData(handleChatWindowData);
-        window.electronAPI.offOllamaResponse(handleOllamaResponse);
+        window.electronAPI.offChatWindowData(chatWindowDataListener);
+        window.electronAPI.offOllamaResponse(ollamaResponseListener);
       }
     };
   }, [messages.length]);
@@ -213,7 +216,7 @@ const ChatComponent: React.FC = () => {
           onKeyDown={handleKeyPress}
           placeholder="Type your message here..."
           className={InputStyles}
-          rows={2}
+          rows={5}
           disabled={isLoading}
         />
         <button

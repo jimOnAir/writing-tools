@@ -1,6 +1,7 @@
 import './App.css';
 import ChatComponent from './components/ChatComponent';
-import Settings from './Settings';
+import PromptSelectorComponent from './components/PromptSelectorComponent';
+import Settings from './components/Settings';
 
 // Check for query parameter to determine if we should show settings
 const getUrlParams = () => {
@@ -16,6 +17,10 @@ const { view } = getUrlParams();
 function App() {
   if (view === 'settings') {
     return <Settings />;
+  }
+
+  if (view === 'prompt-selector') {
+    return <PromptSelectorComponent />;
   }
 
   return (

@@ -2,11 +2,9 @@ import { logger } from '@writing-tools/shared';
 import { globalShortcut } from 'electron';
 
 import { getSelectedText } from './getSelectedText';
-import { sendOllamaMessages } from './ollamaHandlers';
 import { loadSettings } from './settings';
-import { getChatWindow } from './windows';
+import { getPromptSelectorWindow } from './windows';
 
-const TEXT_REPLACEMENT = '{text}';
 export const registerGlobalShortcuts = () => {
   const settings = loadSettings();
 
@@ -46,55 +44,11 @@ export async function processGlobalShortcut() {
 
     const settings = loadSettings();
 
-    let promptTemplate = settings.ollama.prompt || `Summarize the following text in one sentence: ${TEXT_REPLACEMENT}`;
-
-    if (!promptTemplate.includes(TEXT_REPLACEMENT)) {
-      promptTemplate = promptTemplate + `\n${TEXT_REPLACEMENT}`;
-    }
-
-    const prompt = promptTemplate.replace(TEXT_REPLACEMENT, selectedText);
-
-    const { window: chatWindow, created: windowCreated } = await getChatWindow();
-
-    if (windowCreated) {
-      // Always wait for ready-to-show to ensure the window is properly initialized
-      chatWindow.once('ready-to-show', () => {
-        logger.info('Send chat-window-data: %s', prompt);
-
-        chatWindow.webContents.send('chat-window-data', {
-          prompt,
-        });
-      });
-    } else {
-      logger.info('Send chat-window-data: %s', prompt);
-      chatWindow.webContents.send('chat-window-data', {
-        prompt,
-      });
-
-      chatWindow.focus();
-      chatWindow.show();
-    }
-
-    const response = await sendOllamaMessages([
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ]);
-
-    if (response.error) {
-      logger.error('Ollama error: %s', response.error);
-
-      chatWindow.webContents.send('ollama-response', {
-        error: response.error,
-      });
-
-      return;
-    }
-
-    const result = response.response;
-    chatWindow.webContents.send('ollama-response', {
-      result,
+    // Show the prompt selector window instead of directly processing
+    const { window: promptSelectorWindow } = await getPromptSelectorWindow();
+    promptSelectorWindow.webContents.send('prompt-selector-data', {
+      selectedText,
+      preconfiguredPrompts: settings.preconfiguredPrompts,
     });
   } catch (error: unknown) {
     const errorText = error instanceof Error

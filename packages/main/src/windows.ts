@@ -4,9 +4,11 @@ import * as path from 'path';
 import * as url from 'url';
 
 import { getAppIcon } from './icons';
+import { loadSettings } from './settings';
 
 let settingsWindow: Electron.BrowserWindow | null = null;
 let chatWindow: Electron.BrowserWindow | null = null;
+let promptSelectorWindow: Electron.BrowserWindow | null = null;
 
 export async function getChatWindow() {
   if (chatWindow) {
@@ -46,6 +48,54 @@ export async function getChatWindow() {
   chatWindow.focus();
 
   return { window: chatWindow, created: true };
+}
+
+export async function getPromptSelectorWindow() {
+  if (promptSelectorWindow) {
+    promptSelectorWindow.show();
+    promptSelectorWindow.focus();
+
+    return { created: false, window: promptSelectorWindow };
+  }
+
+  const settings = loadSettings();
+  const promptCount = settings.preconfiguredPrompts.length;
+  const minHeight = 300;
+  const additionalHeight = promptCount * 50;
+  const height = Math.max(minHeight, minHeight + additionalHeight);
+  const width = 500;
+
+  promptSelectorWindow = new BrowserWindow({
+    height,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+    },
+    width,
+    icon: getAppIcon(),
+    title: 'Select Prompt',
+    // resizable: false,
+    // maximizable: false,
+  });
+  promptSelectorWindow.setMenu(null);
+
+  const rendererUrl = getRendererUrl() + '?view=prompt-selector';
+
+  await promptSelectorWindow.loadURL(rendererUrl);
+
+  if (isDev) {
+    promptSelectorWindow.webContents.openDevTools();
+  }
+
+  promptSelectorWindow.on('closed', () => {
+    promptSelectorWindow = null;
+  });
+
+  promptSelectorWindow.show();
+  promptSelectorWindow.focus();
+
+  return { window: promptSelectorWindow, created: true };
 }
 
 function getRendererUrl() {

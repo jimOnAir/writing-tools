@@ -3,4 +3,5 @@ export enum EIpcChannel {
   ENV = 'ENV',
   MODEL = 'MODEL',
   SETTINGS = 'SETTINGS',
+  PROMPT_SELECTOR = 'PROMPT_SELECTOR',
 }

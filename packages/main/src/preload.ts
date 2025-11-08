@@ -4,28 +4,37 @@ import { contextBridge, ipcRenderer } from 'electron';
 type TIpcRenderListener = (event: IpcRendererEvent, ...args: any[]) => void;
 
 if (typeof window !== 'undefined') {
-  let chatWindowDataListener: TIpcRenderListener;
-  let ollamaResonseListener: TIpcRenderListener;
   contextBridge.exposeInMainWorld('electronAPI', {
-    send: (ch: string, data: any) => {
-      ipcRenderer.send(ch, data);
-    },
     invoke: async (ch: string, data: any) => ipcRenderer.invoke(ch, data),
     onChatWindowData: (cb: Function) => {
-      chatWindowDataListener = (_, message: any) => cb(message);
+      const chatWindowDataListener = (_: IpcRendererEvent, message: any) => cb(message);
 
-      return ipcRenderer.on('chat-window-data', chatWindowDataListener);
+      ipcRenderer.on('chat-window-data', chatWindowDataListener);
+
+      return chatWindowDataListener;
     },
-    offChatWindowData: (cb: Function) => {
-      return ipcRenderer.off('chat-window-data', chatWindowDataListener);
+    offChatWindowData: (lisener: TIpcRenderListener) => {
+      ipcRenderer.off('chat-window-data', lisener);
     },
     onOllamaResponse: (cb: Function) => {
-      ollamaResonseListener = (_, message) => cb(message);
+      const ollamaResponseListener = (_: IpcRendererEvent, message: any) => cb(message);
 
-      return ipcRenderer.on('ollama-response', ollamaResonseListener);
+      ipcRenderer.on('ollama-response', ollamaResponseListener);
+
+      return ollamaResponseListener;
     },
-    offOllamaResponse: () => {
-      return ipcRenderer.off('ollama-response', ollamaResonseListener);
+    offOllamaResponse: (listener: TIpcRenderListener) => {
+      return ipcRenderer.off('ollama-response', listener);
+    },
+    onPromptSelectorData: (cb: Function) => {
+      const promptSelectorDataListener = (_: IpcRendererEvent, message: any) => cb(message);
+
+      ipcRenderer.on('prompt-selector-data', promptSelectorDataListener);
+
+      return promptSelectorDataListener;
+    },
+    offPromptSelectorData: (listener: TIpcRenderListener) => {
+      return ipcRenderer.off('prompt-selector-data', listener);
     },
   });
 }

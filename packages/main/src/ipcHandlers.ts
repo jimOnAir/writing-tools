@@ -1,10 +1,11 @@
-import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
+import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
 import type { TIpcEvent } from '@writing-tools/shared';
 import { ipcMain } from 'electron';
 import os from 'os';
 
 import { fetchOllamaModels, sendOllamaMessages } from './ollamaHandlers';
 import { loadSettings, saveSettings } from './settings';
+import { getChatWindow, getPromptSelectorWindow } from './windows';
 
 type TChannelEventPayloadEnv = TIpcEvent<EIpcChannel.ENV, EIpcEvent.ENV_GET>;
 
@@ -14,6 +15,8 @@ type TSettingChannelEventPayload = TIpcEvent<EIpcChannel.SETTINGS, EIpcEvent.SET
 type TChannelEventPayloadModel = TIpcEvent<EIpcChannel.MODEL, EIpcEvent.MODEL_LIST>;
 
 type TChatChannelEventPayload = TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_MESSAGE>;
+
+type TPromptSelectEventPayload = TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT>;
 
 export function registerIpcHandlers() {
   ipcMain.handle(EIpcChannel.ENV, (_, _data: TChannelEventPayloadEnv) => {
@@ -59,5 +62,42 @@ export function registerIpcHandlers() {
         content: message.content,
       };
     })));
+  });
+
+  ipcMain.handle(EIpcChannel.PROMPT_SELECTOR, async (_, data: TPromptSelectEventPayload) => {
+    const { prompt } = data.payload;
+
+    const { window: promptSelectorWindow } = await getPromptSelectorWindow();
+
+    promptSelectorWindow.close();
+
+    const { window: chatWindow } = await getChatWindow();
+
+    logger.info('Send chat-window-data: %s', prompt);
+    chatWindow.webContents.send('chat-window-data', {
+      prompt,
+    });
+
+    const response = await sendOllamaMessages([
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ]);
+
+    if (response.error) {
+      logger.error('Ollama error: %s', response.error);
+
+      chatWindow.webContents.send('ollama-response', {
+        error: response.error,
+      });
+
+      return;
+    }
+
+    const result = response.response;
+    chatWindow.webContents.send('ollama-response', {
+      result,
+    });
   });
 }

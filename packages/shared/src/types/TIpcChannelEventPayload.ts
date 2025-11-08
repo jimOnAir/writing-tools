@@ -11,6 +11,7 @@ export type TIpcEventPayload<K extends EIpcEvent> =
   K extends EIpcEvent.MODEL_LIST ? object :
   K extends EIpcEvent.CHAT_SEND_MESSAGE ? { messages: IChatMessage [] } :
   K extends EIpcEvent.ENV_GET ? object :
+  K extends EIpcEvent.PROMPT_SELECT ? { prompt: string } :
 never;
 
 export type TIpcEvent <T extends EIpcChannel, K extends EIpcEvent> = {

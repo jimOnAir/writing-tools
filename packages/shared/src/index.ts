@@ -1,12 +1,14 @@
 export type { IChatMessage } from './interfaces/IChatMessage';
 export type { IChatWindowData } from './interfaces/IChatWindowData';
 export type { ILogger } from './interfaces/ILogger';
+export type { IPreconfiguredPrompt } from './interfaces/IPreconfiguredPrompt';
+export type { IPromptSelectorData } from './interfaces/IPromptSelectorData';
 export type { ISettings } from './interfaces/ISettings';
 export type { TChatResponse } from './types/TChatResponse';
 export type { TFetchModelsOllamaResponse } from './types/TFetchModelsOllamaResponse';
+export type { TIpcEvent, TIpcEventPayload } from './types/TIpcChannelEventPayload';
+export type { TIpcResponsePayload } from './types/TIpcChannelEventResponse';
 export { DefaultSettings } from './const/DefaultSettings';
 export { EIpcChannel } from './enum/EIpcChannel';
 export { EIpcEvent } from './enum/EIpcEvent';
 export { logger } from './utils/logger';
-export type { TIpcEvent, TIpcEventPayload } from './types/TIpcChannelEventPayload';
-export type { TIpcResponsePayload } from './types/TIpcChannelEventResponse';
