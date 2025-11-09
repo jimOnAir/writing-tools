@@ -21,5 +21,3 @@ export const MessageStyles = {
 export const LoadingStyles = 'flex space-x-2';
 
 export const ErrorStyles = 'p-3 bg-red-900 text-red-100 rounded-lg';
-
-export const SuccessStyles = 'p-3 bg-green-900 text-green-100 rounded-lg';

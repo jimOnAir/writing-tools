@@ -2,6 +2,7 @@ import { EIpcChannel, logger, EIpcEvent } from '@writing-tools/shared';
 import type { IPreconfiguredPrompt, TIpcEvent, IPromptSelectorData } from '@writing-tools/shared';
 import React, { useState, useEffect } from 'react';
 import { ButtonStyles, InputStyles } from 'src/styles/Styles';
+import { renderMarkdown } from 'src/utils/markdownRenderer';
 
 import type { TIpcRenderListener } from '../types/TIpcRenderListener';
 
@@ -89,12 +90,14 @@ const PromptSelectorComponent: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full p-4 bg-gray-900">
+    <div className="flex flex-col h-full p-4 w-full bg-gray-900">
       <h1 className="text-xl font-bold mb-4 text-white">Select a Prompt</h1>
 
-      <div className="mb-4 p-3 bg-gray-800 rounded">
-        <p className="text-sm text-gray-400 mb-2">Selected text:</p>
-        <p className="text-gray-200 break-words">{selectedText}</p>
+      <div className="mb-4 p-3 bg-gray-800 rounded flex-1 overflow-y-auto">
+        <p
+          className="whitespace-pre-wrap markdown-content"
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedText) }}
+        ></p>
       </div>
 
       <div className="mb-6">
@@ -137,7 +140,7 @@ const PromptSelectorComponent: React.FC = () => {
                 : ButtonStyles.primary
             }`}
           >
-            Send Prompt
+            Send
           </button>
         </div>
       </div>

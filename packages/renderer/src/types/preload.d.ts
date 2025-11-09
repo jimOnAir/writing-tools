@@ -1,4 +1,4 @@
-import type { EIpcChannel, TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, TIpcRenderListener, EIpcEvent } from '@writing-tools/shared';
+import type { EIpcChannel, TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, EIpcEvent } from '@writing-tools/shared';
 
 import type { TIpcRenderListener } from './TIpcRenderListener';
 

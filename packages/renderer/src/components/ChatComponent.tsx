@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 
 import { ButtonStyles, MessageStyles, InputStyles, ErrorStyles, LoadingStyles } from '../styles/Styles';
 import type { TIpcRenderListener } from '../types/TIpcRenderListener';
+import { renderMarkdown } from '../utils/markdownRenderer';
 
 const ChatComponent: React.FC = () => {
   const [messages, setMessages] = useState<IChatMessage[]>([]);
@@ -177,7 +178,10 @@ const ChatComponent: React.FC = () => {
                 <div
                   className={`max-w-[80%] p-3 rounded-lg ${MessageStyles[message.role]}`}
                 >
-                  <div className="whitespace-pre-wrap">{message.content}</div>
+                  <div
+                    className="whitespace-pre-wrap markdown-content"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
+                  />
                   <div className="text-xs mt-1">
                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>

@@ -7,15 +7,15 @@
   "preconfiguredPrompts": [
     {
       "title": "Summarize",
-      "prompt": "Summarize the following text in one sentence: {text}"
+      "prompt": "Summarize the following text in one sentence:\n{text}"
     },
     {
       "title": "Explain",
-      "prompt": "Explain the following text in simple terms: {text}"
+      "prompt": "Explain the following text in simple terms:\n{text}"
     },
     {
       "title": "Translate",
-      "prompt": "Translate the following text to English: {text}"
+      "prompt": "Translate the following text to English:\n{text}"
     }
   ]
 }
