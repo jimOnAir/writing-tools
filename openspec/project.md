@@ -14,7 +14,7 @@ Creating a writing assistance application with Electron and React that can run c
 ## Project Conventions
 
 ### Code Style
-Use typical typescript conventions
+Use typical typescript conventions. Skip obvious comments. Write comment describing reasoning for non-obvious code.
 
 ### Architecture Patterns
 Use DDD (Domain-Driven Design) and TDD (Test-Driven Development)

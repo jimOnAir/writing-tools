@@ -6,7 +6,7 @@ import { loadSettings } from './settings';
 
 export async function fetchOllamaModels() {
   try {
-    const settings = loadSettings();
+    const settings = await loadSettings();
     const ollama = new Ollama({ host: settings.ollama.address });
     const response = await ollama.list();
 
@@ -23,7 +23,7 @@ export async function fetchOllamaModels() {
 
 export async function sendOllamaMessages(messages: Message[]) {
   try {
-    const settings = loadSettings();
+    const settings = await loadSettings();
     const { address, model } = settings.ollama;
     const ollama = new Ollama({ host: address });
     if (!model) {

@@ -27,15 +27,15 @@ export function registerIpcHandlers() {
     };
   });
 
-  ipcMain.handle(EIpcChannel.SETTINGS, (_, data: TSettingChannelEventPayload) => {
+  ipcMain.handle(EIpcChannel.SETTINGS, async (_, data: TSettingChannelEventPayload) => {
     const eventType = String((data as any).event);
 
     switch (data.event) {
       case EIpcEvent.SETTINGS_LOAD:
-        return loadSettings();
+        return await loadSettings();
       case EIpcEvent.SETTINGS_SAVE:
         try {
-          saveSettings(data.payload);
+          await saveSettings(data.payload);
 
           return { success: true };
         } catch (error: unknown) {

@@ -5,8 +5,8 @@ import { getSelectedText } from './getSelectedText';
 import { loadSettings } from './settings';
 import { getPromptSelectorWindow } from './windows';
 
-export const registerGlobalShortcuts = () => {
-  const settings = loadSettings();
+export const registerGlobalShortcuts = async () => {
+  const settings = await loadSettings();
 
   globalShortcut.unregisterAll();
 
@@ -42,7 +42,7 @@ export async function processGlobalShortcut() {
       return;
     }
 
-    const settings = loadSettings();
+    const settings = await loadSettings();
 
     // Show the prompt selector window instead of directly processing
     const { window: promptSelectorWindow } = await getPromptSelectorWindow();

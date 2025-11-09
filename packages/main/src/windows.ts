@@ -58,7 +58,7 @@ export async function getPromptSelectorWindow() {
     return { created: false, window: promptSelectorWindow };
   }
 
-  const settings = loadSettings();
+  const settings = await loadSettings();
   const promptCount = settings.preconfiguredPrompts.length;
   const minHeight = 300;
   const additionalHeight = promptCount * 50;
