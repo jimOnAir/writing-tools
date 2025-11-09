@@ -111,7 +111,16 @@ const PromptSelectorComponent: React.FC = () => {
               }}
               className="p-3 bg-gray-800 border border-gray-700 rounded-lg shadow-sm hover:bg-gray-700 transition-colors text-left"
             >
-              <div className="font-medium text-white">{prompt.title}</div>
+              <div className="flex items-center">
+                {prompt.icon ? (
+                  <img
+                    src={prompt.icon}
+                    alt={prompt.title}
+                    className="w-6 h-6 mr-2 object-contain"
+                  />
+                ) : null}
+                <div className="font-medium text-white">{prompt.title}</div>
+              </div>
               <div className="text-sm text-gray-400 mt-1">{prompt.prompt.replace(/\{text\}/g, '...')}</div>
             </button>
           ))}

@@ -37,7 +37,7 @@ export function registerIpcHandlers() {
         try {
           saveSettings(data.payload);
 
-          return;
+          return { success: true };
         } catch (error: unknown) {
           const errorText = error instanceof Error
             ? error.message

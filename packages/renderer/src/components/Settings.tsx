@@ -223,6 +223,18 @@ const Settings: React.FC = () => {
     });
   };
 
+  // Handle icon file upload for a prompt
+  const handleIconUpload = (index: number, file: File) => {
+    // Convert file to base64
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      // Update the prompt with the base64 icon
+      handleUpdatePreconfiguredPrompt(index, 'icon', base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = () => {
     // Check if electronAPI is available (for development mode)
     if (typeof window.electronAPI === 'undefined') {
@@ -343,6 +355,33 @@ const Settings: React.FC = () => {
                   }}
                   className={InputStyles + ' h-24'}
                 />
+              </div>
+              <div className="mb-3">
+                <label className="block mb-1 font-medium text-gray-400">
+                  Icon
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleIconUpload(index, e.target.files[0]);
+                      }
+                    }}
+                    className="text-sm text-gray-500"
+                  />
+                  {prompt.icon && (
+                    <img
+                      src={prompt.icon}
+                      alt="Preview"
+                      className="w-8 h-8 object-contain"
+                    />
+                  )}
+                </div>
+                {prompt.icon && (
+                  <p className="text-xs text-gray-500 mt-1">Icon uploaded successfully</p>
+                )}
               </div>
               <button
                 onClick={() => {
