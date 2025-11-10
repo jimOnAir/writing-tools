@@ -11,6 +11,7 @@ const ChatComponent: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -107,6 +108,7 @@ const ChatComponent: React.FC = () => {
     setInputValue('');
     setIsLoading(true);
     setError(null);
+    setHistoryIndex(-1); // Reset history index after adding new message
 
     const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_MESSAGE> = {
       channel: EIpcChannel.CHAT,
@@ -157,6 +159,40 @@ const ChatComponent: React.FC = () => {
       handleSendMessage();
       if (inputRef.current) {
         inputRef.current.focus();
+      }
+    } else if (e.key === 'ArrowUp') {
+      // Filter messages to get only user messages (excluding assistant messages)
+      const userMessages = messages.filter(msg => msg.role === 'user' && msg.content.trim() !== '');
+
+      if (userMessages.length > 0) {
+        e.preventDefault();
+        if (historyIndex === -1) {
+          // First time pressing up, start from latest user message
+          setHistoryIndex(0);
+          setInputValue(userMessages[userMessages.length - 1].content);
+        } else if (historyIndex < userMessages.length - 1) {
+          // Cycle through user messages
+          const newIndex = historyIndex + 1;
+          setHistoryIndex(newIndex);
+          setInputValue(userMessages[userMessages.length - 1 - newIndex].content);
+        }
+      }
+    } else if (e.key === 'ArrowDown') {
+      // Handle down arrow key for cycling back through history
+      const userMessages = messages.filter(msg => msg.role === 'user' && msg.content.trim() !== '');
+
+      if (userMessages.length > 0 && historyIndex !== -1) {
+        e.preventDefault();
+        if (historyIndex > 0) {
+          // Cycle back through history
+          const newIndex = historyIndex - 1;
+          setHistoryIndex(newIndex);
+          setInputValue(userMessages[userMessages.length - 1 - newIndex].content);
+        } else {
+          // Reset to empty input
+          setHistoryIndex(-1);
+          setInputValue('');
+        }
       }
     }
   };
