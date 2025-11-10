@@ -4,6 +4,7 @@
   "private": true,
   "author": "Writing Tools Team",
   "license": "MIT",
+  "homepage": "./",
   "scripts": {
     "eject": "react-scripts eject",
     "build": "react-scripts build",

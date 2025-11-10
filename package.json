@@ -2,9 +2,14 @@
   "private": true,
   "version": "1.0.0",
   "name": "writing-tools",
+  "description": "Writing Tools Desktop Application",
+  "author": "Writing Tools Team",
+  "license": "MIT",
+  "main": "main/main.js",
+
   "scripts": {
     "build": "npm run build:shared && npm run build:main && npm run build:render",
-    "build:main": "npm run build -w @writing-tools/main",
+    "build:main": "npm run build:esbuild -w @writing-tools/main",
     "build:render": "npm run build -w @writing-tools/renderer",
     "build:shared": "npm run build -w @writing-tools/shared",
     "start": "concurrently 'npm run start:render' 'npm run start:main'",
@@ -12,7 +17,9 @@
     "start:main": "npm run start -w @writing-tools/main",
     "start:render": "npm run start -w @writing-tools/renderer",
     "lint": "npm run lint -w @writing-tools/main; npm run lint -w @writing-tools/renderer; npm run lint -w @writing-tools/shared",
-    "clean": "rimraf node_modules packages/*/node_modules"
+    "clean": "rimraf node_modules packages/*/node_modules",
+    "build:electron": "electron-builder -- publish=never",
+    "prebuild:electron": "rimraf release && npm run build"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -29,12 +36,10 @@
     "globals": "^16.5.0",
     "jiti": "^2.6.1",
     "rimraf": "^6.1.0",
-    "typescript": "^5.9.3",
+    "typescript": "^4.9.5",
     "typescript-eslint": "^8.46.3"
   },
   "workspaces": [
-    "packages/main",
-    "packages/renderer",
-    "packages/shared"
+    "packages/*"
   ]
 }

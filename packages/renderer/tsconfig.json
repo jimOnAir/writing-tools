@@ -15,12 +15,13 @@
   "extends": "../../tsconfig.json",
   "include": [
     "src"
-, "src/types/TIpcRenderListener.ts", "../shared/src/interfaces/IPromptSelectorData.ts"  ],
+  ],
   "exclude": [
     "dist"
   ],
   "references": [
     {
+      "package": "@writing-tools/shared",
       "path": "../shared"
     }
   ]

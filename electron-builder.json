@@ -1,25 +1,34 @@
 {
   "appId": "com.writingtools.app",
-  "productName": "Writing Tools",
+  "asar": false,
   "directories": {
-    "output": "release"
+    "output": "release",
+    "buildResources": "resources"
   },
+  "artifactName": "${productName}-${version}.${ext}",
   "files": [
-    "dist/**/*",
-    "node_modules/**/*",
-    "public/*.png",
-    "public/favicon.ico"
+    {
+      "from": "packages/main/dist/electron-app",
+      "filter": ["!*.map"],
+      "to": "main"
+    },
+    {
+      "from": "packages/main/assets",
+      "to": "assets"
+    },
+    {
+      "from": "packages/renderer/build",
+      "to": "renderer"
+    },
+    "package.json"
   ],
-  "win": {
-    "target": "nsis",
-    "icon": "public/logo192.png"
-  },
-  "mac": {
-    "target": "dmg",
-    "icon": "public/logo192.png"
-  },
   "linux": {
-    "target": "AppImage",
-    "icon": "public/logo192.png"
+    "category": "Utility",
+    "icon": "packages/main/assets/icon.png",
+    "target": "AppImage"
+  },
+  "win": {
+    "icon": "packages/main/assets/icon.png",
+    "target": "nsis"
   }
 }

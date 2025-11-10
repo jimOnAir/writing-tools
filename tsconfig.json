@@ -22,8 +22,5 @@
   },
   "exclude": [
     "node_modules"
-  ],
-   "paths": {
-      "@writing-tools/shared": ["packages/shared/src"]
-  }
+  ]
 }

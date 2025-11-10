@@ -7,7 +7,7 @@ import path from 'path';
 export function getAppIcon() {
   const iconPath = isDev
     ? path.join(__dirname, '../../assets/logo192.png')
-    : path.join(__dirname, 'logo192.png');
+    : path.join(__dirname, '../assets/logo192.png');
 
   let icon: NativeImage;
   try {
