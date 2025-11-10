@@ -1,4 +1,4 @@
-import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
+import { EIpcChannel, EIpcEvent, EIpcRendererEvent, logger } from '@writing-tools/shared';
 import type { TIpcEvent } from '@writing-tools/shared';
 import { ipcMain } from 'electron';
 import os from 'os';
@@ -74,7 +74,7 @@ export function registerIpcHandlers() {
     const { window: chatWindow } = await getChatWindow();
 
     logger.info('Send chat-window-data: %s', prompt);
-    chatWindow.webContents.send('chat-window-data', {
+    chatWindow.webContents.send(EIpcRendererEvent.CHAT_WINDOW_DATA, {
       prompt,
     });
 
@@ -88,7 +88,7 @@ export function registerIpcHandlers() {
     if (response.error) {
       logger.error('Ollama error: %s', response.error);
 
-      chatWindow.webContents.send('ollama-response', {
+      chatWindow.webContents.send(EIpcRendererEvent.OLLAMA_RESPONSE, {
         error: response.error,
       });
 
@@ -96,7 +96,7 @@ export function registerIpcHandlers() {
     }
 
     const result = response.response;
-    chatWindow.webContents.send('ollama-response', {
+    chatWindow.webContents.send(EIpcRendererEvent.OLLAMA_RESPONSE, {
       result,
     });
   });

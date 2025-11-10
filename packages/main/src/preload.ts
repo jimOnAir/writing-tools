@@ -1,3 +1,4 @@
+import { EIpcRendererEvent } from '@writing-tools/shared';
 import type { IpcRendererEvent } from 'electron';
 import { contextBridge, ipcRenderer } from 'electron';
 
@@ -6,35 +7,41 @@ type TIpcRenderListener = (event: IpcRendererEvent, ...args: any[]) => void;
 if (typeof window !== 'undefined') {
   contextBridge.exposeInMainWorld('electronAPI', {
     invoke: async (ch: string, data: any) => ipcRenderer.invoke(ch, data),
-    onChatWindowData: (cb: Function) => {
-      const chatWindowDataListener = (_: IpcRendererEvent, message: any) => cb(message);
+    onChatWindowData: (cb: (message: any) => void) => {
+      const chatWindowDataListener = (_: IpcRendererEvent, message: any) => {
+        cb(message);
+      };
 
-      ipcRenderer.on('chat-window-data', chatWindowDataListener);
+      ipcRenderer.on(EIpcRendererEvent.CHAT_WINDOW_DATA, chatWindowDataListener);
 
       return chatWindowDataListener;
     },
-    offChatWindowData: (lisener: TIpcRenderListener) => {
-      ipcRenderer.off('chat-window-data', lisener);
+    offChatWindowData: (listener: TIpcRenderListener) => {
+      ipcRenderer.off(EIpcRendererEvent.CHAT_WINDOW_DATA, listener);
     },
-    onOllamaResponse: (cb: Function) => {
-      const ollamaResponseListener = (_: IpcRendererEvent, message: any) => cb(message);
+    onOllamaResponse: (cb: (message: any) => void) => {
+      const ollamaResponseListener = (_: IpcRendererEvent, message: any) => {
+        cb(message);
+      };
 
-      ipcRenderer.on('ollama-response', ollamaResponseListener);
+      ipcRenderer.on(EIpcRendererEvent.OLLAMA_RESPONSE, ollamaResponseListener);
 
       return ollamaResponseListener;
     },
     offOllamaResponse: (listener: TIpcRenderListener) => {
-      return ipcRenderer.off('ollama-response', listener);
+      return ipcRenderer.off(EIpcRendererEvent.OLLAMA_RESPONSE, listener);
     },
-    onPromptSelectorData: (cb: Function) => {
-      const promptSelectorDataListener = (_: IpcRendererEvent, message: any) => cb(message);
+    onPromptSelectorData: (cb: (message: any) => void) => {
+      const promptSelectorDataListener = (_: IpcRendererEvent, message: any) => {
+        cb(message);
+      };
 
-      ipcRenderer.on('prompt-selector-data', promptSelectorDataListener);
+      ipcRenderer.on(EIpcRendererEvent.PROMPT_SELECTOR_DATA, promptSelectorDataListener);
 
       return promptSelectorDataListener;
     },
     offPromptSelectorData: (listener: TIpcRenderListener) => {
-      return ipcRenderer.off('prompt-selector-data', listener);
+      return ipcRenderer.off(EIpcRendererEvent.PROMPT_SELECTOR_DATA, listener);
     },
   });
 }
