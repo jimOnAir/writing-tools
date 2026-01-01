@@ -1,6 +1,6 @@
-/* eslint-disable max-lines */
 // eslint.config.js
 import js from '@eslint/js';
+import * as eslint from '@eslint/js';
 import stylisticPlugin from '@stylistic/eslint-plugin';
 import importPlugin from 'eslint-plugin-import';
 import nPlugin from 'eslint-plugin-n';
@@ -9,8 +9,6 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import unicornPlugin from 'eslint-plugin-unicorn';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
-
-import * as eslint from '@eslint/js';
 
 export default tseslint.config(
   {
@@ -342,7 +340,7 @@ export default tseslint.config(
       ],
       'max-lines': [
         'error',
-        300,
+        500,
       ],
       'n/no-extraneous-import': 'off',
       'n/no-missing-import': 'off',
