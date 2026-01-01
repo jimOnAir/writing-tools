@@ -9,20 +9,27 @@ import { getChatWindow } from './windows';
 
 registerIpcHandlers();
 
-app.on('ready', async () => {
+app.on('ready', () => {
   // Load settings on startup to initialize the in-memory store
-  try {
-    await loadSettings();
-  } catch (error: unknown) {
+  (async () => {
+    try {
+      await loadSettings();
+    } catch (error: unknown) {
+      const errorText = error instanceof Error
+        ? error.message
+        : String(error);
+      logger.error('Failed to load settings on startup: %s', errorText);
+    }
+
+    createTray();
+
+    await registerGlobalShortcuts();
+  })().catch((error: unknown) => {
     const errorText = error instanceof Error
       ? error.message
       : String(error);
-    logger.error('Failed to load settings on startup: %s', errorText);
-  }
-
-  createTray();
-
-  await registerGlobalShortcuts();
+    logger.error('Error in ready handler: %s', errorText);
+  });
 });
 
 app.on('window-all-closed', () => {
