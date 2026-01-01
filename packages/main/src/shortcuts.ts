@@ -1,4 +1,4 @@
-import { logger } from '@writing-tools/shared';
+import { EIpcRendererEvent, logger } from '@writing-tools/shared';
 import { globalShortcut } from 'electron';
 
 import { getSelectedText } from './getSelectedText';
@@ -46,7 +46,7 @@ export async function processGlobalShortcut() {
 
     // Show the prompt selector window instead of directly processing
     const { window: promptSelectorWindow } = await getPromptSelectorWindow();
-    promptSelectorWindow.webContents.send('prompt-selector-data', {
+    promptSelectorWindow.webContents.send(EIpcRendererEvent.PROMPT_SELECTOR_DATA, {
       selectedText,
       preconfiguredPrompts: settings.preconfiguredPrompts,
     });

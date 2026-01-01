@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 import type { IPreconfiguredPrompt, ISettings, TIpcEvent } from '@writing-tools/shared';
 import { DefaultSettings, logger, EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 import React, { useState, useEffect } from 'react';

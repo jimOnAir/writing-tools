@@ -14,9 +14,12 @@ const ChatComponent: React.FC = () => {
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const isHandlingOllamaResponseRef = useRef(false);
 
   useEffect(() => {
-    scrollToBottom();
+    if (!isHandlingOllamaResponseRef.current) {
+      scrollToBottom();
+    }
   }, [messages]);
 
   const scrollToBottom = () => {
@@ -45,6 +48,9 @@ const ChatComponent: React.FC = () => {
     const handleOllamaResponse = (response: TChatResponse) => {
       logger.info('Current messages count: %s', messages.length.toString());
 
+      // Set flag to prevent scrolling during Ollama response handling
+      isHandlingOllamaResponseRef.current = true;
+
       // Handle error response
       if ('error' in response) {
         // Display error as a chat message instead of separate error notification
@@ -56,6 +62,11 @@ const ChatComponent: React.FC = () => {
         };
         setMessages(prev => [...prev, errorMessage]);
         setIsLoading(false);
+
+        // Reset flag after a short delay
+        setTimeout(() => {
+          isHandlingOllamaResponseRef.current = false;
+        }, 100);
 
         return;
       }
@@ -71,6 +82,11 @@ const ChatComponent: React.FC = () => {
 
         setMessages(prev => [...prev, assistantMessage]);
         setIsLoading(false);
+
+        // Reset flag after a short delay
+        setTimeout(() => {
+          isHandlingOllamaResponseRef.current = false;
+        }, 100);
       }
     };
 
@@ -96,6 +112,9 @@ const ChatComponent: React.FC = () => {
     if (!inputValue.trim() || isLoading) {
       return;
     }
+
+    // Set flag to prevent scrolling during message sending
+    isHandlingOllamaResponseRef.current = true;
 
     const userMessage: IChatMessage = {
       id: Date.now().toString(),
@@ -149,6 +168,10 @@ const ChatComponent: React.FC = () => {
       })
       .finally(() => {
         setIsLoading(false);
+        // Reset flag after a short delay
+        setTimeout(() => {
+          isHandlingOllamaResponseRef.current = false;
+        }, 100);
       });
   };
 

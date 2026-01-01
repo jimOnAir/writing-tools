@@ -25,10 +25,10 @@ export async function getChatWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
     },
-    width: 1280,
+    width: 800,
     icon: getAppIcon(),
-    resizable: true,
-    maximizable: true,
+    resizable: false,
+    maximizable: false,
   });
   chatWindow.setMenu(null);
 
@@ -60,10 +60,11 @@ export async function getPromptSelectorWindow() {
 
   const settings = await loadSettings();
   const promptCount = settings.preconfiguredPrompts.length;
-  const minHeight = 300;
+  const minHeight = 800;
+  const maxHeight = 1200;
   const additionalHeight = promptCount * 50;
-  const height = Math.max(minHeight, minHeight + additionalHeight);
-  const width = 500;
+  const height = Math.min(Math.max(minHeight, minHeight + additionalHeight), maxHeight);
+  const width = 600;
 
   promptSelectorWindow = new BrowserWindow({
     height,
@@ -75,8 +76,8 @@ export async function getPromptSelectorWindow() {
     width,
     icon: getAppIcon(),
     title: 'Select Prompt',
-    // resizable: false,
-    // maximizable: false,
+    resizable: false,
+    maximizable: false,
   });
   promptSelectorWindow.setMenu(null);
 
