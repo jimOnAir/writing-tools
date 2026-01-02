@@ -56,6 +56,9 @@ export class TrayService implements ITrayService {
         },
       },
       {
+        type: 'separator',
+      },
+      {
         label: 'Quit',
         click: () => {
           app.quit();
