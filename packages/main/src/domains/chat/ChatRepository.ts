@@ -120,6 +120,36 @@ export class ChatRepository implements IChatRepository {
     return stmt.all() as IChatInfo[];
   }
 
+  public getChat(chatId: number): IChatInfo | null {
+    if (this.db === null) {
+      throw new Error('Database not initialized');
+    }
+
+    const stmt = this.db.prepare(`
+      SELECT id, title, provider, model, created_at, updated_at
+      FROM chats
+      WHERE id = ?
+    `);
+
+    const result = stmt.get(chatId) as IChatInfo | undefined;
+
+    return result ?? null;
+  }
+
+  public updateChatTitle(chatId: number, title: string): void {
+    if (this.db === null) {
+      throw new Error('Database not initialized');
+    }
+
+    const stmt = this.db.prepare(`
+      UPDATE chats
+      SET title = ?, updated_at = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(title, new Date().toISOString(), chatId);
+  }
+
   public close(): void {
     if (this.db !== null) {
       this.db.close();

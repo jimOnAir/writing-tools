@@ -20,6 +20,8 @@ export type TChatLoadMessagesPayload = { chatId: number };
 
 export type TChatListChatsPayload = { chats: IChatInfo[] };
 
+export type TChatGetPayload = { chatId: number };
+
 export type TEnvGetPayload = Record<string, never>;
 
 export type TPromptSelectPayload = { prompt: string };
@@ -32,6 +34,7 @@ export type TIpcEventPayload<K extends EIpcEvent> =
   K extends EIpcEvent.CHAT_CREATE_SESSION ? TChatCreateSessionPayload :
   K extends EIpcEvent.CHAT_LOAD_MESSAGES ? TChatLoadMessagesPayload :
   K extends EIpcEvent.CHAT_LIST_CHATS ? TChatListChatsPayload :
+  K extends EIpcEvent.CHAT_GET ? TChatGetPayload :
   K extends EIpcEvent.ENV_GET ? TEnvGetPayload :
   K extends EIpcEvent.PROMPT_SELECT ? TPromptSelectPayload :
 never;

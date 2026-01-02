@@ -42,7 +42,7 @@ export class AppBootstrap {
     );
     this.trayService = new TrayService(this.windowService);
     const modelService = new ModelService(this.settingsService);
-    this.chatService = new ChatService(chatRepository);
+    this.chatService = new ChatService(chatRepository, modelService);
     this.ipcHandlers = new IpcHandlers(
       this.settingsService,
       modelService,

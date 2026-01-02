@@ -43,5 +43,17 @@ if (typeof window !== 'undefined') {
     offPromptSelectorData: (listener: TIpcRenderListener) => {
       return ipcRenderer.off(EIpcRendererEvent.PROMPT_SELECTOR_DATA, listener);
     },
+    onChatTitleUpdated: (cb: (message: any) => void) => {
+      const chatTitleUpdatedListener = (_: IpcRendererEvent, message: any) => {
+        cb(message);
+      };
+
+      ipcRenderer.on(EIpcRendererEvent.CHAT_TITLE_UPDATED, chatTitleUpdatedListener);
+
+      return chatTitleUpdatedListener;
+    },
+    offChatTitleUpdated: (listener: TIpcRenderListener) => {
+      return ipcRenderer.off(EIpcRendererEvent.CHAT_TITLE_UPDATED, listener);
+    },
   });
 }

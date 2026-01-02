@@ -32,6 +32,16 @@ export interface IChatRepository {
   getAllChats: () => IChatInfo[];
 
   /**
+   * Get a single chat session by ID
+   */
+  getChat: (chatId: number) => IChatInfo | null;
+
+  /**
+   * Update the title of a chat
+   */
+  updateChatTitle: (chatId: number, title: string) => void;
+
+  /**
    * Close the repository (cleanup resources)
    */
   close: () => void;

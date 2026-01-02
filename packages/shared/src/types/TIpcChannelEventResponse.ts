@@ -45,6 +45,12 @@ export type TChatListChatsFailedResponse = { error: string };
 
 export type TChatListChatsResponse = TChatListChatsSuccessResponse | TChatListChatsFailedResponse;
 
+export type TChatGetSuccessResponse = { chat: IChatInfo };
+
+export type TChatGetFailedResponse = { error: string };
+
+export type TChatGetResponse = TChatGetSuccessResponse | TChatGetFailedResponse;
+
 export type TIpcResponsePayload<K extends EIpcEvent> =
   K extends EIpcEvent.ENV_GET ? TEnvGetResponse :
   K extends EIpcEvent.MODEL_LIST ? TModelListResponse :
@@ -54,4 +60,5 @@ export type TIpcResponsePayload<K extends EIpcEvent> =
   K extends EIpcEvent.CHAT_CREATE_SESSION ? TChatCreateSessionResponse :
   K extends EIpcEvent.CHAT_LOAD_MESSAGES ? TChatLoadMessagesResponse :
   K extends EIpcEvent.CHAT_LIST_CHATS ? TChatListChatsResponse :
+  K extends EIpcEvent.CHAT_GET ? TChatGetResponse :
 never;

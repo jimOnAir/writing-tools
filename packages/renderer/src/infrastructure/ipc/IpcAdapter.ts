@@ -1,4 +1,4 @@
-import type { EIpcChannel, TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, EIpcEvent } from '@writing-tools/shared';
+import type { EIpcChannel, TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, EIpcEvent, IChatWindowData } from '@writing-tools/shared';
 
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
 
@@ -18,7 +18,7 @@ export interface IIpcAdapter {
   /**
    * Register a listener for chat window data events
    */
-  onChatWindowData: (callback: (data: { prompt: string }) => void) => TIpcRenderListener;
+  onChatWindowData: (callback: (data: IChatWindowData) => void) => TIpcRenderListener;
 
   /**
    * Unregister a chat window data listener
@@ -46,6 +46,16 @@ export interface IIpcAdapter {
    * Unregister a prompt selector data listener
    */
   offPromptSelectorData: (listener: TIpcRenderListener) => void;
+
+  /**
+   * Register a listener for chat title updated events
+   */
+  onChatTitleUpdated: (callback: (data: { chatId: number, title: string }) => void) => TIpcRenderListener;
+
+  /**
+   * Unregister a chat title updated listener
+   */
+  offChatTitleUpdated: (listener: TIpcRenderListener) => void;
 }
 
 /**
@@ -63,7 +73,7 @@ export class ElectronIpcAdapter implements IIpcAdapter {
     return window.electronAPI.invoke(channel, data);
   }
 
-  public onChatWindowData(callback: (data: { prompt: string }) => void): TIpcRenderListener {
+  public onChatWindowData(callback: (data: IChatWindowData) => void): TIpcRenderListener {
     if (typeof window.electronAPI === 'undefined') {
       throw new Error('electronAPI is not available');
     }
@@ -111,5 +121,21 @@ export class ElectronIpcAdapter implements IIpcAdapter {
     }
 
     window.electronAPI.offPromptSelectorData(listener);
+  }
+
+  public onChatTitleUpdated(callback: (data: { chatId: number, title: string }) => void): TIpcRenderListener {
+    if (typeof window.electronAPI === 'undefined') {
+      throw new Error('electronAPI is not available');
+    }
+
+    return window.electronAPI.onChatTitleUpdated(callback);
+  }
+
+  public offChatTitleUpdated(listener: TIpcRenderListener): void {
+    if (typeof window.electronAPI === 'undefined') {
+      return;
+    }
+
+    window.electronAPI.offChatTitleUpdated(listener);
   }
 }

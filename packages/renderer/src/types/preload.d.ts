@@ -12,6 +12,8 @@ declare global {
       offOllamaResponse: (callback: TIpcRenderListener) => void,
       onPromptSelectorData: (callback: (data: { selectedText: string, preconfiguredPrompts: IPreconfiguredPrompt[] }) => void) => TIpcRenderListener,
       offPromptSelectorData: (callback: TIpcRenderListener) => void,
+      onChatTitleUpdated: (callback: (data: { chatId: number, title: string }) => void) => TIpcRenderListener,
+      offChatTitleUpdated: (listener: TIpcRenderListener) => void,
     };
   }
 }

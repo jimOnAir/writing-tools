@@ -1,4 +1,4 @@
-import type { IChatWindowData, IChatMessage, TChatResponse, TIpcEvent } from '@writing-tools/shared';
+import type { IChatWindowData, IChatMessage, TChatResponse, TIpcEvent, IChatInfo } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
@@ -17,6 +17,7 @@ export class ChatService {
   private isHandlingOllamaResponse = false;
   private chatWindowDataListener: TIpcRenderListener | null = null;
   private ollamaResponseListener: TIpcRenderListener | null = null;
+  private chatTitleUpdatedListener: TIpcRenderListener | null = null;
   private currentChatId: number | null = null;
 
   // Callbacks for component state updates
@@ -25,6 +26,7 @@ export class ChatService {
   private onErrorChange?: (error: string | null) => void;
   private onHistoryIndexChange?: (index: number) => void;
   private onHandlingResponseChange?: (isHandling: boolean) => void;
+  private onTitleChange?: (title: string) => void;
 
   public constructor(ipcAdapter: IIpcAdapter) {
     this.ipcAdapter = ipcAdapter;
@@ -39,12 +41,14 @@ export class ChatService {
     onErrorChange?: (error: string | null) => void,
     onHistoryIndexChange?: (index: number) => void,
     onHandlingResponseChange?: (isHandling: boolean) => void,
+    onTitleChange?: (title: string) => void,
   }): void {
     this.onMessagesChange = callbacks.onMessagesChange;
     this.onLoadingChange = callbacks.onLoadingChange;
     this.onErrorChange = callbacks.onErrorChange;
     this.onHistoryIndexChange = callbacks.onHistoryIndexChange;
     this.onHandlingResponseChange = callbacks.onHandlingResponseChange;
+    this.onTitleChange = callbacks.onTitleChange;
   }
 
   /**
@@ -53,7 +57,7 @@ export class ChatService {
   public initializeListeners(): void {
     const handleChatWindowData = (data: IChatWindowData) => {
       if (data.prompt) {
-        logger.info('Clearing previous conversation and starting new one with prompt: %s', data.prompt);
+        logger.info('Clearing previous conversation and starting new one with prompt: %s, chatId=%s', data.prompt, data.chatId !== undefined ? String(data.chatId) : 'undefined');
         const initialMessages: IChatMessage[] = [
           {
             id: Date.now().toString(),
@@ -65,13 +69,24 @@ export class ChatService {
 
         this.setMessages(initialMessages);
         this.setLoading(true);
-        // Reset currentChatId since this is a new conversation started from prompt selector
-        this.currentChatId = null;
+        // Set currentChatId if provided (for hotkey/prompt select flows), otherwise reset to null
+        if (data.chatId !== undefined) {
+          this.currentChatId = data.chatId;
+          logger.info('ChatId set from CHAT_WINDOW_DATA: chatId=%s', String(data.chatId));
+        } else {
+          this.currentChatId = null;
+        }
       }
     };
 
     const handleOllamaResponse = (response: TChatResponse) => {
       logger.info('Current messages count: %s', this.messages.length.toString());
+
+      // Update currentChatId if provided (for hotkey/prompt select flows)
+      if (response.chatId !== undefined && this.currentChatId === null) {
+        this.currentChatId = response.chatId;
+        logger.info('ChatId set from response: chatId=%s', String(response.chatId));
+      }
 
       this.setHandlingResponse(true);
 
@@ -111,9 +126,25 @@ export class ChatService {
       }
     };
 
+    const handleChatTitleUpdated = (data: { chatId: number, title: string }) => {
+      // Update title if it matches the current chat, or if currentChatId is null
+      // (which happens when chat is created via hotkey/prompt select)
+      if (this.currentChatId === data.chatId || this.currentChatId === null) {
+        logger.info('Title updated for current chat: chatId=%s, title="%s", currentChatId=%s', String(data.chatId), data.title, this.currentChatId === null ? 'null' : String(this.currentChatId));
+        this.onTitleChange?.(data.title);
+        // If currentChatId was null, set it now so future updates match correctly
+        if (this.currentChatId === null) {
+          this.currentChatId = data.chatId;
+        }
+      } else {
+        logger.info('Title update ignored: chatId=%s does not match currentChatId=%s', String(data.chatId), String(this.currentChatId));
+      }
+    };
+
     try {
       this.chatWindowDataListener = this.ipcAdapter.onChatWindowData(handleChatWindowData);
       this.ollamaResponseListener = this.ipcAdapter.onOllamaResponse(handleOllamaResponse);
+      this.chatTitleUpdatedListener = this.ipcAdapter.onChatTitleUpdated(handleChatTitleUpdated);
     } catch (error) {
       const errorText = error instanceof Error ? error.message : String(error);
       logger.error('Failed to initialize chat listeners: %s', errorText);
@@ -132,6 +163,11 @@ export class ChatService {
     if (this.ollamaResponseListener) {
       this.ipcAdapter.offOllamaResponse(this.ollamaResponseListener);
       this.ollamaResponseListener = null;
+    }
+
+    if (this.chatTitleUpdatedListener) {
+      this.ipcAdapter.offChatTitleUpdated(this.chatTitleUpdatedListener);
+      this.chatTitleUpdatedListener = null;
     }
   }
 
@@ -296,6 +332,41 @@ export class ChatService {
    */
   public getIsHandlingResponse(): boolean {
     return this.isHandlingOllamaResponse;
+  }
+
+  /**
+   * Get current chat ID
+   */
+  public getCurrentChatId(): number | null {
+    return this.currentChatId;
+  }
+
+  /**
+   * Get chat info by ID
+   */
+  public async getChatInfo(chatId: number): Promise<IChatInfo | null> {
+    try {
+      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_GET> = {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_GET,
+        payload: { chatId },
+      };
+
+      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+
+      if ('error' in response) {
+        logger.error('Failed to get chat info: %s', response.error);
+
+        return null;
+      }
+
+      return response.chat;
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to get chat info: %s', errorText);
+
+      return null;
+    }
   }
 
   /**

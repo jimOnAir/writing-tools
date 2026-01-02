@@ -20,7 +20,8 @@ type TChannelEventPayloadModel = TIpcEvent<EIpcChannel.MODEL, EIpcEvent.MODEL_LI
 type TChatChannelEventPayload = TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_MESSAGE>
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_CREATE_SESSION>
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LOAD_MESSAGES>
-  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS>;
+  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS>
+  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_GET>;
 
 type TPromptSelectEventPayload = TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT>;
 
@@ -81,6 +82,8 @@ export class IpcHandlers implements IIpcHandlers {
           return this.handleChatLoadMessages(data.payload.chatId);
         case EIpcEvent.CHAT_LIST_CHATS:
           return this.handleChatListChats();
+        case EIpcEvent.CHAT_GET:
+          return this.handleChatGet(data.payload.chatId);
 
         default:
           throw new Error(`Unsupported event: ${eventType}`);
@@ -129,8 +132,11 @@ export class IpcHandlers implements IIpcHandlers {
       };
     })));
 
+    logger.info('LLM response received: hasResponse=%s', String('response' in llmResponse));
+
     // Save assistant response if successful
-    if ('response' in llmResponse) {
+    if ('response' in llmResponse && llmResponse.response) {
+      logger.info('Saving assistant response and triggering title generation');
       const assistantMessage: IChatMessage = {
         id: Date.now().toString() + '-response',
         role: 'assistant',
@@ -145,6 +151,10 @@ export class IpcHandlers implements IIpcHandlers {
         logger.error('Failed to save assistant response: %s', errorText);
         // Continue even if save fails
       }
+
+      // Generate title after first exchange (2 messages: user + assistant)
+      logger.info('Triggering title generation for chatId=%s', String(chatId));
+      void this.generateTitleIfNeeded(chatId);
     }
 
     return llmResponse;
@@ -205,6 +215,23 @@ export class IpcHandlers implements IIpcHandlers {
     }
   }
 
+  private handleChatGet(chatId: number) {
+    try {
+      const chat = this.chatService.getChat(chatId);
+
+      if (chat === null) {
+        return { error: `Chat with id ${chatId} not found` };
+      }
+
+      return { chat };
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      logger.error('Failed to get chat: %s', errorText);
+
+      return { error: errorText };
+    }
+  }
+
   private async handlePromptSelect(prompt: string): Promise<void> {
     const { window: promptSelectorWindow } = await this.windowService.getPromptSelectorWindow();
 
@@ -234,9 +261,10 @@ export class IpcHandlers implements IIpcHandlers {
       logger.error('Failed to save user message in prompt select: %s', errorText);
     }
 
-    logger.info('Send chat-window-data: %s', prompt);
+    logger.info('Send chat-window-data: %s, chatId=%s', prompt, String(chatId));
     chatWindow.webContents.send(EIpcRendererEvent.CHAT_WINDOW_DATA, {
       prompt,
+      chatId,
     });
 
     const response = await this.modelService.sendMessages([
@@ -265,6 +293,7 @@ export class IpcHandlers implements IIpcHandlers {
 
       chatWindow.webContents.send(EIpcRendererEvent.OLLAMA_RESPONSE, {
         error: response.error,
+        chatId,
       });
 
       return;
@@ -274,19 +303,159 @@ export class IpcHandlers implements IIpcHandlers {
     const assistantMessage: IChatMessage = {
       id: Date.now().toString() + '-response',
       role: 'assistant',
-      content: response.response,
+      content: response.response ?? '',
       timestamp: new Date(),
     };
     try {
       this.chatService.saveMessage(chatId, assistantMessage);
+      logger.info('Assistant message saved: chatId=%s, messageId=%s', String(chatId), assistantMessage.id);
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
       logger.error('Failed to save assistant response in prompt select: %s', errorText);
     }
 
-    const result = response.response;
+    const result = response.response ?? '';
     chatWindow.webContents.send(EIpcRendererEvent.OLLAMA_RESPONSE, {
       result,
+      chatId,
     });
+
+    // Generate title after first exchange (2 messages: user + assistant)
+    // Add small delay to ensure database write is committed
+    logger.info('Triggering title generation from prompt select for chatId=%s', String(chatId));
+    setTimeout(() => {
+      void this.generateTitleIfNeeded(chatId);
+    }, 100);
+  }
+
+  private async generateTitleIfNeeded(chatId: number): Promise<void> {
+    logger.info('generateTitleIfNeeded called for chatId=%s', String(chatId));
+    try {
+      // Load chat messages to check count
+      const messages = this.chatService.loadChatMessages(chatId);
+
+      logger.info('Title generation check: chatId=%s, messageCount=%s', String(chatId), String(messages.length));
+      logger.info('Messages in DB: %s', JSON.stringify(messages.map(m => ({ id: m.id, role: m.role, contentLength: m.content.length }))));
+
+      // Only generate title after first exchange (2 messages: user + assistant)
+      if (messages.length !== 2) {
+        logger.info('Title generation skipped: message count is %s (expected 2)', String(messages.length));
+
+        return;
+      }
+
+      // Check if title is already set
+      const chat = this.chatService.getChat(chatId);
+      if (chat === null) {
+        logger.error('Title generation failed: chat not found for chatId=%s', String(chatId));
+
+        return;
+      }
+
+      if (chat.title.trim() !== '') {
+        logger.info('Title generation skipped: chat already has title "%s"', chat.title);
+
+        return;
+      }
+
+      // Get first user and assistant messages
+      const userMessage = messages.find(m => m.role === 'user');
+      const assistantMessage = messages.find(m => m.role === 'assistant');
+
+      if (userMessage === undefined || assistantMessage === undefined) {
+        logger.error('Title generation failed: missing user or assistant message');
+
+        return;
+      }
+
+      logger.info('Generating title for chatId=%s', String(chatId));
+
+      // Generate title using LLM
+      const title = await this.generateChatTitle(userMessage.content, assistantMessage.content);
+
+      if (title !== null && title.trim() !== '') {
+        this.chatService.updateChatTitle(chatId, title);
+        logger.info('Title generated and saved: chatId=%s, title="%s"', String(chatId), title);
+
+        // Send title update event to chat window
+        try {
+          logger.info('Attempting to send title update event: chatId=%s', String(chatId));
+          const { window: chatWindow } = await this.windowService.getChatWindow();
+          if (chatWindow.isDestroyed()) {
+            logger.warn('Chat window is destroyed, cannot send title update event: chatId=%s', String(chatId));
+
+            return;
+          }
+
+          chatWindow.webContents.send(EIpcRendererEvent.CHAT_TITLE_UPDATED, {
+            chatId,
+            title,
+          });
+          logger.info('Title update event sent: chatId=%s, title="%s"', String(chatId), title);
+        } catch (error: unknown) {
+          const errorText = error instanceof Error ? error.message : String(error);
+          logger.error('Failed to send title update event: %s', errorText);
+          // Don't throw - title update event failure shouldn't break chat functionality
+        }
+      } else {
+        logger.error('Title generation returned empty result for chatId=%s', String(chatId));
+      }
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      logger.error('Failed to generate chat title: %s', errorText);
+      // Don't throw - title generation failure shouldn't break chat functionality
+    }
+  }
+
+  private async generateChatTitle(userMessage: string, assistantMessage: string): Promise<string | null> {
+    try {
+      const prompt = `Generate a concise title (maximum 5-6 words) for this conversation based on the first exchange:
+
+User: ${userMessage}
+Assistant: ${assistantMessage}
+
+Title:`;
+
+      const response = await this.modelService.sendMessages([
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ]);
+
+      if ('error' in response && response.error) {
+        logger.error('Failed to generate chat title: %s', response.error);
+
+        return null;
+      }
+
+      if (!response.response) {
+        logger.error('Failed to generate chat title: empty response');
+
+        return null;
+      }
+
+      // Clean up the title: remove quotes, trim whitespace
+      let title = response.response.trim();
+      // Remove surrounding quotes if present
+      if ((title.startsWith('"') && title.endsWith('"')) || (title.startsWith("'") && title.endsWith("'"))) {
+        title = title.slice(1, -1);
+      }
+      title = title.trim();
+
+      // Limit to reasonable length (e.g., 100 characters)
+      const maxTitleLength = 100;
+      const ellipsisLength = 3;
+      if (title.length > maxTitleLength) {
+        title = `${title.slice(0, maxTitleLength - ellipsisLength)}...`;
+      }
+
+      return title || null;
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      logger.error('Error generating chat title: %s', errorText);
+
+      return null;
+    }
   }
 }

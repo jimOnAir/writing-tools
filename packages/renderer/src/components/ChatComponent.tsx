@@ -12,6 +12,7 @@ const ChatComponent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isHandlingResponse, setIsHandlingResponse] = useState(false);
+  const [chatTitle, setChatTitle] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -26,6 +27,7 @@ const ChatComponent: React.FC = () => {
       onLoadingChange: setIsLoading,
       onErrorChange: setError,
       onHandlingResponseChange: setIsHandlingResponse,
+      onTitleChange: setChatTitle,
     });
 
     return service;
@@ -46,6 +48,29 @@ const ChatComponent: React.FC = () => {
       scrollToBottom();
     }
   }, [messages, isHandlingResponse]);
+
+  // Fetch title when currentChatId changes
+  useEffect(() => {
+    const fetchTitle = async () => {
+      const currentChatId = chatService.getCurrentChatId();
+      if (currentChatId === null) {
+        setChatTitle(null);
+
+        return;
+      }
+
+      const chatInfo = await chatService.getChatInfo(currentChatId);
+      if (chatInfo === null) {
+        setChatTitle(null);
+
+        return;
+      }
+
+      setChatTitle(chatInfo.title);
+    };
+
+    void fetchTitle();
+  }, [chatService, messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -84,8 +109,26 @@ const ChatComponent: React.FC = () => {
     }
   };
 
+  // Determine if we should show the title section (if there's a chat or messages)
+  const hasActiveChat = chatService.getCurrentChatId() !== null || messages.length > 0;
+  const displayTitle = chatTitle !== null && chatTitle.trim() !== '' ? chatTitle : null;
+
   return (
     <div className={`flex flex-col h-full w-full ${LayoutStyles.container}`}>
+      {hasActiveChat && (
+        <div className={`mb-4 pb-4 border-b ${ColorPalette.border.defaultLight}`}>
+          {displayTitle !== null ? (
+            <div
+              className={`${TypographyStyles.h2} ${ColorPalette.text.primary} markdown-content`}
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(displayTitle) }}
+            />
+          ) : (
+            <div className={`${TypographyStyles.h2} ${ColorPalette.text.muted}`}>
+              New Chat
+            </div>
+          )}
+        </div>
+      )}
       <div className={`flex-1 overflow-y-auto p-4 ${BackgroundStyles.chatContainer} mb-3 rounded`}>
         {messages.length === 0 ? (
           <div className={`text-center ${TypographyStyles.emptyState} mt-8`}>
