@@ -133,7 +133,7 @@ export const TypographyStyles = {
 // Layout styles
 export const LayoutStyles = {
   container: 'max-w-4xl mx-auto',
-  inputGroup: 'flex items-end space-x-2',
+  inputGroup: 'flex items-start space-x-2',
   section: 'mb-6',
   sectionCard: 'mb-6 p-4',
   divider: `border-t ${ColorPalette.border.defaultLight}`,
