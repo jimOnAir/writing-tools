@@ -4,7 +4,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 
 import { SettingsService } from '../domains/settings';
 import { ElectronIpcAdapter } from '../infrastructure/ipc';
-import { ButtonStyles, InputStyles, BackgroundStyles, TypographyStyles, LayoutStyles, CardStyles, NotificationStyles, SpinnerIcon, ColorPalette, FileInputStyles } from '../styles/Styles';
+import { BackgroundStyles, TypographyStyles, LayoutStyles, ColorPalette } from '../styles/Styles';
+
+import { GlobalShortcutsSection } from './settings/GlobalShortcutsSection';
+import { OllamaSettingsSection } from './settings/OllamaSettingsSection';
+import { PreconfiguredPromptsSection } from './settings/PreconfiguredPromptsSection';
+import { SettingsActions } from './settings/SettingsActions';
+import { SettingsNotifications } from './settings/SettingsNotifications';
 
 const Settings: React.FC = () => {
   const [settings, setSettings] = useState(useMemo(() => ({ ...DefaultSettings }), []));
@@ -48,12 +54,12 @@ const Settings: React.FC = () => {
   };
 
   // Handle input changes
-  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    settingsService.updateOllamaAddress(e.target.value);
+  const handleAddressChange = (value: string) => {
+    settingsService.updateOllamaAddress(value);
   };
 
-  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    settingsService.updateOllamaModel(e.target.value);
+  const handleModelChange = (value: string) => {
+    settingsService.updateOllamaModel(value);
   };
 
   // Handle adding a new shortcut
@@ -119,239 +125,39 @@ const Settings: React.FC = () => {
         <h2 className={`text-xl font-medium mb-1 ${ColorPalette.text.primary}`}>Settings</h2>
         <p className={TypographyStyles.subtitle}>Configure your application preferences</p>
 
-        {error && (
-          <div className={NotificationStyles.error}>
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className={NotificationStyles.success}>
-            {success}
-          </div>
-        )}
+        <SettingsNotifications error={error} success={success} />
 
-        <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card}`}>
-          <label htmlFor="ollama-address" className={TypographyStyles.label}>
-            Ollama Address
-          </label>
-          <input
-            id="ollama-address"
-            type="text"
-            value={settings.ollama.address}
-            onChange={handleAddressChange}
-            className={InputStyles}
-            placeholder="http://localhost:11434"
-          />
-        </div>
+        <OllamaSettingsSection
+          address={settings.ollama.address}
+          model={settings.ollama.model}
+          availableModels={availableModels}
+          loadingModels={loadingModels}
+          onAddressChange={handleAddressChange}
+          onModelChange={handleModelChange}
+          onRefreshModels={fetchAvailableModels}
+        />
 
-        <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card}`}>
-          <label htmlFor="ollama-model" className={TypographyStyles.label}>
-            Ollama Model
-          </label>
-          <div className="flex items-center space-x-4">
-            <select
-              id="ollama-model"
-              value={settings.ollama.model}
-              onChange={handleModelChange}
-              className={InputStyles}
-            >
-              {availableModels.map(model => (
-                <option key={model} value={model}>{model}</option>
-              ))}
-            </select>
-            <button
-              onClick={fetchAvailableModels}
-              disabled={loadingModels}
-              className={`${ButtonStyles.base} ${loadingModels ? ButtonStyles.disabled : ButtonStyles.primary} whitespace-nowrap`}
-            >
-              {loadingModels ? (
-                <span className="flex items-center">
-                  <SpinnerIcon />
-                  Loading...
-                </span>
-              ) : (
-                'Refresh Models'
-              )}
-            </button>
-          </div>
-          {loadingModels && <div className="mt-3 text-sm text-gray-400">Fetching available models...</div>}
-        </div>
+        <PreconfiguredPromptsSection
+          prompts={settings.preconfiguredPrompts}
+          onAdd={handleAddPreconfiguredPrompt}
+          onUpdate={handleUpdatePreconfiguredPrompt}
+          onIconUpload={handleIconUpload}
+          onRemove={handleRemovePreconfiguredPrompt}
+        />
 
-        <div className={LayoutStyles.section}>
-          <h3 className={TypographyStyles.h2}>Preconfigured Prompts</h3>
-          <p className={TypographyStyles.description}>
-            These prompts will be used when processing selected text with the global shortcut.
-            Use &#123;text&#125; as a placeholder for the selected content.
-          </p>
-          <div className="space-y-4">
-            {settings.preconfiguredPrompts.map((prompt, index) => {
-              const indexStr = String(index);
+        <GlobalShortcutsSection
+          currentShortcut={settings.globalShortcut}
+          newShortcut={newShortcut}
+          onNewShortcutChange={setNewShortcut}
+          onSetShortcut={handleAddShortcut}
+          onRemoveShortcut={handleRemoveShortcut}
+        />
 
-              return (
-                <div key={`${prompt.title}-${indexStr}`} className={CardStyles.promptItemCard}>
-                  <div className="mb-4">
-                    <label htmlFor={`prompt-title-${indexStr}`} className={TypographyStyles.label}>
-                      Prompt Title
-                    </label>
-                    <input
-                      id={`prompt-title-${indexStr}`}
-                      type="text"
-                      value={prompt.title}
-                      onChange={(e) => {
-                        handleUpdatePreconfiguredPrompt(index, 'title', e.target.value);
-                      }}
-                      className={InputStyles}
-                      placeholder="Enter prompt title"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label htmlFor={`prompt-content-${indexStr}`} className={TypographyStyles.label}>
-                      Prompt Content
-                    </label>
-                    <textarea
-                      id={`prompt-content-${indexStr}`}
-                      value={prompt.prompt}
-                      onChange={(e) => {
-                        handleUpdatePreconfiguredPrompt(index, 'prompt', e.target.value);
-                      }}
-                      className={`${InputStyles} h-24`}
-                      placeholder="Enter prompt content. Use {text} as placeholder."
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label htmlFor={`prompt-icon-${indexStr}`} className={TypographyStyles.label}>
-                      Icon
-                    </label>
-                    <div className="flex items-center space-x-3">
-                      <div className={FileInputStyles.wrapper}>
-                        <input
-                          id={`prompt-icon-${indexStr}`}
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              void handleIconUpload(index, file);
-                            }
-                          }}
-                          className={FileInputStyles.input}
-                        />
-                        <label
-                          htmlFor={`prompt-icon-${indexStr}`}
-                          className={FileInputStyles.label}
-                        >
-                          Choose File
-                        </label>
-                      </div>
-                      {prompt.icon && (
-                        <div className="flex items-center space-x-2">
-                          <img
-                            src={prompt.icon}
-                            alt="Preview"
-                            className="w-8 h-8 object-contain rounded"
-                          />
-                          <span className={`text-xs ${ColorPalette.text.muted}`}>Preview</span>
-                        </div>
-                      )}
-                    </div>
-                    {prompt.icon && (
-                      <p className={`text-xs ${ColorPalette.text.disabled} mt-1`}>Icon uploaded successfully</p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => {
-                      handleRemovePreconfiguredPrompt(index);
-                    }}
-                    className={`${ButtonStyles.base} ${ButtonStyles.error}`}
-                  >
-                    Remove Prompt
-                  </button>
-                </div>
-              );
-            })}
-            <button
-              onClick={handleAddPreconfiguredPrompt}
-              className={`${ButtonStyles.base} ${ButtonStyles.primary} w-full`}
-            >
-              + Add New Prompt
-            </button>
-          </div>
-        </div>
-
-        <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card}`}>
-          <h3 className={TypographyStyles.h2}>Global Shortcuts</h3>
-          <div className="mb-6">
-            <h4 className={TypographyStyles.h4}>Configure Shortcut</h4>
-            <div className="flex items-center space-x-4">
-              <input
-                type="text"
-                value={newShortcut}
-                onChange={(e) => {
-                  setNewShortcut(e.target.value);
-                }}
-                placeholder="e.g., Ctrl+Shift+X"
-                className={InputStyles}
-              />
-              <button
-                onClick={handleAddShortcut}
-                className={`${ButtonStyles.base} ${ButtonStyles.primary} whitespace-nowrap`}
-              >
-                Set Shortcut
-              </button>
-            </div>
-            <p className={`mt-3 text-sm ${ColorPalette.text.muted}`}>
-              Enter a keyboard shortcut combination (e.g., Ctrl+Shift+X)
-            </p>
-            <p className={`mt-1 text-xs ${ColorPalette.text.disabled}`}>
-              Note: Global shortcuts work even when the application is not focused
-            </p>
-          </div>
-
-          <div>
-            <h4 className={TypographyStyles.h4}>Current Shortcut</h4>
-            {settings.globalShortcut ? (
-              <div
-                className={[
-                  'flex items-center justify-between p-4',
-                  `${ColorPalette.background.main}/50`,
-                  ColorPalette.border.lightMedium,
-                  'rounded-xl',
-                ].join(' ')}
-              >
-                <div className="flex items-center space-x-4">
-                  <span className={`font-mono ${ColorPalette.text.tertiary} text-lg`}>{settings.globalShortcut}</span>
-                </div>
-                <button
-                  onClick={handleRemoveShortcut}
-                  className={`${ButtonStyles.base} ${ButtonStyles.secondary}`}
-                >
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <p className={`${ColorPalette.text.disabled} italic`}>No global shortcut configured.</p>
-            )}
-          </div>
-        </div>
-
-        <div className={`flex space-x-3 pt-4 ${LayoutStyles.divider}`}>
-          <button
-            onClick={() => {
-              void handleSave();
-            }}
-            disabled={!hasUnsavedChanges()}
-            className={`${ButtonStyles.base} ${hasUnsavedChanges() ? ButtonStyles.success : ButtonStyles.disabled}`}
-          >
-            Save Changes
-          </button>
-          <button
-            onClick={handleCancel}
-            disabled={!hasUnsavedChanges()}
-            className={`${ButtonStyles.base} ${hasUnsavedChanges() ? ButtonStyles.cancel : ButtonStyles.disabled}`}
-          >
-            Cancel
-          </button>
-        </div>
+        <SettingsActions
+          hasUnsavedChanges={hasUnsavedChanges()}
+          onSave={handleSave}
+          onCancel={handleCancel}
+        />
       </div>
     </div>
   );
