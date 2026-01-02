@@ -150,6 +150,28 @@ When fixing lint issues, follow these essential rules:
   - Use `e.target.files?.[0]` instead of `e.target.files && e.target.files[0]`
   - More concise and easier to read
 
+### Code Structure and Formatting
+- **Maintain proper indentation and nesting**
+  - Ensure JSX elements are properly nested and closed
+  - Check that opening and closing tags match correctly
+  - Verify indentation is consistent (2 spaces per level)
+  - When fixing structure, ensure all child elements are properly contained within parent elements
+
+### Import Organization
+- **Organize imports in a consistent order**
+  - External packages first
+  - Internal imports (from project) second
+  - Type-only imports use `import type`
+  - Group related imports together
+  - Example order: React → external packages → project imports → types → styles
+
+### JSX Element Structure
+- **Ensure proper JSX element closure and nesting**
+  - All JSX elements must be properly closed
+  - Check that conditional rendering doesn't break element structure
+  - Ensure fragments (`<>...</>`) are used when needed
+  - Verify that nested elements maintain proper parent-child relationships
+
 ### Examples
 
 ```typescript
@@ -203,4 +225,104 @@ className={styles.base + ' ' + styles.primary}  // String concatenation
     <input />
   </div>
 ))}
+
+// ✅ Good: Proper JSX structure and indentation
+<div className="mb-4">
+  <label htmlFor="input-id" className={TypographyStyles.label}>
+    Label
+  </label>
+  <div className="flex items-center space-x-2">
+    <input id="input-id" className={InputStyles} />
+  </div>
+</div>
+
+// ❌ Bad: Improper nesting and indentation
+<div className="mb-4">
+  <label htmlFor="input-id" className={TypographyStyles.label}>
+    Label
+  </label>
+<div className="flex items-center space-x-2">  // Wrong indentation
+<input id="input-id" className={InputStyles} />
+</div>
+</div>  // Missing closing tag for label's parent
+```
+
+## Styling and Color Palette Rules
+
+When working with styles and colors in the renderer, always follow these essential rules:
+
+### Color Palette Usage
+- **Always use `ColorPalette` for all color values**
+  - Never hardcode color classes like `text-gray-500`, `bg-blue-600`, etc.
+  - Import `ColorPalette` from `../styles/Styles` when needed
+  - Use palette values: `ColorPalette.text.primary`, `ColorPalette.background.card`, etc.
+  - All colors must be centralized in the `ColorPalette` object
+
+### Centralized Styles
+- **Always use centralized style objects from `Styles.tsx`**
+  - Use `ButtonStyles`, `InputStyles`, `MessageStyles`, `TypographyStyles`, etc.
+  - Import styles from `../styles/Styles`
+  - Never create inline style objects or hardcode Tailwind classes
+  - Reuse existing style definitions rather than duplicating
+
+### Style Composition
+- **Compose styles using template literals**
+  - Use template literals to combine multiple style classes
+  - Example: `className={`${ButtonStyles.base} ${ButtonStyles.primary}`}`
+  - For conditional styles, use ternary operators within template literals
+
+### Style Extraction
+- **Extract reusable styles to `Styles.tsx`**
+  - When creating new style patterns, add them to the appropriate style object in `Styles.tsx`
+  - Group related styles together (BackgroundStyles, ButtonStyles, etc.)
+  - Reference `ColorPalette` within style definitions
+
+### Examples
+
+```typescript
+// ✅ Good: Using ColorPalette and centralized styles
+import { ColorPalette, ButtonStyles, TypographyStyles } from '../styles/Styles';
+
+<div className={`${ColorPalette.text.primary} ${TypographyStyles.h1}`}>
+  Title
+</div>
+
+<button className={`${ButtonStyles.base} ${ButtonStyles.primary}`}>
+  Click me
+</button>
+
+<div className={`${ColorPalette.background.card} ${ColorPalette.border.defaultLight}`}>
+  Content
+</div>
+
+// ❌ Bad: Hardcoded colors and inline styles
+<div className="text-white text-xl font-medium mb-4">
+  Title
+</div>
+
+<button className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white">
+  Click me
+</button>
+
+<div className="bg-gray-800/40 border border-gray-700/30">
+  Content
+</div>
+
+// ✅ Good: Conditional styles with palette
+<button
+  className={`${ButtonStyles.base} ${
+    isDisabled ? ButtonStyles.disabled : ButtonStyles.primary
+  }`}
+>
+  Submit
+</button>
+
+// ❌ Bad: Hardcoded conditional colors
+<button
+  className={`px-4 py-2 rounded ${
+    isDisabled ? 'bg-gray-400 text-gray-200' : 'bg-blue-600 text-white'
+  }`}
+>
+  Submit
+</button>
 ```

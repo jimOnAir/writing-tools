@@ -2,6 +2,7 @@ import './App.css';
 import ChatComponent from './components/ChatComponent';
 import PromptSelectorComponent from './components/PromptSelectorComponent';
 import Settings from './components/Settings';
+import { BackgroundStyles } from './styles/Styles';
 
 /**
  * Get URL parameters to determine which view to show
@@ -26,7 +27,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-900 text-white p-4 h-full">
+    <div className={`min-h-screen flex flex-col ${BackgroundStyles.main} text-white p-3 h-full`}>
       <main className="h-full w-full flex flex-col flex-1">
         <ChatComponent />
       </main>

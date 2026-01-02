@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 
 import { PromptSelectorService } from '../domains/prompt-selector';
 import { ElectronIpcAdapter } from '../infrastructure/ipc';
-import { ButtonStyles, InputStyles } from '../styles/Styles';
+import { ButtonStyles, InputStyles, BackgroundStyles, TypographyStyles, CardStyles, LayoutStyles, ColorPalette } from '../styles/Styles';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
 const PromptSelectorComponent: React.FC = () => {
@@ -61,38 +61,42 @@ const PromptSelectorComponent: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full p-4 w-full bg-gray-900">
-      <h1 className="text-xl font-bold mb-4 text-white">Select a Prompt</h1>
+    <div className={`flex flex-col h-full p-4 w-full ${BackgroundStyles.main}`}>
+      <h1 className={TypographyStyles.h1}>Select a Prompt</h1>
 
-      <div className="mb-4 p-3 bg-gray-800 rounded flex-1 overflow-y-auto">
-        <p
-          className="whitespace-pre-wrap markdown-content"
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedText) }}
-        ></p>
+      <div className={`mb-4 p-3 ${BackgroundStyles.card} flex-1 overflow-y-auto min-h-[100px]`}>
+        {selectedText ? (
+          <p
+            className="whitespace-pre-wrap markdown-content"
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedText) }}
+          ></p>
+        ) : (
+          <p className={TypographyStyles.emptyState}>No text selected. Select some text first.</p>
+        )}
       </div>
 
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-3 text-gray-300">Preconfigured Prompts</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className={LayoutStyles.section}>
+        <h2 className={TypographyStyles.h3}>Preconfigured Prompts</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {preconfiguredPrompts.map((prompt) => (
             <button
               key={`${prompt.title}-${prompt.prompt}`}
               onClick={() => {
                 void handlePromptSelect(prompt.prompt);
               }}
-              className="p-3 bg-gray-800 border border-gray-700 rounded-lg shadow-sm hover:bg-gray-700 transition-colors text-left"
+              className={CardStyles.promptCard}
             >
-              <div className="flex items-center">
+              <div className="flex items-center mb-1">
                 {prompt.icon ? (
                   <img
                     src={prompt.icon}
                     alt={prompt.title}
-                    className="w-6 h-6 mr-2 object-contain"
+                    className="w-5 h-5 mr-2 object-contain"
                   />
                 ) : null}
-                <div className="font-medium text-white">{prompt.title}</div>
+                <div className={`font-medium ${ColorPalette.text.primary} text-sm`}>{prompt.title}</div>
               </div>
-              <div className="text-sm text-gray-400 mt-1">
+              <div className={`text-xs ${ColorPalette.text.muted} line-clamp-2`}>
                 {prompt.prompt.replace(/\{text\}/g, '...')}
               </div>
             </button>
@@ -100,33 +104,31 @@ const PromptSelectorComponent: React.FC = () => {
         </div>
       </div>
 
-      <h2 className="text-lg font-semibold mb-3 text-gray-300">Or enter your own prompt</h2>
-      <div className="flex items-center space-x-2">
+      <h2 className={TypographyStyles.h3}>Or enter your own prompt</h2>
+      <div className={LayoutStyles.inputGroup}>
         <textarea
           value={customPrompt}
           onChange={(e) => {
             setCustomPrompt(e.target.value);
           }}
-          rows={5}
+          rows={2}
           onKeyDown={handleKeyPress}
-          placeholder="Enter your custom prompt here..."
-          className={InputStyles}
+          placeholder="Enter your custom prompt..."
+          className={`${InputStyles} resize-none`}
         />
-        <div className="mt-2 flex justify-end">
-          <button
-            onClick={() => {
-              void handleCustomPromptSubmit();
-            }}
-            disabled={customPrompt.trim() === ''}
-            className={`${ButtonStyles.base} ${
-              customPrompt.trim() === ''
-                ? ButtonStyles.disabled
-                : ButtonStyles.primary
-            }`}
-          >
-            Send
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            void handleCustomPromptSubmit();
+          }}
+          disabled={customPrompt.trim() === ''}
+          className={`${ButtonStyles.base} ${
+            customPrompt.trim() === ''
+              ? ButtonStyles.disabled
+              : ButtonStyles.primary
+          } h-fit whitespace-nowrap`}
+        >
+          Send
+        </button>
       </div>
     </div>
   );

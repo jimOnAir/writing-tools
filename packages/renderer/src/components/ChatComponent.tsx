@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 
 import { ChatService } from '../domains/chat';
 import { ElectronIpcAdapter } from '../infrastructure/ipc';
-import { ButtonStyles, MessageStyles, InputStyles, ErrorStyles, LoadingStyles } from '../styles/Styles';
+import { ButtonStyles, MessageStyles, InputStyles, NotificationStyles, LoadingStyles, BackgroundStyles, LayoutStyles, SpinnerIcon, ColorPalette, TypographyStyles } from '../styles/Styles';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
 const ChatComponent: React.FC = () => {
@@ -85,27 +85,27 @@ const ChatComponent: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full w-full max-w-4xl mx-auto">
-      <div className="flex-1 overflow-y-auto p-4 bg-gray-800 rounded-lg mb-4">
+    <div className={`flex flex-col h-full w-full ${LayoutStyles.container}`}>
+      <div className={`flex-1 overflow-y-auto p-4 ${BackgroundStyles.chatContainer} mb-3`}>
         {messages.length === 0 ? (
-          <div className="text-center text-gray-400 mt-8">
-            <p>No messages yet. Start a conversation with Ollama!</p>
+          <div className={`text-center ${TypographyStyles.emptyState} mt-8`}>
+            <p className="text-sm">No messages yet</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] p-3 rounded-lg ${MessageStyles[message.role]}`}
+                  className={`max-w-[80%] p-3 ${MessageStyles[message.role]}`}
                 >
                   <div
                     className="whitespace-pre-wrap markdown-content"
                     dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
                   />
-                  <div className="text-xs mt-1">
+                  <div className="text-xs mt-1.5 opacity-60">
                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
@@ -113,11 +113,11 @@ const ChatComponent: React.FC = () => {
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-gray-700 text-white p-3 rounded-lg rounded-bl-none">
+                <div className={`${BackgroundStyles.loadingBubble} ${ColorPalette.text.tertiary} p-3 rounded rounded-l-sm`}>
                   <div className={LoadingStyles}>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                    <div className={`w-2 h-2 ${ColorPalette.loading.dot} rounded-full animate-bounce`}></div>
+                    <div className={`w-2 h-2 ${ColorPalette.loading.dot} rounded-full animate-bounce`} style={{ animationDelay: '0.2s' }}></div>
+                    <div className={`w-2 h-2 ${ColorPalette.loading.dot} rounded-full animate-bounce`} style={{ animationDelay: '0.4s' }}></div>
                   </div>
                 </div>
               </div>
@@ -128,12 +128,12 @@ const ChatComponent: React.FC = () => {
       </div>
 
       {error && (
-        <div className={ErrorStyles}>
+        <div className={`${NotificationStyles.errorInline} mb-3`}>
           {error}
         </div>
       )}
 
-      <div className="flex items-center space-x-2">
+      <div className={LayoutStyles.inputGroup}>
         <textarea
           value={inputValue}
           ref={inputRef}
@@ -141,9 +141,9 @@ const ChatComponent: React.FC = () => {
             setInputValue(e.target.value);
           }}
           onKeyDown={handleKeyPress}
-          placeholder="Type your message here..."
-          className={InputStyles}
-          rows={5}
+          placeholder="Type your message..."
+          className={`${InputStyles} resize-none`}
+          rows={2}
           disabled={isLoading}
         />
         <button
@@ -155,9 +155,16 @@ const ChatComponent: React.FC = () => {
             isLoading || !inputValue.trim()
               ? ButtonStyles.disabled
               : ButtonStyles.primary
-          }`}
+          } h-fit whitespace-nowrap`}
         >
-          Send
+          {isLoading ? (
+            <span className="flex items-center">
+              <SpinnerIcon />
+              Sending...
+            </span>
+          ) : (
+            'Send'
+          )}
         </button>
       </div>
     </div>
