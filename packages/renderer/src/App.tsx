@@ -3,7 +3,9 @@ import ChatComponent from './components/ChatComponent';
 import PromptSelectorComponent from './components/PromptSelectorComponent';
 import Settings from './components/Settings';
 
-// Check for query parameter to determine if we should show settings
+/**
+ * Get URL parameters to determine which view to show
+ */
 const getUrlParams = () => {
   const urlParams = new URLSearchParams(window.location.search);
 

@@ -1,91 +1,62 @@
-import { EIpcChannel, logger, EIpcEvent } from '@writing-tools/shared';
-import type { IPreconfiguredPrompt, TIpcEvent, IPromptSelectorData } from '@writing-tools/shared';
-import React, { useState, useEffect } from 'react';
-import { ButtonStyles, InputStyles } from 'src/styles/Styles';
-import { renderMarkdown } from 'src/utils/markdownRenderer';
+import type { IPreconfiguredPrompt } from '@writing-tools/shared';
+import React, { useState, useEffect, useMemo } from 'react';
 
-import type { TIpcRenderListener } from '../types/TIpcRenderListener';
+import { PromptSelectorService } from '../domains/prompt-selector';
+import { ElectronIpcAdapter } from '../infrastructure/ipc';
+import { ButtonStyles, InputStyles } from '../styles/Styles';
+import { renderMarkdown } from '../utils/markdownRenderer';
 
 const PromptSelectorComponent: React.FC = () => {
   const [selectedText, setSelectedText] = useState<string>('');
   const [preconfiguredPrompts, setPreconfiguredPrompts] = useState<IPreconfiguredPrompt[]>([]);
   const [customPrompt, setCustomPrompt] = useState<string>('');
 
-  useEffect(() => {
-    // Listen for prompt selector data from main process
-    const handlePromptSelectorData = (data: IPromptSelectorData) => {
-      console.log(data);
-      setSelectedText(data.selectedText);
-      setPreconfiguredPrompts(data.preconfiguredPrompts);
-    };
+  // Create service instance
+  const promptSelectorService = useMemo(() => {
+    const ipcAdapter = new ElectronIpcAdapter();
+    const service = new PromptSelectorService(ipcAdapter);
 
-    let promptSelectorDatalistener: TIpcRenderListener;
-    if (typeof window.electronAPI !== 'undefined') {
-      promptSelectorDatalistener = window.electronAPI.onPromptSelectorData(handlePromptSelectorData);
-    }
+    // Register callbacks
+    service.setCallbacks({
+      onSelectedTextChange: setSelectedText,
+      onPromptsChange: setPreconfiguredPrompts,
+    });
 
-    return () => {
-      window.electronAPI.offPromptSelectorData(promptSelectorDatalistener);
-    };
+    return service;
   }, []);
 
-  const handlePromptSelect = (promptTemplate: string) => {
-    // Replace {text} with the selected text
-    let prompt = promptTemplate;
-    if (!prompt.includes(`{text}`)) {
-      prompt += '\n{text}';
-    }
-    prompt = prompt.replace(/\{text\}/g, selectedText);
+  // Initialize listeners on mount
+  useEffect(() => {
+    promptSelectorService.initializeListeners();
 
-    const payload: TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT> = {
-      channel: EIpcChannel.PROMPT_SELECTOR,
-      event: EIpcEvent.PROMPT_SELECT,
-      payload: {
-        prompt,
-      },
+    return () => {
+      promptSelectorService.cleanupListeners();
     };
+  }, [promptSelectorService]);
 
-    window.electronAPI.invoke(EIpcChannel.PROMPT_SELECTOR, payload)
-      .catch((err: unknown) => {
-        const errorText = err instanceof Error
-          ? err.message
-          : String(err);
-
-        logger.error('Error selecting prompt:', errorText);
-      });
+  const handlePromptSelect = async (promptTemplate: string) => {
+    try {
+      await promptSelectorService.selectPrompt(promptTemplate);
+    } catch {
+      // Error is already logged in the service
+    }
   };
 
-  const handleCustomPromptSubmit = () => {
+  const handleCustomPromptSubmit = async () => {
     if (customPrompt.trim()) {
-      // Send the custom prompt to main process
-      let prompt = customPrompt;
-      if (!prompt.includes(`{text}`)) {
-        prompt += '\n{text}';
+      try {
+        await promptSelectorService.submitCustomPrompt(customPrompt);
+        setCustomPrompt('');
+      } catch {
+        // Error is already logged in the service
       }
-      prompt = prompt.replace(/\{text\}/g, selectedText);
-
-      const payload: TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT> = {
-        channel: EIpcChannel.PROMPT_SELECTOR,
-        event: EIpcEvent.PROMPT_SELECT,
-        payload: {
-          prompt,
-        },
-      };
-      window.electronAPI.invoke(EIpcChannel.PROMPT_SELECTOR, payload)
-        .catch((err: unknown) => {
-          const errorText = err instanceof Error
-            ? err.message
-            : String(err);
-
-          logger.error('Error selecting prompt:', errorText);
-        });
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleCustomPromptSubmit();
+      void handleCustomPromptSubmit();
     }
   };
 
@@ -103,11 +74,11 @@ const PromptSelectorComponent: React.FC = () => {
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-3 text-gray-300">Preconfigured Prompts</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {preconfiguredPrompts.map((prompt, index) => (
+          {preconfiguredPrompts.map((prompt) => (
             <button
-              key={index}
+              key={`${prompt.title}-${prompt.prompt}`}
               onClick={() => {
-                handlePromptSelect(prompt.prompt);
+                void handlePromptSelect(prompt.prompt);
               }}
               className="p-3 bg-gray-800 border border-gray-700 rounded-lg shadow-sm hover:bg-gray-700 transition-colors text-left"
             >
@@ -121,7 +92,9 @@ const PromptSelectorComponent: React.FC = () => {
                 ) : null}
                 <div className="font-medium text-white">{prompt.title}</div>
               </div>
-              <div className="text-sm text-gray-400 mt-1">{prompt.prompt.replace(/\{text\}/g, '...')}</div>
+              <div className="text-sm text-gray-400 mt-1">
+                {prompt.prompt.replace(/\{text\}/g, '...')}
+              </div>
             </button>
           ))}
         </div>
@@ -141,10 +114,12 @@ const PromptSelectorComponent: React.FC = () => {
         />
         <div className="mt-2 flex justify-end">
           <button
-            onClick={handleCustomPromptSubmit}
-            disabled={!customPrompt.trim()}
+            onClick={() => {
+              void handleCustomPromptSubmit();
+            }}
+            disabled={customPrompt.trim() === ''}
             className={`${ButtonStyles.base} ${
-              !customPrompt.trim()
+              customPrompt.trim() === ''
                 ? ButtonStyles.disabled
                 : ButtonStyles.primary
             }`}

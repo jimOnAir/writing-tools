@@ -1,9 +1,9 @@
-import type { IChatWindowData, IChatMessage, TChatResponse, TIpcEvent } from '@writing-tools/shared';
-import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
-import React, { useState, useEffect, useRef } from 'react';
+import type { IChatMessage } from '@writing-tools/shared';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 
+import { ChatService } from '../domains/chat';
+import { ElectronIpcAdapter } from '../infrastructure/ipc';
 import { ButtonStyles, MessageStyles, InputStyles, ErrorStyles, LoadingStyles } from '../styles/Styles';
-import type { TIpcRenderListener } from '../types/TIpcRenderListener';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
 const ChatComponent: React.FC = () => {
@@ -11,212 +11,76 @@ const ChatComponent: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  const [isHandlingResponse, setIsHandlingResponse] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const isHandlingOllamaResponseRef = useRef(false);
 
+  // Create service instance
+  const chatService = useMemo(() => {
+    const ipcAdapter = new ElectronIpcAdapter();
+    const service = new ChatService(ipcAdapter);
+
+    // Register callbacks
+    service.setCallbacks({
+      onMessagesChange: setMessages,
+      onLoadingChange: setIsLoading,
+      onErrorChange: setError,
+      onHandlingResponseChange: setIsHandlingResponse,
+    });
+
+    return service;
+  }, []);
+
+  // Initialize listeners on mount
   useEffect(() => {
-    if (!isHandlingOllamaResponseRef.current) {
+    chatService.initializeListeners();
+
+    return () => {
+      chatService.cleanupListeners();
+    };
+  }, [chatService]);
+
+  // Scroll to bottom when messages change (unless handling response)
+  useEffect(() => {
+    if (!isHandlingResponse) {
       scrollToBottom();
     }
-  }, [messages]);
+  }, [messages, isHandlingResponse]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    // Create handler functions
-    const handleChatWindowData = (data: IChatWindowData) => {
-      if (data.prompt) {
-        logger.info('Clearing previous conversation and starting new one with prompt: %s', data.prompt);
-        const initialMessages: IChatMessage[] = [
-          {
-            id: Date.now().toString(),
-            role: 'user',
-            content: data.prompt,
-            timestamp: new Date(),
-          },
-        ];
-
-        setMessages(initialMessages);
-        setIsLoading(true);
-      }
-    };
-
-    const handleOllamaResponse = (response: TChatResponse) => {
-      logger.info('Current messages count: %s', messages.length.toString());
-
-      // Set flag to prevent scrolling during Ollama response handling
-      isHandlingOllamaResponseRef.current = true;
-
-      // Handle error response
-      if ('error' in response) {
-        // Display error as a chat message instead of separate error notification
-        const errorMessage: IChatMessage = {
-          id: Date.now().toString() + '-error',
-          role: 'assistant',
-          content: `Error: ${response.error}`,
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, errorMessage]);
-        setIsLoading(false);
-
-        // Reset flag after a short delay
-        setTimeout(() => {
-          isHandlingOllamaResponseRef.current = false;
-        }, 100);
-
-        return;
-      }
-
-      // Handle successful response
-      if ('result' in response) {
-        const assistantMessage: IChatMessage = {
-          id: Date.now().toString() + '-response',
-          role: 'assistant',
-          content: response.result,
-          timestamp: new Date(),
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
-        setIsLoading(false);
-
-        // Reset flag after a short delay
-        setTimeout(() => {
-          isHandlingOllamaResponseRef.current = false;
-        }, 100);
-      }
-    };
-
-    let chatWindowDataListener: TIpcRenderListener;
-    let ollamaResponseListener: TIpcRenderListener;
-    // Set up IPC listeners
-    if (typeof window.electronAPI !== 'undefined') {
-      chatWindowDataListener = window.electronAPI.onChatWindowData(handleChatWindowData);
-      ollamaResponseListener = window.electronAPI.onOllamaResponse(handleOllamaResponse);
-    }
-
-    // Cleanup function if electronAPI is not available
-    return () => {
-      if (typeof window.electronAPI !== 'undefined') {
-        window.electronAPI.offChatWindowData(chatWindowDataListener);
-        window.electronAPI.offOllamaResponse(ollamaResponseListener);
-      }
-    };
-  }, [messages.length]);
-
   // Handle sending a message
-  const handleSendMessage = () => {
-    if (!inputValue.trim() || isLoading) {
-      return;
+  const handleSendMessage = async () => {
+    const errorText = await chatService.sendMessage(inputValue);
+    if (!errorText) {
+      setInputValue('');
     }
-
-    // Set flag to prevent scrolling during message sending
-    isHandlingOllamaResponseRef.current = true;
-
-    const userMessage: IChatMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: inputValue.trim(),
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setIsLoading(true);
-    setError(null);
-    setHistoryIndex(-1); // Reset history index after adding new message
-
-    const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_MESSAGE> = {
-      channel: EIpcChannel.CHAT,
-      event: EIpcEvent.CHAT_SEND_MESSAGE,
-      payload: { messages },
-    };
-
-    window.electronAPI.invoke(EIpcChannel.CHAT, payload)
-      .then((response) => {
-        if ('error' in response) {
-          throw new Error(response.error);
-        }
-
-        const assistantMessage: IChatMessage = {
-          id: Date.now().toString() + '-response',
-          role: 'assistant',
-          content: response.response,
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-      })
-      .catch((err: unknown) => {
-        const errorText = err instanceof Error
-          ? err.message
-          : String(err);
-
-        logger.error('Failed to send message to Ollama: %s', errorText);
-        setError(`Failed to send message: ${errorText}`);
-
-        // Add error message to chat
-        const errorMessage: IChatMessage = {
-          id: Date.now().toString() + '-error',
-          role: 'assistant',
-          content: `Error: ${errorText}`,
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, errorMessage]);
-      })
-      .finally(() => {
-        setIsLoading(false);
-        // Reset flag after a short delay
-        setTimeout(() => {
-          isHandlingOllamaResponseRef.current = false;
-        }, 100);
-      });
   };
 
   // Handle Enter key press
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      void handleSendMessage();
       if (inputRef.current) {
         inputRef.current.focus();
       }
     } else if (e.key === 'ArrowUp') {
-      // Filter messages to get only user messages (excluding assistant messages)
-      const userMessages = messages.filter(msg => msg.role === 'user' && msg.content.trim() !== '');
-
-      if (userMessages.length > 0) {
-        e.preventDefault();
-        if (historyIndex === -1) {
-          // First time pressing up, start from latest user message
-          setHistoryIndex(0);
-          setInputValue(userMessages[userMessages.length - 1].content);
-        } else if (historyIndex < userMessages.length - 1) {
-          // Cycle through user messages
-          const newIndex = historyIndex + 1;
-          setHistoryIndex(newIndex);
-          setInputValue(userMessages[userMessages.length - 1 - newIndex].content);
-        }
+      e.preventDefault();
+      const historyValue = chatService.navigateHistoryUp();
+      if (historyValue !== null) {
+        setInputValue(historyValue);
       }
     } else if (e.key === 'ArrowDown') {
-      // Handle down arrow key for cycling back through history
-      const userMessages = messages.filter(msg => msg.role === 'user' && msg.content.trim() !== '');
-
-      if (userMessages.length > 0 && historyIndex !== -1) {
-        e.preventDefault();
-        if (historyIndex > 0) {
-          // Cycle back through history
-          const newIndex = historyIndex - 1;
-          setHistoryIndex(newIndex);
-          setInputValue(userMessages[userMessages.length - 1 - newIndex].content);
-        } else {
-          // Reset to empty input
-          setHistoryIndex(-1);
-          setInputValue('');
-        }
+      e.preventDefault();
+      const historyValue = chatService.navigateHistoryDown();
+      if (historyValue !== null) {
+        setInputValue(historyValue);
       }
+    } else {
+      // Other keys are ignored
     }
   };
 
@@ -283,7 +147,9 @@ const ChatComponent: React.FC = () => {
           disabled={isLoading}
         />
         <button
-          onClick={handleSendMessage}
+          onClick={() => {
+            void handleSendMessage();
+          }}
           disabled={isLoading || !inputValue.trim()}
           className={`${ButtonStyles.base} ${
             isLoading || !inputValue.trim()

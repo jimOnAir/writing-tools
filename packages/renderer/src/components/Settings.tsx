@@ -1,280 +1,116 @@
-import type { IPreconfiguredPrompt, ISettings, TIpcEvent } from '@writing-tools/shared';
-import { DefaultSettings, logger, EIpcChannel, EIpcEvent } from '@writing-tools/shared';
-import React, { useState, useEffect } from 'react';
+import { DefaultSettings } from '@writing-tools/shared';
+import type { IPreconfiguredPrompt } from '@writing-tools/shared';
+import React, { useState, useEffect, useMemo } from 'react';
 
+import { SettingsService } from '../domains/settings';
+import { ElectronIpcAdapter } from '../infrastructure/ipc';
 import { ButtonStyles, InputStyles } from '../styles/Styles';
-import { isValidShortcut } from '../utils/globalShortcuts';
 
 const Settings: React.FC = () => {
-  const [settings, setSettings] = useState<ISettings>(DefaultSettings);
-  const [originalSettings, setOriginalSettings] = useState<ISettings>(DefaultSettings);
+  const [settings, setSettings] = useState(useMemo(() => ({ ...DefaultSettings }), []));
+  // originalSettings is managed via callback in SettingsService
+  const [, setOriginalSettings] = useState(useMemo(() => ({ ...DefaultSettings }), []));
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [newShortcut, setNewShortcut] = useState<string>('');
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Load settings from file or default values and fetch models
-  useEffect(() => {
-    const loadSettingsAndModels = async () => {
-      try {
-        // Check if electronAPI is available (for development mode)
-        if (typeof window.electronAPI === 'undefined') {
-          logger.warn('electronAPI not available, using default settings');
+  // Create service instance
+  const settingsService = useMemo(() => {
+    const ipcAdapter = new ElectronIpcAdapter();
+    const service = new SettingsService(ipcAdapter);
 
-          return;
-        }
+    // Register callbacks
+    service.setCallbacks({
+      onSettingsChange: setSettings,
+      onOriginalSettingsChange: setOriginalSettings,
+      onAvailableModelsChange: setAvailableModels,
+      onLoadingModelsChange: setLoadingModels,
+      onErrorChange: setError,
+      onSuccessChange: setSuccess,
+    });
 
-        const message: TIpcEvent<EIpcChannel.SETTINGS, EIpcEvent.SETTINGS_LOAD> = {
-          channel: EIpcChannel.SETTINGS,
-          event: EIpcEvent.SETTINGS_LOAD,
-          payload: {},
-        };
-
-        const loadedSettings = await window.electronAPI.invoke(EIpcChannel.SETTINGS, message);
-        setSettings(loadedSettings);
-        setOriginalSettings(loadedSettings);
-
-        // Fetch models when settings are loaded
-        if (loadedSettings.ollama.address) {
-          fetchAvailableModelsInternal(loadedSettings.ollama.address);
-        }
-      } catch (err) {
-        const errorText = err instanceof Error
-          ? err.message
-          : String(err);
-        logger.error('Failed to load settings: %s', errorText);
-        // Use default settings
-      }
-    };
-
-    loadSettingsAndModels()
-      .catch((err: unknown) => {
-        const errorText = err instanceof Error
-          ? err.message
-          : String(err);
-        logger.error('Failed to load settings: %s', errorText);
-      });
+    return service;
   }, []);
 
-  const fetchAvailableModelsInternal = (address?: string) => {
-    if (!address) {
-      return;
-    }
-
-    setLoadingModels(true);
-    setError(null);
-
-    // Use IPC to fetch models from main process
-
-    const payload: TIpcEvent<EIpcChannel.MODEL, EIpcEvent.MODEL_LIST> = {
-      channel: EIpcChannel.MODEL,
-      event: EIpcEvent.MODEL_LIST,
-      payload: {},
-    };
-
-    window.electronAPI.invoke(EIpcChannel.MODEL, payload)
-      .then((result) => {
-        if ('error' in result) {
-          throw new Error(result.error);
-        }
-
-        setAvailableModels(result.models);
-      })
-      .catch((err: unknown) => {
-        const errorText = err instanceof Error
-          ? err.message
-          : String(err);
-        setError('Failed to fetch available models from Ollama. Please check the address and ensure Ollama is running.');
-        logger.error('Failed to fetch models: %s', errorText);
-      })
-      .finally(() => {
-        setLoadingModels(false);
-      });
-  };
+  // Load settings on mount
+  useEffect(() => {
+    settingsService.loadSettings().catch(() => {
+      // Error is already handled in the service
+    });
+  }, [settingsService]);
 
   const fetchAvailableModels = () => {
-    // Check if electronAPI is available (for development mode)
-    if (typeof window.electronAPI === 'undefined') {
-      logger.warn('electronAPI not available');
-
-      return;
-    }
-
-    fetchAvailableModelsInternal(settings.ollama.address);
+    settingsService.fetchAvailableModels().catch(() => {
+      // Error is already handled in the service
+    });
   };
 
   // Handle input changes
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newAddress = e.target.value;
-    setSettings(prev => ({
-      ...prev,
-      ollama: {
-        ...prev.ollama,
-        address: newAddress,
-      },
-    }));
-
-    // Automatically fetch models when address changes
-    if (newAddress) {
-      fetchAvailableModelsInternal(newAddress);
-    }
+    settingsService.updateOllamaAddress(e.target.value);
   };
 
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSettings(prev => ({
-      ...prev,
-      ollama: {
-        ...prev.ollama,
-        model: e.target.value,
-      },
-    }));
+    settingsService.updateOllamaModel(e.target.value);
   };
 
   // Handle adding a new shortcut
   const handleAddShortcut = () => {
-    if (!newShortcut.trim()) {
-      setError('Please enter a valid shortcut combination');
-
-      return;
+    const errorMsg = settingsService.setGlobalShortcut(newShortcut);
+    if (errorMsg === null) {
+      setNewShortcut('');
+    } else {
+      setError(errorMsg);
     }
-
-    // Basic validation for shortcut format
-    if (newShortcut.trim().length < 2) {
-      setError('Shortcut must be at least 2 characters long');
-
-      return;
-    }
-
-    // Validate shortcut format
-    if (!isValidShortcut(newShortcut.trim())) {
-      setError('Invalid shortcut format. Please use a valid combination like Ctrl+Shift+X');
-
-      return;
-    }
-
-    // Set the new shortcut
-    setSettings(prev => ({
-      ...prev,
-      globalShortcut: newShortcut.trim(),
-    }));
-
-    setNewShortcut('');
-    setError(null);
-    setSuccess('Shortcut set successfully');
-    setTimeout(() => {
-      setSuccess(null);
-    }, 3000);
   };
 
   // Handle removing a shortcut
   const handleRemoveShortcut = () => {
-    setSettings(prev => ({
-      ...prev,
-      globalShortcut: undefined,
-    }));
-
-    setSuccess('Shortcut removed successfully');
-    setTimeout(() => {
-      setSuccess(null);
-    }, 3000);
+    settingsService.removeGlobalShortcut();
   };
 
   // Handle adding a new preconfigured prompt
   const handleAddPreconfiguredPrompt = () => {
-    const newPrompt: IPreconfiguredPrompt = {
-      title: 'New Prompt',
-      prompt: 'Enter your prompt here...',
-    };
-
-    setSettings(prev => ({
-      ...prev,
-      preconfiguredPrompts: [...(prev.preconfiguredPrompts), newPrompt],
-    }));
+    settingsService.addPreconfiguredPrompt();
   };
 
   // Handle removing a preconfigured prompt
   const handleRemovePreconfiguredPrompt = (index: number) => {
-    setSettings(prev => {
-      const newPrompts = [...prev.preconfiguredPrompts];
-      newPrompts.splice(index, 1);
-
-      return {
-        ...prev,
-        preconfiguredPrompts: newPrompts,
-      };
-    });
+    settingsService.removePreconfiguredPrompt(index);
   };
 
   // Handle updating a preconfigured prompt
   const handleUpdatePreconfiguredPrompt = (index: number, field: keyof IPreconfiguredPrompt, value: string) => {
-    setSettings(prev => {
-      const newPrompts = [...prev.preconfiguredPrompts];
-      newPrompts[index] = {
-        ...newPrompts[index],
-        [field]: value,
-      };
-
-      return {
-        ...prev,
-        preconfiguredPrompts: newPrompts,
-      };
-    });
+    settingsService.updatePreconfiguredPrompt(index, field, value);
   };
 
   // Handle icon file upload for a prompt
-  const handleIconUpload = (index: number, file: File) => {
-    // Convert file to base64
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = e.target?.result as string;
-      // Update the prompt with the base64 icon
-      handleUpdatePreconfiguredPrompt(index, 'icon', base64);
-    };
-    reader.readAsDataURL(file);
+  // File is a browser API (not Node.js), available in renderer process
+  const handleIconUpload = async (index: number, file: globalThis.File) => {
+    try {
+      await settingsService.updatePreconfiguredPromptIcon(index, file);
+    } catch {
+      setError('Failed to upload icon');
+    }
   };
 
-  const handleSave = () => {
-    // Check if electronAPI is available (for development mode)
-    if (typeof window.electronAPI === 'undefined') {
-      logger.warn('electronAPI not available');
-      setError('Cannot save settings - application not running in Electron environment');
-
-      return;
+  const handleSave = async () => {
+    const saveSuccess = await settingsService.saveSettings();
+    if (saveSuccess) {
+      alert('Settings saved successfully!');
     }
-
-    const message: TIpcEvent<EIpcChannel.SETTINGS, EIpcEvent.SETTINGS_SAVE> = {
-      channel: EIpcChannel.SETTINGS,
-      event: EIpcEvent.SETTINGS_SAVE,
-      payload: settings,
-    };
-
-    window.electronAPI.invoke(EIpcChannel.SETTINGS, message)
-      .then((result) => {
-        if (result.success) {
-          alert('Settings saved successfully!');
-          // In a real implementation, you would close the window here
-        } else {
-          setError(`Failed to save settings: ${result.error}`);
-          logger.error('Failed to save settings: %s', result.error);
-        }
-      }).catch((err: unknown) => {
-        const errorText = err instanceof Error
-          ? err.message
-          : String(err);
-        logger.error('Failed to save settings: %s', errorText);
-        setError('Failed to save settings');
-      });
   };
 
   // Cancel changes
   const handleCancel = () => {
-    setSettings(originalSettings);
+    settingsService.cancelChanges();
   };
 
   // Check if there are unsaved changes
   const hasUnsavedChanges = () => {
-    return JSON.stringify(settings) !== JSON.stringify(originalSettings);
+    return settingsService.hasUnsavedChanges();
   };
 
   return (
@@ -285,10 +121,11 @@ const Settings: React.FC = () => {
       {success && <div className="text-green-400 mb-4">{success}</div>}
 
       <div className="mb-6">
-        <label className="block mb-2 font-medium text-gray-400">
+        <label htmlFor="ollama-address" className="block mb-2 font-medium text-gray-400">
           Ollama Address:
         </label>
         <input
+          id="ollama-address"
           type="text"
           value={settings.ollama.address}
           onChange={handleAddressChange}
@@ -297,11 +134,12 @@ const Settings: React.FC = () => {
       </div>
 
       <div className="mb-6">
-        <label className="block mb-2 font-medium text-gray-400">
+        <label htmlFor="ollama-model" className="block mb-2 font-medium text-gray-400">
           Ollama Model:
         </label>
         <div className="flex items-center space-x-4">
           <select
+            id="ollama-model"
             value={settings.ollama.model}
             onChange={handleModelChange}
             className={InputStyles}
@@ -313,7 +151,7 @@ const Settings: React.FC = () => {
           <button
             onClick={fetchAvailableModels}
             disabled={loadingModels}
-            className={ButtonStyles.base + ' ' + (loadingModels ? ButtonStyles.disabled : ButtonStyles.primary)}
+            className={`${ButtonStyles.base} ${loadingModels ? ButtonStyles.disabled : ButtonStyles.primary}`}
           >
             {loadingModels ? 'Loading...' : 'Refresh Models'}
           </button>
@@ -328,73 +166,81 @@ const Settings: React.FC = () => {
           Use &#123;text&#125; as a placeholder for the selected content.
         </p>
         <div className="space-y-4">
-          {settings.preconfiguredPrompts.map((prompt, index) => (
-            <div key={index} className="p-4 bg-gray-800 rounded-lg">
-              <div className="mb-3">
-                <label className="block mb-1 font-medium text-gray-400">
-                  Prompt Title
-                </label>
-                <input
-                  type="text"
-                  value={prompt.title}
-                  onChange={(e) => {
-                    handleUpdatePreconfiguredPrompt(index, 'title', e.target.value);
-                  }}
-                  className={InputStyles}
-                />
-              </div>
-              <div className="mb-3">
-                <label className="block mb-1 font-medium text-gray-400">
-                  Prompt Content
-                </label>
-                <textarea
-                  value={prompt.prompt}
-                  onChange={(e) => {
-                    handleUpdatePreconfiguredPrompt(index, 'prompt', e.target.value);
-                  }}
-                  className={InputStyles + ' h-24'}
-                />
-              </div>
-              <div className="mb-3">
-                <label className="block mb-1 font-medium text-gray-400">
-                  Icon
-                </label>
-                <div className="flex items-center space-x-2">
+          {settings.preconfiguredPrompts.map((prompt, index) => {
+            const indexStr = String(index);
+
+            return (
+              <div key={`${prompt.title}-${indexStr}`} className="p-4 bg-gray-800 rounded-lg">
+                <div className="mb-3">
+                  <label htmlFor={`prompt-title-${indexStr}`} className="block mb-1 font-medium text-gray-400">
+                    Prompt Title
+                  </label>
                   <input
-                    type="file"
-                    accept="image/*"
+                    id={`prompt-title-${indexStr}`}
+                    type="text"
+                    value={prompt.title}
                     onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        handleIconUpload(index, e.target.files[0]);
-                      }
+                      handleUpdatePreconfiguredPrompt(index, 'title', e.target.value);
                     }}
-                    className="text-sm text-gray-500"
+                    className={InputStyles}
                   />
-                  {prompt.icon && (
-                    <img
-                      src={prompt.icon}
-                      alt="Preview"
-                      className="w-8 h-8 object-contain"
+                </div>
+                <div className="mb-3">
+                  <label htmlFor={`prompt-content-${indexStr}`} className="block mb-1 font-medium text-gray-400">
+                    Prompt Content
+                  </label>
+                  <textarea
+                    id={`prompt-content-${indexStr}`}
+                    value={prompt.prompt}
+                    onChange={(e) => {
+                      handleUpdatePreconfiguredPrompt(index, 'prompt', e.target.value);
+                    }}
+                    className={`${InputStyles} h-24`}
+                  />
+                </div>
+                <div className="mb-3">
+                  <label htmlFor={`prompt-icon-${indexStr}`} className="block mb-1 font-medium text-gray-400">
+                    Icon
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      id={`prompt-icon-${indexStr}`}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          void handleIconUpload(index, file);
+                        }
+                      }}
+                      className="text-sm text-gray-500"
                     />
+                    {prompt.icon && (
+                      <img
+                        src={prompt.icon}
+                        alt="Preview"
+                        className="w-8 h-8 object-contain"
+                      />
+                    )}
+                  </div>
+                  {prompt.icon && (
+                    <p className="text-xs text-gray-500 mt-1">Icon uploaded successfully</p>
                   )}
                 </div>
-                {prompt.icon && (
-                  <p className="text-xs text-gray-500 mt-1">Icon uploaded successfully</p>
-                )}
+                <button
+                  onClick={() => {
+                    handleRemovePreconfiguredPrompt(index);
+                  }}
+                  className={`${ButtonStyles.base} ${ButtonStyles.error}`}
+                >
+                  Remove Prompt
+                </button>
               </div>
-              <button
-                onClick={() => {
-                  handleRemovePreconfiguredPrompt(index);
-                }}
-                className={ButtonStyles.base + ' ' + ButtonStyles.error}
-              >
-                Remove Prompt
-              </button>
-            </div>
-          ))}
+            );
+          })}
           <button
             onClick={handleAddPreconfiguredPrompt}
-            className={ButtonStyles.base + ' ' + ButtonStyles.primary}
+            className={`${ButtonStyles.base} ${ButtonStyles.primary}`}
           >
             Add New Prompt
           </button>
@@ -417,7 +263,7 @@ const Settings: React.FC = () => {
             />
             <button
               onClick={handleAddShortcut}
-              className={ButtonStyles.base + ' ' + ButtonStyles.primary}
+              className={`${ButtonStyles.base} ${ButtonStyles.primary}`}
             >
               Set Shortcut
             </button>
@@ -439,7 +285,7 @@ const Settings: React.FC = () => {
               </div>
               <button
                 onClick={handleRemoveShortcut}
-                className={ButtonStyles.base + ' ' + ButtonStyles.primary}
+                className={`${ButtonStyles.base} ${ButtonStyles.primary}`}
               >
                 Remove
               </button>
@@ -452,16 +298,18 @@ const Settings: React.FC = () => {
 
       <div className="flex space-x-2">
         <button
-          onClick={handleSave}
+          onClick={() => {
+            void handleSave();
+          }}
           disabled={!hasUnsavedChanges()}
-          className={ButtonStyles.base + ' ' + (hasUnsavedChanges() ? ButtonStyles.success : ButtonStyles.disabled)}
+          className={`${ButtonStyles.base} ${hasUnsavedChanges() ? ButtonStyles.success : ButtonStyles.disabled}`}
         >
           Save
         </button>
         <button
           onClick={handleCancel}
           disabled={!hasUnsavedChanges()}
-          className={ButtonStyles.base + ' ' + (hasUnsavedChanges() ? ButtonStyles.secondary : ButtonStyles.disabled)}
+          className={`${ButtonStyles.base} ${hasUnsavedChanges() ? ButtonStyles.secondary : ButtonStyles.disabled}`}
         >
           Cancel
         </button>
