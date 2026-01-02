@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { ButtonStyles, InputStyles, BackgroundStyles, TypographyStyles, LayoutStyles, SpinnerIcon } from '../../styles/Styles';
+import { ButtonStyles, InputStyles, BackgroundStyles, TypographyStyles, LayoutStyles, SpinnerIcon, ColorPalette } from '../../styles/Styles';
 
 interface OllamaSettingsSectionProps {
   readonly address: string;
@@ -43,7 +43,7 @@ export const OllamaSettingsSection: React.FC<OllamaSettingsSectionProps> = ({
         <label htmlFor="ollama-model" className={TypographyStyles.label}>
           Ollama Model
         </label>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-3">
           <select
             id="ollama-model"
             value={model ?? ''}
@@ -71,7 +71,7 @@ export const OllamaSettingsSection: React.FC<OllamaSettingsSectionProps> = ({
             )}
           </button>
         </div>
-        {loadingModels && <div className="mt-3 text-sm text-gray-400">Fetching available models...</div>}
+        {loadingModels && <div className={`mt-3 text-sm ${ColorPalette.text.muted}`}>Fetching available models...</div>}
       </div>
     </>
   );

@@ -403,6 +403,74 @@ Only add complexity with:
 - Prefer verb-led prefixes: `add-`, `update-`, `remove-`, `refactor-`
 - Ensure uniqueness; if taken, append `-2`, `-3`, etc.
 
+## UI/UX Rules
+
+### Spacing and Layout
+- **Use compact spacing** for form fields: `mb-3` instead of `mb-4` for tighter, cleaner layouts
+- **Use inline flex layouts** for related elements: `flex items-center gap-3` or `space-x-4` for horizontal groups
+- **Section cards**: Use `LayoutStyles.sectionCard` with `BackgroundStyles.card` for settings sections
+
+### Remove Redundant Elements
+- **Eliminate redundant labels and messages**: Don't show "Preview" text next to preview images, success messages for obvious states, or labels for self-explanatory UI elements
+- **Let the UI speak for itself**: If an image preview is visible, no need for "Preview" label; if a button says "Change Icon", no need for "Icon uploaded successfully" message
+- **Remove unnecessary wrappers**: Simplify nested div structures when possible
+
+### Button Design
+- **Use ghost style for remove actions**: Use `ButtonStyles.ghost` for destructive/remove actions instead of error style for a more subtle, less alarming appearance
+- **Use concise button text**: Prefer shorter labels like "Remove" instead of "Remove Prompt", "Save" instead of "Save Changes" (unless context requires specificity)
+- **Dynamic button text**: Use contextual text that reflects current state (e.g., "Upload Icon" when empty, "Change Icon" when icon exists)
+- **Loading states**: Show spinner with `SpinnerIcon` and loading text in buttons during async operations
+- **Disabled states**: Use `ButtonStyles.disabled` for disabled buttons, conditionally based on state
+
+### Form Design
+- **Conditional rendering**: Only show elements when they have meaningful content (e.g., `{currentShortcut ? <div>...</div> : null}`)
+- **Help text placement**: Use muted text color (`ColorPalette.text.muted`) for descriptive help text placed below inputs, not above
+- **Inline form groups**: Group related inputs and buttons horizontally using flex layouts when they work together (e.g., input + action button)
+
+### Visual Feedback
+- **Self-explanatory previews**: Image previews don't need labels; the visual is sufficient feedback
+- **Contextual button states**: Button text should reflect the action it will perform, not just a generic label
+- **Minimal success indicators**: Avoid redundant success messages when the UI state already indicates success (e.g., showing uploaded icon is sufficient)
+
+### Examples
+
+```typescript
+// ✅ Good: Compact spacing, no redundant labels, ghost button for remove
+<div className="mb-3">
+  <label htmlFor="input-id" className={TypographyStyles.label}>Label</label>
+  <input id="input-id" className={InputStyles} />
+</div>
+<div className="mb-3 flex items-center gap-3">
+  <FileInputButton />
+  {icon && <img src={icon} alt="Preview" className="w-8 h-8" />}
+</div>
+<button className={`${ButtonStyles.base} ${ButtonStyles.ghost} text-sm`}>
+  Remove
+</button>
+
+// ❌ Bad: Excessive spacing, redundant labels, error style for remove
+<div className="mb-4">
+  <label htmlFor="input-id" className={TypographyStyles.label}>Label</label>
+  <input id="input-id" className={InputStyles} />
+</div>
+<div className="mb-4">
+  <label className={TypographyStyles.label}>Icon</label>
+  <div className="flex items-center space-x-3">
+    <FileInputButton />
+    {icon && (
+      <div className="flex items-center space-x-2">
+        <img src={icon} alt="Preview" className="w-8 h-8" />
+        <span className="text-xs text-gray-400">Preview</span>
+      </div>
+    )}
+  </div>
+  {icon && <p className="text-xs text-gray-500 mt-1">Icon uploaded successfully</p>}
+</div>
+<button className={`${ButtonStyles.base} ${ButtonStyles.error}`}>
+  Remove Prompt
+</button>
+```
+
 ## Tool Selection Guide
 
 | Task | Tool | Why |

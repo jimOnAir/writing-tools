@@ -86,7 +86,7 @@ const ChatComponent: React.FC = () => {
 
   return (
     <div className={`flex flex-col h-full w-full ${LayoutStyles.container}`}>
-      <div className={`flex-1 overflow-y-auto p-4 ${BackgroundStyles.chatContainer} mb-3`}>
+      <div className={`flex-1 overflow-y-auto p-4 ${BackgroundStyles.chatContainer} mb-3 rounded`}>
         {messages.length === 0 ? (
           <div className={`text-center ${TypographyStyles.emptyState} mt-8`}>
             <p className="text-sm">No messages yet</p>
@@ -105,7 +105,7 @@ const ChatComponent: React.FC = () => {
                     className="whitespace-pre-wrap markdown-content"
                     dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
                   />
-                  <div className="text-xs mt-1.5 opacity-60">
+                  <div className={`text-xs mt-1.5 ${ColorPalette.text.muted}`}>
                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
@@ -155,7 +155,7 @@ const ChatComponent: React.FC = () => {
             isLoading || !inputValue.trim()
               ? ButtonStyles.disabled
               : ButtonStyles.primary
-          } h-fit whitespace-nowrap`}
+          } whitespace-nowrap`}
         >
           {isLoading ? (
             <span className="flex items-center">

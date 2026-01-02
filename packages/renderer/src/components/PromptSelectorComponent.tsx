@@ -64,7 +64,7 @@ const PromptSelectorComponent: React.FC = () => {
     <div className={`flex flex-col h-full p-4 w-full ${BackgroundStyles.main}`}>
       <h1 className={TypographyStyles.h1}>Select a Prompt</h1>
 
-      <div className={`mb-4 p-3 ${BackgroundStyles.card} flex-1 overflow-y-auto min-h-[100px]`}>
+      <div className={`mb-3 p-3 ${BackgroundStyles.card} flex-1 overflow-y-auto min-h-[100px] rounded`}>
         {selectedText ? (
           <p
             className="whitespace-pre-wrap markdown-content"
@@ -77,7 +77,7 @@ const PromptSelectorComponent: React.FC = () => {
 
       <div className={LayoutStyles.section}>
         <h2 className={TypographyStyles.h3}>Preconfigured Prompts</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {preconfiguredPrompts.map((prompt) => (
             <button
               key={`${prompt.title}-${prompt.prompt}`}
@@ -91,7 +91,7 @@ const PromptSelectorComponent: React.FC = () => {
                   <img
                     src={prompt.icon}
                     alt={prompt.title}
-                    className="w-5 h-5 mr-2 object-contain"
+                    className={`w-5 h-5 mr-2 object-contain rounded ${ColorPalette.border.defaultSubtle}`}
                   />
                 ) : null}
                 <div className={`font-medium ${ColorPalette.text.primary} text-sm`}>{prompt.title}</div>
@@ -125,7 +125,7 @@ const PromptSelectorComponent: React.FC = () => {
             customPrompt.trim() === ''
               ? ButtonStyles.disabled
               : ButtonStyles.primary
-          } h-fit whitespace-nowrap`}
+          } whitespace-nowrap`}
         >
           Send
         </button>

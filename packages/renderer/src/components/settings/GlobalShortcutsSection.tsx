@@ -20,58 +20,41 @@ export const GlobalShortcutsSection: React.FC<GlobalShortcutsSectionProps> = ({
   return (
     <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card}`}>
       <h3 className={TypographyStyles.h2}>Global Shortcuts</h3>
-      <div className="mb-6">
-        <h4 className={TypographyStyles.h4}>Configure Shortcut</h4>
-        <div className="flex items-center space-x-4">
-          <input
-            type="text"
-            value={newShortcut}
-            onChange={(e) => {
-              onNewShortcutChange(e.target.value);
-            }}
-            placeholder="e.g., Ctrl+Shift+X"
-            className={InputStyles}
-          />
-          <button
-            onClick={onSetShortcut}
-            className={`${ButtonStyles.base} ${ButtonStyles.primary} whitespace-nowrap`}
+      <div className="flex items-center gap-3">
+        <input
+          type="text"
+          value={newShortcut}
+          onChange={(e) => {
+            onNewShortcutChange(e.target.value);
+          }}
+          placeholder="e.g., Ctrl+Shift+X"
+          className={InputStyles}
+        />
+        <button
+          onClick={onSetShortcut}
+          className={`${ButtonStyles.base} ${ButtonStyles.primary} whitespace-nowrap`}
+        >
+          Set Shortcut
+        </button>
+      </div>
+      {currentShortcut ? (
+        <div className="flex items-center gap-3 mt-3">
+          <span
+            className={`px-2 py-1 rounded font-mono text-sm ${ColorPalette.background.main}/50 ${ColorPalette.border.lightMedium} ${ColorPalette.text.tertiary}`}
           >
-            Set Shortcut
+            {currentShortcut}
+          </span>
+          <button
+            onClick={onRemoveShortcut}
+            className={`${ButtonStyles.base} ${ButtonStyles.ghost} whitespace-nowrap`}
+          >
+            Remove
           </button>
         </div>
-        <p className={`mt-3 text-sm ${ColorPalette.text.muted}`}>
-          Enter a keyboard shortcut combination (e.g., Ctrl+Shift+X)
-        </p>
-        <p className={`mt-1 text-xs ${ColorPalette.text.disabled}`}>
-          Note: Global shortcuts work even when the application is not focused
-        </p>
-      </div>
-
-      <div>
-        <h4 className={TypographyStyles.h4}>Current Shortcut</h4>
-        {currentShortcut ? (
-          <div
-            className={[
-              'flex items-center justify-between p-4',
-              `${ColorPalette.background.main}/50`,
-              ColorPalette.border.lightMedium,
-              'rounded-xl',
-            ].join(' ')}
-          >
-            <div className="flex items-center space-x-4">
-              <span className={`font-mono ${ColorPalette.text.tertiary} text-lg`}>{currentShortcut}</span>
-            </div>
-            <button
-              onClick={onRemoveShortcut}
-              className={`${ButtonStyles.base} ${ButtonStyles.secondary}`}
-            >
-              Remove
-            </button>
-          </div>
-        ) : (
-          <p className={`${ColorPalette.text.disabled} italic`}>No global shortcut configured.</p>
-        )}
-      </div>
+      ) : null}
+      <p className={`mt-3 text-sm ${ColorPalette.text.muted}`}>
+        Enter a keyboard shortcut (e.g., Ctrl+Shift+X). Global shortcuts work even when the application is not focused.
+      </p>
     </div>
   );
 };

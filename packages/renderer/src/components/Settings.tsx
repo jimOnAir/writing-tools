@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 
 import { SettingsService } from '../domains/settings';
 import { ElectronIpcAdapter } from '../infrastructure/ipc';
-import { BackgroundStyles, TypographyStyles, LayoutStyles, ColorPalette } from '../styles/Styles';
+import { BackgroundStyles, TypographyStyles, LayoutStyles } from '../styles/Styles';
 
 import { GlobalShortcutsSection } from './settings/GlobalShortcutsSection';
 import { OllamaSettingsSection } from './settings/OllamaSettingsSection';
@@ -122,8 +122,8 @@ const Settings: React.FC = () => {
   return (
     <div className={`min-h-screen p-4 font-sans ${BackgroundStyles.main}`}>
       <div className={LayoutStyles.container}>
-        <h2 className={`text-xl font-medium mb-1 ${ColorPalette.text.primary}`}>Settings</h2>
-        <p className={TypographyStyles.subtitle}>Configure your application preferences</p>
+        <h2 className={TypographyStyles.h1}>Settings</h2>
+        <p className={`${TypographyStyles.subtitle} mb-6`}>Configure your application preferences</p>
 
         <SettingsNotifications error={error} success={success} />
 

@@ -22,9 +22,9 @@ export const PreconfiguredPromptItem: React.FC<PreconfiguredPromptItemProps> = (
 
   return (
     <div className={CardStyles.promptItemCard}>
-      <div className="mb-4">
+      <div className="mb-3">
         <label htmlFor={`prompt-title-${indexStr}`} className={TypographyStyles.label}>
-          Prompt Title
+          Title
         </label>
         <input
           id={`prompt-title-${indexStr}`}
@@ -37,9 +37,38 @@ export const PreconfiguredPromptItem: React.FC<PreconfiguredPromptItemProps> = (
           placeholder="Enter prompt title"
         />
       </div>
-      <div className="mb-4">
+      <div className="mb-3 flex items-center gap-3">
+        {prompt.icon && (
+          <img
+            src={prompt.icon}
+            alt="Icon preview"
+            className={`w-8 h-8 object-contain rounded ${ColorPalette.border.defaultSubtle}`}
+          />
+        )}
+        <div className={FileInputStyles.wrapper}>
+          <input
+            id={`prompt-icon-${indexStr}`}
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                void onIconUpload(index, file);
+              }
+            }}
+            className={FileInputStyles.input}
+          />
+          <label
+            htmlFor={`prompt-icon-${indexStr}`}
+            className={FileInputStyles.label}
+          >
+            {prompt.icon ? 'Change Icon' : 'Upload Icon'}
+          </label>
+        </div>
+      </div>
+      <div className="mb-3">
         <label htmlFor={`prompt-content-${indexStr}`} className={TypographyStyles.label}>
-          Prompt Content
+          Prompt
         </label>
         <textarea
           id={`prompt-content-${indexStr}`}
@@ -51,53 +80,13 @@ export const PreconfiguredPromptItem: React.FC<PreconfiguredPromptItemProps> = (
           placeholder="Enter prompt content. Use {text} as placeholder."
         />
       </div>
-      <div className="mb-4">
-        <label htmlFor={`prompt-icon-${indexStr}`} className={TypographyStyles.label}>
-          Icon
-        </label>
-        <div className="flex items-center space-x-3">
-          <div className={FileInputStyles.wrapper}>
-            <input
-              id={`prompt-icon-${indexStr}`}
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  void onIconUpload(index, file);
-                }
-              }}
-              className={FileInputStyles.input}
-            />
-            <label
-              htmlFor={`prompt-icon-${indexStr}`}
-              className={FileInputStyles.label}
-            >
-              Choose File
-            </label>
-          </div>
-          {prompt.icon && (
-            <div className="flex items-center space-x-2">
-              <img
-                src={prompt.icon}
-                alt="Preview"
-                className="w-8 h-8 object-contain rounded"
-              />
-              <span className={`text-xs ${ColorPalette.text.muted}`}>Preview</span>
-            </div>
-          )}
-        </div>
-        {prompt.icon && (
-          <p className={`text-xs ${ColorPalette.text.disabled} mt-1`}>Icon uploaded successfully</p>
-        )}
-      </div>
       <button
         onClick={() => {
           onRemove(index);
         }}
-        className={`${ButtonStyles.base} ${ButtonStyles.error}`}
+        className={`${ButtonStyles.base} ${ButtonStyles.ghost} whitespace-nowrap`}
       >
-        Remove Prompt
+        Remove
       </button>
     </div>
   );
