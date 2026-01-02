@@ -209,3 +209,31 @@ html, body {
 .markdown-content tr:hover {
   background-color: #334155;
 }
+
+/* Custom scrollbar styling - thin, modern scrollbars matching dark theme */
+/* Webkit scrollbars (Chrome/Electron) */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(31, 41, 55, 0.4); /* gray-800/40 - matches ColorPalette.background.card */
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.6); /* gray-600/60 - matches ColorPalette.border.lightMedium */
+  border-radius: 4px;
+  border: 1px solid rgba(55, 65, 81, 0.3); /* gray-700/30 - matches ColorPalette.border.defaultLight */
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.8); /* gray-500/80 - lighter for interaction feedback */
+}
+
+/* Firefox scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(75, 85, 99, 0.6) rgba(31, 41, 55, 0.4); /* thumb track */
+}

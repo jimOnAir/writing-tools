@@ -147,6 +147,19 @@ export const CardStyles = {
   promptItemCard: `${BackgroundStyles.cardDense} p-4`,
 };
 
+// Scrollbar styles
+// Note: Scrollbar styling is primarily CSS-based (see App.css)
+// This object documents the color scheme used for scrollbars
+export const ScrollbarStyles = {
+  // Colors match ColorPalette values:
+  // Track: gray-800/40 (matches ColorPalette.background.card)
+  // Thumb: gray-600/60 (matches ColorPalette.border.lightMedium)
+  // Thumb hover: gray-500/80 (lighter for interaction feedback)
+  // Border: gray-700/30 (matches ColorPalette.border.defaultLight)
+  // Width: 8px, Border radius: 4px
+  note: 'Scrollbar styles are defined in App.css using webkit and Firefox scrollbar properties',
+};
+
 // Spinner component (for reuse)
 export const SpinnerIcon = () => (
   <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
