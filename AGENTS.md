@@ -307,3 +307,12 @@ import { ColorPalette, ButtonStyles, TypographyStyles } from '../styles/Styles';
   Submit
 </button>
 ```
+
+## Application Architecture
+
+For application-specific architecture details, including:
+- Chat persistence architecture and database schema
+- Dependency injection patterns and service wiring
+- Service provider interfaces and implementation patterns
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for complete documentation.

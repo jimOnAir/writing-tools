@@ -14,15 +14,20 @@
     "build": "tsc -b",
     "prebuild:esbuild": "rimraf dist",
     "prebuild": "rimraf dist",
+    "prestart": "npx electron-rebuild -f -w better-sqlite3-multiple-ciphers && npm run build:esbuild",
     "start": "electron .",
     "lint": "eslint src --ext .ts,.tsx --fix",
-    "lint:check": "eslint src --ext .ts,.tsx"
+    "lint:check": "eslint src --ext .ts,.tsx",
+    "build:electron": "electron-builder -- publish=never",
+    "prebuild:electron": "rimraf release && npm run build -w @writing-tools/shared && npm run build:esbuild && npm run build -w @writing-tools/renderer"
   },
   "dependencies": {
     "@writing-tools/shared": "*",
+    "better-sqlite3-multiple-ciphers": "^12.5.0",
     "ollama": "^0.6.3"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.0.3",
     "chokidar": "^5.0.0",

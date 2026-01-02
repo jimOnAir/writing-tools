@@ -5,7 +5,9 @@ import isDev from 'electron-is-dev';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-export class SettingsRepository {
+import type { ISettingsRepository } from './ISettingsRepository';
+
+export class SettingsRepository implements ISettingsRepository {
   private currentSettings: ISettings | null = null;
   private settingsLoaded = false;
 

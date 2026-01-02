@@ -5,8 +5,9 @@ import * as path from 'path';
 import * as url from 'url';
 
 import { getAppIcon } from '../../icons';
-import { SettingsService } from '../settings';
+import type { ISettingsService } from '../settings/ISettingsService';
 
+import type { IWindowService } from './IWindowService';
 import type { WindowCreationResult } from './WindowTypes';
 
 function getPreloadPath(): string {
@@ -30,13 +31,13 @@ function getPreloadPath(): string {
   return preloadPath;
 }
 
-export class WindowService {
+export class WindowService implements IWindowService {
   private settingsWindow: Electron.BrowserWindow | null = null;
   private chatWindow: Electron.BrowserWindow | null = null;
   private promptSelectorWindow: Electron.BrowserWindow | null = null;
-  private readonly settingsService: SettingsService;
+  private readonly settingsService: ISettingsService;
 
-  public constructor(settingsService: SettingsService = new SettingsService()) {
+  public constructor(settingsService: ISettingsService) {
     this.settingsService = settingsService;
   }
 

@@ -17,6 +17,7 @@ export class ChatService {
   private isHandlingOllamaResponse = false;
   private chatWindowDataListener: TIpcRenderListener | null = null;
   private ollamaResponseListener: TIpcRenderListener | null = null;
+  private currentChatId: number | null = null;
 
   // Callbacks for component state updates
   private onMessagesChange?: (messages: IChatMessage[]) => void;
@@ -64,6 +65,8 @@ export class ChatService {
 
         this.setMessages(initialMessages);
         this.setLoading(true);
+        // Reset currentChatId since this is a new conversation started from prompt selector
+        this.currentChatId = null;
       }
     };
 
@@ -140,6 +143,17 @@ export class ChatService {
       return null;
     }
 
+    // Ensure we have a chatId before sending
+    if (this.currentChatId === null) {
+      const chatId = await this.createNewChatSession();
+      if (chatId === null) {
+        logger.error('Cannot send message: no chat session available');
+        this.setError('Failed to create chat session');
+
+        return 'Failed to create chat session';
+      }
+    }
+
     this.setHandlingResponse(true);
 
     const userMessage: IChatMessage = {
@@ -157,7 +171,7 @@ export class ChatService {
     const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_MESSAGE> = {
       channel: EIpcChannel.CHAT,
       event: EIpcEvent.CHAT_SEND_MESSAGE,
-      payload: { messages: this.messages },
+      payload: { chatId: this.currentChatId!, messages: this.messages },
     };
 
     try {
@@ -282,6 +296,39 @@ export class ChatService {
    */
   public getIsHandlingResponse(): boolean {
     return this.isHandlingOllamaResponse;
+  }
+
+  /**
+   * Create a new chat session in the database
+   */
+  private async createNewChatSession(): Promise<number | null> {
+    try {
+      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_CREATE_SESSION> = {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_CREATE_SESSION,
+        payload: {},
+      };
+
+      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+
+      if ('error' in response) {
+        logger.error('Failed to create chat session: %s', response.error);
+        this.currentChatId = null;
+
+        return null;
+      } else {
+        this.currentChatId = response.chatId;
+        logger.info('Created new chat session with ID: %s', response.chatId.toString());
+
+        return response.chatId;
+      }
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to create chat session: %s', errorText);
+      this.currentChatId = null;
+
+      return null;
+    }
   }
 
   // Private setters that trigger callbacks

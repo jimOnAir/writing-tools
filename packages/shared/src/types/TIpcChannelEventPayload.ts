@@ -2,16 +2,38 @@
 /* eslint-disable @stylistic/operator-linebreak */
 import type { EIpcChannel } from '../enum/EIpcChannel';
 import type { EIpcEvent } from '../enum/EIpcEvent';
+import type { IChatInfo } from '../interfaces/IChatInfo';
 import type { IChatMessage } from '../interfaces/IChatMessage';
 import type { ISettings } from '../interfaces/ISettings';
 
+export type TSettingsSavePayload = ISettings;
+
+export type TSettingsLoadPayload = Record<string, never>;
+
+export type TModelListPayload = { provider: 'ollama' | 'lmstudio' };
+
+export type TChatSendMessagePayload = { chatId: number, messages: IChatMessage[] };
+
+export type TChatCreateSessionPayload = Record<string, never>;
+
+export type TChatLoadMessagesPayload = { chatId: number };
+
+export type TChatListChatsPayload = { chats: IChatInfo[] };
+
+export type TEnvGetPayload = Record<string, never>;
+
+export type TPromptSelectPayload = { prompt: string };
+
 export type TIpcEventPayload<K extends EIpcEvent> =
-  K extends EIpcEvent.SETTINGS_SAVE ? ISettings :
-  K extends EIpcEvent.SETTINGS_LOAD ? object :
-  K extends EIpcEvent.MODEL_LIST ? { provider: 'ollama' | 'lmstudio' } :
-  K extends EIpcEvent.CHAT_SEND_MESSAGE ? { messages: IChatMessage [] } :
-  K extends EIpcEvent.ENV_GET ? object :
-  K extends EIpcEvent.PROMPT_SELECT ? { prompt: string } :
+  K extends EIpcEvent.SETTINGS_SAVE ? TSettingsSavePayload :
+  K extends EIpcEvent.SETTINGS_LOAD ? TSettingsLoadPayload :
+  K extends EIpcEvent.MODEL_LIST ? TModelListPayload :
+  K extends EIpcEvent.CHAT_SEND_MESSAGE ? TChatSendMessagePayload :
+  K extends EIpcEvent.CHAT_CREATE_SESSION ? TChatCreateSessionPayload :
+  K extends EIpcEvent.CHAT_LOAD_MESSAGES ? TChatLoadMessagesPayload :
+  K extends EIpcEvent.CHAT_LIST_CHATS ? TChatListChatsPayload :
+  K extends EIpcEvent.ENV_GET ? TEnvGetPayload :
+  K extends EIpcEvent.PROMPT_SELECT ? TPromptSelectPayload :
 never;
 
 export type TIpcEvent <T extends EIpcChannel, K extends EIpcEvent> = {

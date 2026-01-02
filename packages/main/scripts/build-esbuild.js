@@ -1,4 +1,3 @@
-// packages/main/scripts/build-esbuild.js
 const esbuild = require('esbuild');
 const path = require('path');
 const fs = require('fs-extra');
@@ -17,7 +16,7 @@ const fs = require('fs-extra');
     platform: 'node',
     format: 'cjs',
     sourcemap: true,
-    external: ['electron'],
+    external: ['electron', 'better-sqlite3-multiple-ciphers'],
     logLevel: 'info',
     define: { 'process.env.NODE_ENV': '"production"' },
     alias: { '@writing-tools/shared': path.resolve(root, 'packages/shared/src') }

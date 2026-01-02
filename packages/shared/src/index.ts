@@ -1,3 +1,4 @@
+export type { IChatInfo } from './interfaces/IChatInfo';
 export type { IChatMessage } from './interfaces/IChatMessage';
 export type { IChatWindowData } from './interfaces/IChatWindowData';
 export type { ILogger } from './interfaces/ILogger';
@@ -11,5 +12,5 @@ export type { TIpcResponsePayload } from './types/TIpcChannelEventResponse';
 export { DefaultSettings } from './const/DefaultSettings';
 export { EIpcChannel } from './enum/EIpcChannel';
 export { EIpcEvent } from './enum/EIpcEvent';
-export { logger } from './utils/logger';
 export { EIpcRendererEvent } from './enum/EIpcRendererEvent';
+export { logger } from './utils/logger';

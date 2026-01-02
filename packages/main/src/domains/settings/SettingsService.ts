@@ -1,19 +1,20 @@
 import type { ISettings } from '@writing-tools/shared';
 
-import { SettingsRepository } from './SettingsRepository';
+import type { ISettingsRepository } from './ISettingsRepository';
+import type { ISettingsService } from './ISettingsService';
 
-export class SettingsService {
-  private readonly repository: SettingsRepository;
+export class SettingsService implements ISettingsService {
+  private readonly repository: ISettingsRepository;
 
-  public constructor(repository: SettingsRepository = new SettingsRepository()) {
+  public constructor(repository: ISettingsRepository) {
     this.repository = repository;
   }
 
-  public async loadSettings(): Promise<ISettings> {
+  public loadSettings = async (): Promise<ISettings> => {
     return this.repository.loadSettings();
-  }
+  };
 
-  public async saveSettings(settings: ISettings): Promise<void> {
+  public saveSettings = async (settings: ISettings): Promise<void> => {
     return this.repository.saveSettings(settings);
-  }
+  };
 }

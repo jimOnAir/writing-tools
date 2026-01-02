@@ -1,6 +1,10 @@
-export type { LLMChatResponse } from './ModelService';
 export type { LMStudioClientConfig, LMStudioChatResponse } from './LMStudioClient';
 export type { OllamaClientConfig, OllamaChatResponse } from './OllamaClient';
+export type { ILMStudioModelService } from './ILMStudioModelService';
+export type { IOllamaModelService } from './IOllamaModelService';
+export type { IModelService, LLMChatResponse } from './IModelService';
 export { LMStudioClient } from './LMStudioClient';
+export { LMStudioModelService } from './LMStudioModelService';
 export { ModelService } from './ModelService';
 export { OllamaClient } from './OllamaClient';
+export { OllamaModelService } from './OllamaModelService';

@@ -1,0 +1,19 @@
+import type { Message } from 'ollama';
+
+import type { LMStudioChatResponse } from './LMStudioClient';
+
+/**
+ * Interface for LM Studio model service operations
+ * Following Dependency Inversion Principle - high-level modules depend on this abstraction
+ */
+export interface ILMStudioModelService {
+  /**
+   * Fetch available LM Studio models
+   */
+  fetchModels: () => Promise<{ models: string[] } | { error: string }>;
+
+  /**
+   * Send messages to LM Studio and get response
+   */
+  sendMessages: (messages: Message[]) => Promise<LMStudioChatResponse>;
+}

@@ -1,7 +1,9 @@
 import { execSync } from 'child_process';
 import os from 'os';
 
-export class TextSelectionService {
+import type { ITextSelectionService } from './ITextSelectionService';
+
+export class TextSelectionService implements ITextSelectionService {
   public getSelectedText(): string | null {
     try {
       const platform = os.platform();

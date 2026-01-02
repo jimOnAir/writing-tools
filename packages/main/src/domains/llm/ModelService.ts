@@ -1,76 +1,50 @@
 import type { Message } from 'ollama';
 
-import { SettingsService } from '../settings';
+import type { ISettingsService } from '../settings/ISettingsService';
 
-import { LMStudioClient, type LMStudioChatResponse } from './LMStudioClient';
-import { OllamaClient, type OllamaChatResponse } from './OllamaClient';
+import type { ILMStudioModelService } from './ILMStudioModelService';
+import type { IModelService, LLMChatResponse } from './IModelService';
+import type { IOllamaModelService } from './IOllamaModelService';
+import { LMStudioModelService } from './LMStudioModelService';
+import { OllamaModelService } from './OllamaModelService';
 
-export type LLMChatResponse = OllamaChatResponse | LMStudioChatResponse;
+/**
+ * Adapter service that selects the appropriate provider service based on settings
+ * Implements IModelService by delegating to provider-specific services
+ */
+export class ModelService implements IModelService {
+  private readonly settingsService: ISettingsService;
+  private readonly ollamaModelService: IOllamaModelService;
+  private readonly lmStudioModelService: ILMStudioModelService;
 
-export class ModelService {
-  private readonly settingsService: SettingsService;
-
-  public constructor(settingsService: SettingsService = new SettingsService()) {
+  public constructor(settingsService: ISettingsService) {
     this.settingsService = settingsService;
+    this.ollamaModelService = new OllamaModelService(settingsService);
+    this.lmStudioModelService = new LMStudioModelService(settingsService);
   }
 
-  public async fetchModels(providerOverride: 'ollama' | 'lmstudio'): Promise<{ models: string[] } | { error: string }> {
-    const settings = await this.settingsService.loadSettings();
-    const provider = providerOverride;
-
-    if (provider === 'lmstudio') {
-      const client = new LMStudioClient({
-        host: settings.lmstudio.address,
-        apiKey: settings.lmstudio.apiKey,
-      });
-
-      return client.listModels();
-    } else {
-      const client = new OllamaClient({
-        host: settings.ollama.address,
-        apiKey: settings.ollama.apiKey,
-      });
-
-      return client.listModels();
+  public fetchModels = async (provider: 'ollama' | 'lmstudio'): Promise<{ models: string[] } | { error: string }> => {
+    switch (provider) {
+      case 'lmstudio':
+        return this.lmStudioModelService.fetchModels();
+      case 'ollama':
+        return this.ollamaModelService.fetchModels();
+      default:
+        throw new Error(`Unknown provider: ${provider as string}`);
     }
-  }
+  };
 
-  public async sendMessages(messages: Message[]): Promise<LLMChatResponse> {
+  public sendMessages = async (messages: Message[]): Promise<LLMChatResponse> => {
     const settings = await this.settingsService.loadSettings();
-    const provider = settings.provider || 'ollama';
+    const provider = settings.provider;
 
-    if (provider === 'lmstudio') {
-      const { address, model, apiKey } = settings.lmstudio;
-
-      if (!model) {
-        throw new Error('Model not specified');
-      }
-
-      const client = new LMStudioClient({
-        host: address,
-        apiKey,
-      });
-
-      // Convert Ollama Message format to LM Studio format (they're compatible)
-      const lmStudioMessages = messages.map(msg => ({
-        role: msg.role as 'user' | 'assistant' | 'system',
-        content: msg.content,
-      }));
-
-      return client.chat(model, lmStudioMessages);
-    } else {
-      const { address, model, apiKey } = settings.ollama;
-
-      if (!model) {
-        throw new Error('Model not specified');
-      }
-
-      const client = new OllamaClient({
-        host: address,
-        apiKey,
-      });
-
-      return client.chat(model, messages);
+    switch (provider) {
+      case 'lmstudio':
+        return this.lmStudioModelService.sendMessages(messages);
+      case 'ollama':
+        return this.ollamaModelService.sendMessages(messages);
+      default:
+        throw new Error(`Unknown provider: ${String(provider)}`);
     }
-  }
+  };
 }

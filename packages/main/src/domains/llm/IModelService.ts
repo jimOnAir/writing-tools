@@ -1,0 +1,23 @@
+import type { Message } from 'ollama';
+
+import type { LMStudioChatResponse } from './LMStudioClient';
+import type { OllamaChatResponse } from './OllamaClient';
+
+export type LLMChatResponse = OllamaChatResponse | LMStudioChatResponse;
+
+/**
+ * Interface for model service operations
+ * Adapter that selects the appropriate provider service based on settings
+ * Following Dependency Inversion Principle - high-level modules depend on this abstraction
+ */
+export interface IModelService {
+  /**
+   * Fetch available models for a provider
+   */
+  fetchModels: (providerOverride: 'ollama' | 'lmstudio') => Promise<{ models: string[] } | { error: string }>;
+
+  /**
+   * Send messages to the LLM and get response
+   */
+  sendMessages: (messages: Message[]) => Promise<LLMChatResponse>;
+}

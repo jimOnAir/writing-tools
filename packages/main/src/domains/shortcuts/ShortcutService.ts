@@ -1,19 +1,21 @@
 import { EIpcRendererEvent, logger } from '@writing-tools/shared';
 import { globalShortcut } from 'electron';
 
-import { SettingsService } from '../settings';
-import { TextSelectionService } from '../text-selection';
-import { WindowService } from '../windows';
+import type { ISettingsService } from '../settings/ISettingsService';
+import type { ITextSelectionService } from '../text-selection/ITextSelectionService';
+import type { IWindowService } from '../windows/IWindowService';
 
-export class ShortcutService {
-  private readonly settingsService: SettingsService;
-  private readonly textSelectionService: TextSelectionService;
-  private readonly windowService: WindowService;
+import type { IShortcutService } from './IShortcutService';
+
+export class ShortcutService implements IShortcutService {
+  private readonly settingsService: ISettingsService;
+  private readonly textSelectionService: ITextSelectionService;
+  private readonly windowService: IWindowService;
 
   public constructor(
-    settingsService: SettingsService = new SettingsService(),
-    textSelectionService: TextSelectionService = new TextSelectionService(),
-    windowService: WindowService = new WindowService(),
+    settingsService: ISettingsService,
+    textSelectionService: ITextSelectionService,
+    windowService: IWindowService,
   ) {
     this.settingsService = settingsService;
     this.textSelectionService = textSelectionService;

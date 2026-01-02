@@ -3,20 +3,20 @@ import type { MenuItemConstructorOptions } from 'electron';
 import { Tray, Menu, app } from 'electron';
 
 import { getAppIcon } from '../../icons';
-import { WindowService } from '../windows';
+import type { IWindowService } from '../windows/IWindowService';
 
-export class TrayService {
+import type { ITrayService } from './ITrayService';
+
+export class TrayService implements ITrayService {
   private tray: Tray | null = null;
-  private readonly windowService: WindowService;
+  private readonly windowService: IWindowService;
 
-  public constructor(windowService: WindowService = new WindowService()) {
+  public constructor(windowService: IWindowService) {
     this.windowService = windowService;
   }
 
   public createTray(): void {
-    if (!this.tray) {
-      this.tray = new Tray(getAppIcon());
-    }
+    this.tray ??= new Tray(getAppIcon());
 
     const menuItems: MenuItemConstructorOptions[] = [
       {
