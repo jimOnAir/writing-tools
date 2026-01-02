@@ -19,4 +19,9 @@ export interface IWindowService {
    * Create or show the settings window
    */
   createSettingsWindow: () => Promise<void>;
+
+  /**
+   * Get or create the chat list window
+   */
+  getChatListWindow: () => Promise<WindowCreationResult>;
 }

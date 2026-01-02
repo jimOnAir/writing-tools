@@ -21,7 +21,9 @@ type TChatChannelEventPayload = TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_CREATE_SESSION>
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LOAD_MESSAGES>
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS>
-  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_GET>;
+  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_GET>
+  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_DELETE>
+  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_OPEN>;
 
 type TPromptSelectEventPayload = TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT>;
 
@@ -84,6 +86,10 @@ export class IpcHandlers implements IIpcHandlers {
           return this.handleChatListChats();
         case EIpcEvent.CHAT_GET:
           return this.handleChatGet(data.payload.chatId);
+        case EIpcEvent.CHAT_DELETE:
+          return await this.handleChatDelete(data.payload.chatId);
+        case EIpcEvent.CHAT_OPEN:
+          return await this.handleChatOpen(data.payload.chatId);
 
         default:
           throw new Error(`Unsupported event: ${eventType}`);
@@ -229,6 +235,67 @@ export class IpcHandlers implements IIpcHandlers {
       logger.error('Failed to get chat: %s', errorText);
 
       return { error: errorText };
+    }
+  }
+
+  private async handleChatDelete(chatId: number) {
+    try {
+      // Check if chat exists before deleting
+      const chat = this.chatService.getChat(chatId);
+      if (chat === null) {
+        return { success: false, error: `Chat with id ${chatId} not found` };
+      }
+
+      // Delete the chat (messages cascade delete automatically)
+      this.chatService.deleteChat(chatId);
+
+      // Notify chat window if it exists and is displaying this chat
+      try {
+        const { window: chatWindow } = await this.windowService.getChatWindow();
+        if (!chatWindow.isDestroyed()) {
+          chatWindow.webContents.send(EIpcRendererEvent.CHAT_DELETED, {
+            chatId,
+          });
+        }
+      } catch {
+        // Chat window might not exist, ignore
+      }
+
+      return { success: true };
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      logger.error('Failed to delete chat: %s', errorText);
+
+      return { success: false, error: errorText };
+    }
+  }
+
+  private async handleChatOpen(chatId: number) {
+    try {
+      // Check if chat exists
+      const chat = this.chatService.getChat(chatId);
+      if (chat === null) {
+        return { success: false, error: `Chat with id ${chatId} not found` };
+      }
+
+      // Get or create chat window
+      const { window: chatWindow } = await this.windowService.getChatWindow();
+
+      // Load messages for this chat
+      const messages = this.chatService.loadChatMessages(chatId);
+
+      // Send messages to chat window
+      chatWindow.webContents.send(EIpcRendererEvent.CHAT_LOAD_MESSAGES_DATA, {
+        chatId,
+        messages,
+      });
+
+      return { success: true };
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      logger.error('Failed to open chat: %s', errorText);
+
+      return { success: false, error: errorText };
     }
   }
 

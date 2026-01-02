@@ -1,5 +1,6 @@
 import './App.css';
 import ChatComponent from './components/ChatComponent';
+import ChatListComponent from './components/ChatListComponent';
 import PromptSelectorComponent from './components/PromptSelectorComponent';
 import Settings from './components/Settings';
 import { BackgroundStyles } from './styles/Styles';
@@ -24,6 +25,10 @@ function App() {
 
   if (view === 'prompt-selector') {
     return <PromptSelectorComponent />;
+  }
+
+  if (view === 'chat-list') {
+    return <ChatListComponent />;
   }
 
   return (

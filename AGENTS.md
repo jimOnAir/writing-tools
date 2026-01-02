@@ -27,6 +27,161 @@ When working with TypeScript classes, always follow these rules:
   - Private implementation methods should come after public methods
   - This improves readability and follows common TypeScript conventions
 
+### Enum Key Ordering
+- **Always sort enum keys alphabetically**
+  - All enum members must be in alphabetical order
+  - This ensures consistency and makes it easier to find specific enum values
+  - Apply to all enums: event enums, channel enums, status enums, etc.
+
+### Object Property Ordering
+- **Always sort object properties alphabetically**
+  - All object properties must be in alphabetical order
+  - This ensures consistency and makes it easier to find specific properties
+  - Apply to all object literals: configuration objects, style objects, type definitions, etc.
+  - Exception: When object properties have logical grouping (e.g., related properties together), maintain that grouping but sort within each group
+
+### Conditional Type Ordering
+- **Always sort conditions alphabetically in conditional types**
+  - All condition checks in conditional types must be in alphabetical order
+  - This ensures consistency and makes it easier to find specific type conditions
+  - Apply to all conditional types: `K extends EIpcEvent.CHAT_DELETE ? ... : K extends EIpcEvent.CHAT_GET ? ... : never`
+
+### Mapped Type Ordering
+- **Always sort properties alphabetically in mapped types**
+  - All properties in mapped types must be in alphabetical order
+  - This ensures consistency and makes it easier to find specific mapped properties
+  - Apply to all mapped types: `{ [K in keyof T]: ... }` and similar patterns
+
+### Enum Key Completeness Checking
+- **Use type helpers to ensure all enum keys are used in mapped types**
+  - Create a mapped type that maps every enum value to its corresponding type
+  - Use `TEnsureAllKeysMap` helper type to verify all enum keys are present at compile time
+  - This provides type safety and prevents missing enum values in mappings
+  - Apply to all enum-to-type mappings: event payloads, response types, setting types, etc.
+
+### Examples
+
+#### Enum and Object Ordering Examples
+
+```typescript
+// ✅ Good: Enum keys sorted alphabetically
+export enum EIpcEvent {
+  CHAT_CREATE_SESSION = 'CHAT_CREATE_SESSION',
+  CHAT_DELETE = 'CHAT_DELETE',
+  CHAT_GET = 'CHAT_GET',
+  ENV_GET = 'ENV_GET',
+  MODEL_LIST = 'MODEL_LIST',
+}
+
+// ❌ Bad: Enum keys not sorted
+export enum EIpcEvent {
+  CHAT_GET = 'CHAT_GET',
+  ENV_GET = 'ENV_GET',
+  CHAT_DELETE = 'CHAT_DELETE',  // Out of order
+  MODEL_LIST = 'MODEL_LIST',
+  CHAT_CREATE_SESSION = 'CHAT_CREATE_SESSION',  // Out of order
+}
+
+// ✅ Good: Object properties sorted alphabetically
+const config = {
+  apiKey: 'key',
+  endpoint: 'https://api.example.com',
+  timeout: 5000,
+  version: '1.0',
+};
+
+// ❌ Bad: Object properties not sorted
+const config = {
+  endpoint: 'https://api.example.com',
+  apiKey: 'key',  // Out of order
+  version: '1.0',
+  timeout: 5000,  // Out of order
+}
+
+// ✅ Good: Grouped properties, sorted within groups
+const styles = {
+  // Background group
+  background: {
+    card: 'bg-gray-800',
+    main: 'bg-gray-900',
+  },
+  // Border group
+  border: {
+    default: 'border-gray-700',
+    light: 'border-gray-600',
+  },
+  // Text group
+  text: {
+    muted: 'text-gray-400',
+    primary: 'text-white',
+  },
+};
+
+// ✅ Good: Conditional type conditions sorted alphabetically
+export type TIpcResponsePayload<K extends EIpcEvent> =
+  K extends EIpcEvent.CHAT_DELETE ? TChatDeleteResponse :
+  K extends EIpcEvent.CHAT_GET ? TChatGetResponse :
+  K extends EIpcEvent.CHAT_OPEN ? TChatOpenResponse :
+  K extends EIpcEvent.ENV_GET ? TEnvGetResponse :
+  K extends EIpcEvent.MODEL_LIST ? TModelListResponse :
+  never;
+
+// ❌ Bad: Conditional type conditions not sorted
+export type TIpcResponsePayload<K extends EIpcEvent> =
+  K extends EIpcEvent.CHAT_GET ? TChatGetResponse :
+  K extends EIpcEvent.ENV_GET ? TEnvGetResponse :
+  K extends EIpcEvent.CHAT_DELETE ? TChatDeleteResponse :  // Out of order
+  K extends EIpcEvent.MODEL_LIST ? TModelListResponse :
+  K extends EIpcEvent.CHAT_OPEN ? TChatOpenResponse :  // Out of order
+  never;
+
+// ✅ Good: Mapped type properties sorted alphabetically
+type Optional<T> = {
+  [K in keyof T as K extends 'id' ? never : K]?: T[K];
+};
+
+// ✅ Good: Interface properties sorted alphabetically (applies to mapped types too)
+interface IChatWindowData {
+  chatId?: number;
+  prompt: string;
+}
+
+// ❌ Bad: Interface properties not sorted
+interface IChatWindowData {
+  prompt: string;
+  chatId?: number;  // Out of order
+}
+
+// ✅ Good: Use type helper to ensure all enum keys are mapped
+export type TEnsureAllKeysMap<E extends string | number, M extends Record<E, any>> = M;
+
+export type TIpcEventPayloadMap = {
+  [EIpcEvent.CHAT_CREATE_SESSION]: TChatCreateSessionPayload,
+  [EIpcEvent.CHAT_DELETE]: TChatDeletePayload,
+  [EIpcEvent.CHAT_GET]: TChatGetPayload,
+  [EIpcEvent.CHAT_LIST_CHATS]: TChatListChatsPayload,
+  [EIpcEvent.CHAT_LOAD_MESSAGES]: TChatLoadMessagesPayload,
+  [EIpcEvent.CHAT_OPEN]: TChatOpenPayload,
+  [EIpcEvent.CHAT_SEND_MESSAGE]: TChatSendMessagePayload,
+  [EIpcEvent.ENV_GET]: TEnvGetPayload,
+  [EIpcEvent.MODEL_LIST]: TModelListPayload,
+  [EIpcEvent.PROMPT_SELECT]: TPromptSelectPayload,
+  [EIpcEvent.SETTINGS_LOAD]: TSettingsLoadPayload,
+  [EIpcEvent.SETTINGS_SAVE]: TSettingsSavePayload,
+};
+
+type TCheckedMap = TEnsureAllKeysMap<EIpcEvent, TIpcEventPayloadMap>;
+
+export type TIpcEventPayload<K extends EIpcEvent> = TCheckedMap[K];
+
+// ❌ Bad: Missing type safety - no guarantee all enum keys are mapped
+export type TIpcEventPayload<K extends EIpcEvent> =
+  K extends EIpcEvent.CHAT_DELETE ? TChatDeletePayload :
+  K extends EIpcEvent.CHAT_GET ? TChatGetPayload :
+  // Missing other enum values - no compile-time error!
+  never;
+```
+
 ### Examples
 
 ```typescript
@@ -110,6 +265,20 @@ When fixing lint issues, follow these essential rules:
 - **Always associate labels with form controls**
   - Add `htmlFor` attribute to labels matching input `id`
   - Example: `<label htmlFor="input-id">` with `<input id="input-id">`
+
+### Button Text Naming
+- **Use consistent naming for button labels**
+  - Use "Remove" for delete/remove actions (not "Delete")
+  - Use "Removing..." for delete/remove action loading states
+  - This ensures consistency across the application
+  - Example: `<button>Remove</button>` instead of `<button>Delete</button>`
+
+### Button Style Consistency
+- **Use consistent button styles for similar actions across components**
+  - Remove/delete buttons should use `${ButtonStyles.base} ${ButtonStyles.ghost}` pattern
+  - Always include `whitespace-nowrap` for button text to prevent wrapping
+  - Match button styling patterns from Settings component for consistency
+  - Example: `<button className={`${ButtonStyles.base} ${ButtonStyles.ghost} whitespace-nowrap`}>Remove</button>`
 
 ### Type Imports
 - **Never use dynamic `import()` for type annotations**

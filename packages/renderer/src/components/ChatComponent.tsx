@@ -42,6 +42,19 @@ const ChatComponent: React.FC = () => {
     };
   }, [chatService]);
 
+  // Check URL params for chatId on mount and load messages if present
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const chatIdParam = urlParams.get('chatId');
+
+    if (chatIdParam !== null) {
+      const chatId = Number.parseInt(chatIdParam, 10);
+      if (!Number.isNaN(chatId)) {
+        void chatService.loadChatMessages(chatId);
+      }
+    }
+  }, [chatService]);
+
   // Scroll to bottom when messages change (unless handling response)
   useEffect(() => {
     if (!isHandlingResponse) {

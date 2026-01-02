@@ -150,6 +150,20 @@ export class ChatRepository implements IChatRepository {
     stmt.run(title, new Date().toISOString(), chatId);
   }
 
+  public deleteChat(chatId: number): void {
+    if (this.db === null) {
+      throw new Error('Database not initialized');
+    }
+
+    // Permanent hard delete - messages are automatically deleted via CASCADE foreign key constraint
+    const stmt = this.db.prepare(`
+      DELETE FROM chats
+      WHERE id = ?
+    `);
+
+    stmt.run(chatId);
+  }
+
   public close(): void {
     if (this.db !== null) {
       this.db.close();

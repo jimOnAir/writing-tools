@@ -18,6 +18,8 @@ export class ChatService {
   private chatWindowDataListener: TIpcRenderListener | null = null;
   private ollamaResponseListener: TIpcRenderListener | null = null;
   private chatTitleUpdatedListener: TIpcRenderListener | null = null;
+  private chatLoadMessagesDataListener: TIpcRenderListener | null = null;
+  private chatDeletedListener: TIpcRenderListener | null = null;
   private currentChatId: number | null = null;
 
   // Callbacks for component state updates
@@ -141,10 +143,28 @@ export class ChatService {
       }
     };
 
+    const handleChatLoadMessagesData = (data: { chatId: number, messages: IChatMessage[] }) => {
+      logger.info('Loading messages for chat: chatId=%s, messageCount=%s', String(data.chatId), String(data.messages.length));
+      this.currentChatId = data.chatId;
+      this.setMessages(data.messages);
+      this.setLoading(false);
+      this.setError(null);
+    };
+
+    const handleChatDeleted = (data: { chatId: number }) => {
+      // If the deleted chat is the current chat, close the window
+      if (this.currentChatId === data.chatId) {
+        logger.info('Current chat was deleted, closing window: chatId=%s', String(data.chatId));
+        globalThis.close();
+      }
+    };
+
     try {
       this.chatWindowDataListener = this.ipcAdapter.onChatWindowData(handleChatWindowData);
       this.ollamaResponseListener = this.ipcAdapter.onOllamaResponse(handleOllamaResponse);
       this.chatTitleUpdatedListener = this.ipcAdapter.onChatTitleUpdated(handleChatTitleUpdated);
+      this.chatLoadMessagesDataListener = this.ipcAdapter.onChatLoadMessagesData(handleChatLoadMessagesData);
+      this.chatDeletedListener = this.ipcAdapter.onChatDeleted(handleChatDeleted);
     } catch (error) {
       const errorText = error instanceof Error ? error.message : String(error);
       logger.error('Failed to initialize chat listeners: %s', errorText);
@@ -168,6 +188,16 @@ export class ChatService {
     if (this.chatTitleUpdatedListener) {
       this.ipcAdapter.offChatTitleUpdated(this.chatTitleUpdatedListener);
       this.chatTitleUpdatedListener = null;
+    }
+
+    if (this.chatLoadMessagesDataListener) {
+      this.ipcAdapter.offChatLoadMessagesData(this.chatLoadMessagesDataListener);
+      this.chatLoadMessagesDataListener = null;
+    }
+
+    if (this.chatDeletedListener) {
+      this.ipcAdapter.offChatDeleted(this.chatDeletedListener);
+      this.chatDeletedListener = null;
     }
   }
 
@@ -366,6 +396,71 @@ export class ChatService {
       logger.error('Failed to get chat info: %s', errorText);
 
       return null;
+    }
+  }
+
+  /**
+   * Load messages for a specific chat
+   */
+  public async loadChatMessages(chatId: number): Promise<void> {
+    try {
+      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LOAD_MESSAGES> = {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_LOAD_MESSAGES,
+        payload: { chatId },
+      };
+
+      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+
+      if ('error' in response) {
+        logger.error('Failed to load messages: %s', response.error);
+        this.setError(`Failed to load messages: ${response.error}`);
+
+        return;
+      }
+
+      this.currentChatId = chatId;
+      this.setMessages(response.messages);
+      this.setLoading(false);
+      this.setError(null);
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to load messages: %s', errorText);
+      this.setError(`Failed to load messages: ${errorText}`);
+    }
+  }
+
+  /**
+   * Delete a chat
+   */
+  public async deleteChat(chatId: number): Promise<string | null> {
+    try {
+      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_DELETE> = {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_DELETE,
+        payload: { chatId },
+      };
+
+      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+
+      if ('error' in response) {
+        logger.error('Failed to delete chat: %s', response.error);
+
+        return response.error;
+      }
+
+      // If the deleted chat is the current chat, clear the state
+      if (this.currentChatId === chatId) {
+        this.currentChatId = null;
+        this.setMessages([]);
+      }
+
+      return null;
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to delete chat: %s', errorText);
+
+      return errorText;
     }
   }
 

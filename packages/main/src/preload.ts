@@ -55,5 +55,29 @@ if (typeof window !== 'undefined') {
     offChatTitleUpdated: (listener: TIpcRenderListener) => {
       return ipcRenderer.off(EIpcRendererEvent.CHAT_TITLE_UPDATED, listener);
     },
+    onChatLoadMessagesData: (cb: (message: any) => void) => {
+      const chatLoadMessagesDataListener = (_: IpcRendererEvent, message: any) => {
+        cb(message);
+      };
+
+      ipcRenderer.on(EIpcRendererEvent.CHAT_LOAD_MESSAGES_DATA, chatLoadMessagesDataListener);
+
+      return chatLoadMessagesDataListener;
+    },
+    offChatLoadMessagesData: (listener: TIpcRenderListener) => {
+      return ipcRenderer.off(EIpcRendererEvent.CHAT_LOAD_MESSAGES_DATA, listener);
+    },
+    onChatDeleted: (cb: (message: any) => void) => {
+      const chatDeletedListener = (_: IpcRendererEvent, message: any) => {
+        cb(message);
+      };
+
+      ipcRenderer.on(EIpcRendererEvent.CHAT_DELETED, chatDeletedListener);
+
+      return chatDeletedListener;
+    },
+    offChatDeleted: (listener: TIpcRenderListener) => {
+      return ipcRenderer.off(EIpcRendererEvent.CHAT_DELETED, listener);
+    },
   });
 }

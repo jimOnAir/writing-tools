@@ -35,6 +35,7 @@ export class WindowService implements IWindowService {
   private settingsWindow: Electron.BrowserWindow | null = null;
   private chatWindow: Electron.BrowserWindow | null = null;
   private promptSelectorWindow: Electron.BrowserWindow | null = null;
+  private chatListWindow: Electron.BrowserWindow | null = null;
   private readonly settingsService: ISettingsService;
 
   public constructor(settingsService: ISettingsService) {
@@ -167,6 +168,47 @@ export class WindowService implements IWindowService {
 
     this.settingsWindow.show();
     this.settingsWindow.focus();
+  }
+
+  public async getChatListWindow(): Promise<WindowCreationResult> {
+    if (this.chatListWindow) {
+      this.chatListWindow.show();
+      this.chatListWindow.focus();
+
+      return { created: false, window: this.chatListWindow };
+    }
+
+    this.chatListWindow = new BrowserWindow({
+      height: 600,
+      width: 500,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: getPreloadPath(),
+      },
+      icon: getAppIcon(),
+      title: 'Chat List',
+      resizable: false,
+      maximizable: false,
+    });
+    this.chatListWindow.setMenu(null);
+
+    const rendererUrl = this.getRendererUrl() + '?view=chat-list';
+
+    await this.chatListWindow.loadURL(rendererUrl);
+
+    if (isDev) {
+      this.chatListWindow.webContents.openDevTools({ mode: 'detach' });
+    }
+
+    this.chatListWindow.on('closed', () => {
+      this.chatListWindow = null;
+    });
+
+    this.chatListWindow.show();
+    this.chatListWindow.focus();
+
+    return { window: this.chatListWindow, created: true };
   }
 
   private getRendererUrl(): string {

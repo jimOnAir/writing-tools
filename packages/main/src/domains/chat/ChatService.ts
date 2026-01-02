@@ -43,6 +43,10 @@ export class ChatService implements IChatService {
     this.repository.updateChatTitle(chatId, title);
   }
 
+  public deleteChat(chatId: number): void {
+    this.repository.deleteChat(chatId);
+  }
+
   public close(): void {
     this.repository.close();
   }

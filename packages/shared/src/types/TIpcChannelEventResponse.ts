@@ -51,14 +51,28 @@ export type TChatGetFailedResponse = { error: string };
 
 export type TChatGetResponse = TChatGetSuccessResponse | TChatGetFailedResponse;
 
+export type TChatDeleteSuccessResponse = { success: true };
+
+export type TChatDeleteFailedResponse = { success: false, error: string };
+
+export type TChatDeleteResponse = TChatDeleteSuccessResponse | TChatDeleteFailedResponse;
+
+export type TChatOpenSuccessResponse = { success: true };
+
+export type TChatOpenFailedResponse = { success: false, error: string };
+
+export type TChatOpenResponse = TChatOpenSuccessResponse | TChatOpenFailedResponse;
+
 export type TIpcResponsePayload<K extends EIpcEvent> =
+  K extends EIpcEvent.CHAT_CREATE_SESSION ? TChatCreateSessionResponse :
+  K extends EIpcEvent.CHAT_DELETE ? TChatDeleteResponse :
+  K extends EIpcEvent.CHAT_GET ? TChatGetResponse :
+  K extends EIpcEvent.CHAT_LIST_CHATS ? TChatListChatsResponse :
+  K extends EIpcEvent.CHAT_LOAD_MESSAGES ? TChatLoadMessagesResponse :
+  K extends EIpcEvent.CHAT_OPEN ? TChatOpenResponse :
+  K extends EIpcEvent.CHAT_SEND_MESSAGE ? TChatSendMessageResponse :
   K extends EIpcEvent.ENV_GET ? TEnvGetResponse :
   K extends EIpcEvent.MODEL_LIST ? TModelListResponse :
   K extends EIpcEvent.SETTINGS_LOAD ? TSettingsLoadResponse :
   K extends EIpcEvent.SETTINGS_SAVE ? TSettingsSaveResponse :
-  K extends EIpcEvent.CHAT_SEND_MESSAGE ? TChatSendMessageResponse :
-  K extends EIpcEvent.CHAT_CREATE_SESSION ? TChatCreateSessionResponse :
-  K extends EIpcEvent.CHAT_LOAD_MESSAGES ? TChatLoadMessagesResponse :
-  K extends EIpcEvent.CHAT_LIST_CHATS ? TChatListChatsResponse :
-  K extends EIpcEvent.CHAT_GET ? TChatGetResponse :
 never;

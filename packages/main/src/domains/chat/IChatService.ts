@@ -43,6 +43,12 @@ export interface IChatService {
   updateChatTitle: (chatId: number, title: string) => void;
 
   /**
+   * Delete a chat permanently (hard delete)
+   * All associated messages are automatically deleted via CASCADE foreign key constraint
+   */
+  deleteChat: (chatId: number) => void;
+
+  /**
    * Close the chat service (cleanup resources)
    */
   close: () => void;

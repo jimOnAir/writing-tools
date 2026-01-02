@@ -1,4 +1,4 @@
-import type { EIpcChannel, TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, EIpcEvent, IChatWindowData } from '@writing-tools/shared';
+import type { EIpcChannel, TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, EIpcEvent, IChatWindowData, IChatMessage } from '@writing-tools/shared';
 
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
 
@@ -56,6 +56,26 @@ export interface IIpcAdapter {
    * Unregister a chat title updated listener
    */
   offChatTitleUpdated: (listener: TIpcRenderListener) => void;
+
+  /**
+   * Register a listener for chat load messages data events
+   */
+  onChatLoadMessagesData: (callback: (data: { chatId: number, messages: IChatMessage[] }) => void) => TIpcRenderListener;
+
+  /**
+   * Unregister a chat load messages data listener
+   */
+  offChatLoadMessagesData: (listener: TIpcRenderListener) => void;
+
+  /**
+   * Register a listener for chat deleted events
+   */
+  onChatDeleted: (callback: (data: { chatId: number }) => void) => TIpcRenderListener;
+
+  /**
+   * Unregister a chat deleted listener
+   */
+  offChatDeleted: (listener: TIpcRenderListener) => void;
 }
 
 /**
@@ -137,5 +157,37 @@ export class ElectronIpcAdapter implements IIpcAdapter {
     }
 
     window.electronAPI.offChatTitleUpdated(listener);
+  }
+
+  public onChatLoadMessagesData(callback: (data: { chatId: number, messages: IChatMessage[] }) => void): TIpcRenderListener {
+    if (typeof window.electronAPI === 'undefined') {
+      throw new Error('electronAPI is not available');
+    }
+
+    return window.electronAPI.onChatLoadMessagesData(callback);
+  }
+
+  public offChatLoadMessagesData(listener: TIpcRenderListener): void {
+    if (typeof window.electronAPI === 'undefined') {
+      return;
+    }
+
+    window.electronAPI.offChatLoadMessagesData(listener);
+  }
+
+  public onChatDeleted(callback: (data: { chatId: number }) => void): TIpcRenderListener {
+    if (typeof window.electronAPI === 'undefined') {
+      throw new Error('electronAPI is not available');
+    }
+
+    return window.electronAPI.onChatDeleted(callback);
+  }
+
+  public offChatDeleted(listener: TIpcRenderListener): void {
+    if (typeof window.electronAPI === 'undefined') {
+      return;
+    }
+
+    window.electronAPI.offChatDeleted(listener);
   }
 }

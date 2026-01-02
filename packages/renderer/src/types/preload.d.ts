@@ -1,4 +1,4 @@
-import type { EIpcChannel, TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, EIpcEvent } from '@writing-tools/shared';
+import type { EIpcChannel, TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, EIpcEvent, IChatMessage } from '@writing-tools/shared';
 
 import type { TIpcRenderListener } from './TIpcRenderListener';
 
@@ -14,6 +14,10 @@ declare global {
       offPromptSelectorData: (callback: TIpcRenderListener) => void,
       onChatTitleUpdated: (callback: (data: { chatId: number, title: string }) => void) => TIpcRenderListener,
       offChatTitleUpdated: (listener: TIpcRenderListener) => void,
+      onChatLoadMessagesData: (callback: (data: { chatId: number, messages: IChatMessage[] }) => void) => TIpcRenderListener,
+      offChatLoadMessagesData: (listener: TIpcRenderListener) => void,
+      onChatDeleted: (callback: (data: { chatId: number }) => void) => TIpcRenderListener,
+      offChatDeleted: (listener: TIpcRenderListener) => void,
     };
   }
 }
