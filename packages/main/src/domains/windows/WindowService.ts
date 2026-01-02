@@ -67,7 +67,7 @@ export class WindowService {
     await this.chatWindow.loadURL(rendererUrl);
 
     if (isDev) {
-      this.chatWindow.webContents.openDevTools();
+      this.chatWindow.webContents.openDevTools({ mode: 'detach' });
     }
 
     this.chatWindow.on('closed', () => {
@@ -116,7 +116,7 @@ export class WindowService {
     await this.promptSelectorWindow.loadURL(rendererUrl);
 
     if (isDev) {
-      this.promptSelectorWindow.webContents.openDevTools();
+      this.promptSelectorWindow.webContents.openDevTools({ mode: 'detach' });
     }
 
     this.promptSelectorWindow.on('closed', () => {
@@ -157,7 +157,7 @@ export class WindowService {
 
     // Open DevTools in development mode
     if (isDev) {
-      this.settingsWindow.webContents.openDevTools();
+      this.settingsWindow.webContents.openDevTools({ mode: 'detach' });
     }
 
     this.settingsWindow.on('closed', () => {
