@@ -1,9 +1,9 @@
-/* eslint-disable @stylistic/indent */
-/* eslint-disable @stylistic/operator-linebreak */
 import type { EIpcEvent } from '../enum/EIpcEvent';
 import type { IChatInfo } from '../interfaces/IChatInfo';
 import type { IChatMessage } from '../interfaces/IChatMessage';
 import type { ISettings } from '../interfaces/ISettings';
+
+import type { TEnsureAllKeysMap } from './TEnsureAllKeysMap';
 
 export type TEnvGetResponse = { platform: NodeJS.Platform, os: string, arch: string };
 
@@ -63,16 +63,23 @@ export type TChatOpenFailedResponse = { success: false, error: string };
 
 export type TChatOpenResponse = TChatOpenSuccessResponse | TChatOpenFailedResponse;
 
-export type TIpcResponsePayload<K extends EIpcEvent> =
-  K extends EIpcEvent.CHAT_CREATE_SESSION ? TChatCreateSessionResponse :
-  K extends EIpcEvent.CHAT_DELETE ? TChatDeleteResponse :
-  K extends EIpcEvent.CHAT_GET ? TChatGetResponse :
-  K extends EIpcEvent.CHAT_LIST_CHATS ? TChatListChatsResponse :
-  K extends EIpcEvent.CHAT_LOAD_MESSAGES ? TChatLoadMessagesResponse :
-  K extends EIpcEvent.CHAT_OPEN ? TChatOpenResponse :
-  K extends EIpcEvent.CHAT_SEND_MESSAGE ? TChatSendMessageResponse :
-  K extends EIpcEvent.ENV_GET ? TEnvGetResponse :
-  K extends EIpcEvent.MODEL_LIST ? TModelListResponse :
-  K extends EIpcEvent.SETTINGS_LOAD ? TSettingsLoadResponse :
-  K extends EIpcEvent.SETTINGS_SAVE ? TSettingsSaveResponse :
-never;
+export type TPromptSelectResponse = Record<string, never>;
+
+export type TIpcResponsePayloadMap = {
+  [EIpcEvent.CHAT_CREATE_SESSION]: TChatCreateSessionResponse,
+  [EIpcEvent.CHAT_DELETE]: TChatDeleteResponse,
+  [EIpcEvent.CHAT_GET]: TChatGetResponse,
+  [EIpcEvent.CHAT_LIST_CHATS]: TChatListChatsResponse,
+  [EIpcEvent.CHAT_LOAD_MESSAGES]: TChatLoadMessagesResponse,
+  [EIpcEvent.CHAT_OPEN]: TChatOpenResponse,
+  [EIpcEvent.CHAT_SEND_MESSAGE]: TChatSendMessageResponse,
+  [EIpcEvent.ENV_GET]: TEnvGetResponse,
+  [EIpcEvent.MODEL_LIST]: TModelListResponse,
+  [EIpcEvent.PROMPT_SELECT]: TPromptSelectResponse,
+  [EIpcEvent.SETTINGS_LOAD]: TSettingsLoadResponse,
+  [EIpcEvent.SETTINGS_SAVE]: TSettingsSaveResponse,
+};
+
+type TCheckedMap = TEnsureAllKeysMap<EIpcEvent, TIpcResponsePayloadMap>;
+
+export type TIpcResponsePayload<K extends EIpcEvent> = TCheckedMap[K];
