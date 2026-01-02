@@ -179,7 +179,7 @@ export class ChatService {
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
 
-      logger.error('Failed to send message to Ollama: %s', errorText);
+      logger.error('Failed to send message: %s', errorText);
       this.setError(`Failed to send message: ${errorText}`);
 
       const errorMessage: IChatMessage = {

@@ -40,7 +40,12 @@ export const GlobalShortcutsSection: React.FC<GlobalShortcutsSectionProps> = ({
       {currentShortcut ? (
         <div className="flex items-center gap-3 mt-3">
           <span
-            className={`px-2 py-1 rounded font-mono text-sm ${ColorPalette.background.main}/50 ${ColorPalette.border.lightMedium} ${ColorPalette.text.tertiary}`}
+            className={`
+              px-2 py-1 rounded font-mono text-sm
+              ${ColorPalette.background.main}/50
+              ${ColorPalette.border.lightMedium}
+              ${ColorPalette.text.tertiary}
+            `}
           >
             {currentShortcut}
           </span>

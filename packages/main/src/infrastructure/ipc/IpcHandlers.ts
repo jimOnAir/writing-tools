@@ -66,8 +66,8 @@ export class IpcHandlers {
       }
     });
 
-    ipcMain.handle(EIpcChannel.MODEL, async (_, _data: TChannelEventPayloadModel) => {
-      return this.modelService.fetchModels();
+    ipcMain.handle(EIpcChannel.MODEL, async (_, data: TChannelEventPayloadModel) => {
+      return this.modelService.fetchModels(data.payload.provider);
     });
 
     ipcMain.handle(EIpcChannel.CHAT, async (_, data: TChatChannelEventPayload) => {
@@ -101,7 +101,7 @@ export class IpcHandlers {
       ]);
 
       if (response.error) {
-        logger.error('Ollama error: %s', response.error);
+        logger.error('LLM error: %s', response.error);
 
         chatWindow.webContents.send(EIpcRendererEvent.OLLAMA_RESPONSE, {
           error: response.error,

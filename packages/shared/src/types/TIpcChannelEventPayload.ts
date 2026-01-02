@@ -8,7 +8,7 @@ import type { ISettings } from '../interfaces/ISettings';
 export type TIpcEventPayload<K extends EIpcEvent> =
   K extends EIpcEvent.SETTINGS_SAVE ? ISettings :
   K extends EIpcEvent.SETTINGS_LOAD ? object :
-  K extends EIpcEvent.MODEL_LIST ? object :
+  K extends EIpcEvent.MODEL_LIST ? { provider: 'ollama' | 'lmstudio' } :
   K extends EIpcEvent.CHAT_SEND_MESSAGE ? { messages: IChatMessage [] } :
   K extends EIpcEvent.ENV_GET ? object :
   K extends EIpcEvent.PROMPT_SELECT ? { prompt: string } :

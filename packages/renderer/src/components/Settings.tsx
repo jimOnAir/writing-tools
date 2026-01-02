@@ -1,21 +1,22 @@
 import { DefaultSettings } from '@writing-tools/shared';
-import type { IPreconfiguredPrompt } from '@writing-tools/shared';
+import type { IPreconfiguredPrompt, ISettings } from '@writing-tools/shared';
 import React, { useState, useEffect, useMemo } from 'react';
 
 import { SettingsService } from '../domains/settings';
 import { ElectronIpcAdapter } from '../infrastructure/ipc';
-import { BackgroundStyles, TypographyStyles, LayoutStyles } from '../styles/Styles';
+import { BackgroundStyles, TypographyStyles, LayoutStyles, InputStyles } from '../styles/Styles';
 
 import { GlobalShortcutsSection } from './settings/GlobalShortcutsSection';
+import { LMStudioSettingsSection } from './settings/LMStudioSettingsSection';
 import { OllamaSettingsSection } from './settings/OllamaSettingsSection';
 import { PreconfiguredPromptsSection } from './settings/PreconfiguredPromptsSection';
 import { SettingsActions } from './settings/SettingsActions';
 import { SettingsNotifications } from './settings/SettingsNotifications';
 
 const Settings: React.FC = () => {
-  const [settings, setSettings] = useState(useMemo(() => ({ ...DefaultSettings }), []));
+  const [settings, setSettings] = useState<ISettings>(useMemo(() => ({ ...DefaultSettings }), []));
   // originalSettings is managed via callback in SettingsService
-  const [, setOriginalSettings] = useState(useMemo(() => ({ ...DefaultSettings }), []));
+  const [_originalSettings, setOriginalSettings] = useState<ISettings>(useMemo(() => ({ ...DefaultSettings }), []));
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,13 +54,35 @@ const Settings: React.FC = () => {
     });
   };
 
-  // Handle input changes
-  const handleAddressChange = (value: string) => {
+  // Handle provider change
+  const handleProviderChange = (value: string) => {
+    settingsService.updateProvider(value as 'ollama' | 'lmstudio');
+  };
+
+  // Handle Ollama input changes
+  const handleOllamaAddressChange = (value: string) => {
     settingsService.updateOllamaAddress(value);
   };
 
-  const handleModelChange = (value: string) => {
+  const handleOllamaModelChange = (value: string) => {
     settingsService.updateOllamaModel(value);
+  };
+
+  const handleOllamaApiKeyChange = (value: string) => {
+    settingsService.updateOllamaApiKey(value);
+  };
+
+  // Handle LM Studio input changes
+  const handleLMStudioAddressChange = (value: string) => {
+    settingsService.updateLMStudioAddress(value);
+  };
+
+  const handleLMStudioModelChange = (value: string) => {
+    settingsService.updateLMStudioModel(value);
+  };
+
+  const handleLMStudioApiKeyChange = (value: string) => {
+    settingsService.updateLMStudioApiKey(value);
   };
 
   // Handle adding a new shortcut
@@ -127,15 +150,48 @@ const Settings: React.FC = () => {
 
         <SettingsNotifications error={error} success={success} />
 
-        <OllamaSettingsSection
-          address={settings.ollama.address}
-          model={settings.ollama.model}
-          availableModels={availableModels}
-          loadingModels={loadingModels}
-          onAddressChange={handleAddressChange}
-          onModelChange={handleModelChange}
-          onRefreshModels={fetchAvailableModels}
-        />
+        <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card} mb-6`}>
+          <label htmlFor="llm-provider" className={TypographyStyles.label}>
+            LLM Provider
+          </label>
+          <select
+            id="llm-provider"
+            value={settings.provider || 'ollama'}
+            onChange={(e) => {
+              handleProviderChange(e.target.value);
+            }}
+            className={InputStyles}
+          >
+            <option value="ollama">Ollama</option>
+            <option value="lmstudio">LM Studio</option>
+          </select>
+        </div>
+
+        {(settings.provider || 'ollama') === 'ollama' ? (
+          <OllamaSettingsSection
+            address={settings.ollama.address}
+            model={settings.ollama.model}
+            apiKey={settings.ollama.apiKey}
+            availableModels={availableModels}
+            loadingModels={loadingModels}
+            onAddressChange={handleOllamaAddressChange}
+            onModelChange={handleOllamaModelChange}
+            onApiKeyChange={handleOllamaApiKeyChange}
+            onRefreshModels={fetchAvailableModels}
+          />
+        ) : (
+          <LMStudioSettingsSection
+            address={settings.lmstudio.address}
+            model={settings.lmstudio.model}
+            apiKey={settings.lmstudio.apiKey}
+            availableModels={availableModels}
+            loadingModels={loadingModels}
+            onAddressChange={handleLMStudioAddressChange}
+            onModelChange={handleLMStudioModelChange}
+            onApiKeyChange={handleLMStudioApiKeyChange}
+            onRefreshModels={fetchAvailableModels}
+          />
+        )}
 
         <PreconfiguredPromptsSection
           prompts={settings.preconfiguredPrompts}

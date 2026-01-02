@@ -63,9 +63,13 @@ export class SettingsService {
       this.setSettings(loadedSettings);
       this.setOriginalSettings(loadedSettings);
 
-      // Fetch models when settings are loaded
-      if (loadedSettings.ollama.address) {
-        await this.fetchAvailableModels(loadedSettings.ollama.address);
+      // Fetch models when settings are loaded for the selected provider
+      const provider = loadedSettings.provider || 'ollama';
+      const address = provider === 'lmstudio'
+        ? loadedSettings.lmstudio.address
+        : loadedSettings.ollama.address;
+      if (address) {
+        await this.fetchAvailableModels();
       }
     } catch (err) {
       const errorText = err instanceof Error ? err.message : String(err);
@@ -111,12 +115,15 @@ export class SettingsService {
   }
 
   /**
-   * Fetch available models from Ollama
+   * Fetch available models from the selected provider
    */
-  public async fetchAvailableModels(address?: string): Promise<void> {
-    const targetAddress = address ?? this.settings.ollama.address;
+  public async fetchAvailableModels(): Promise<void> {
+    const provider = this.settings.provider || 'ollama';
+    const address = provider === 'lmstudio'
+      ? this.settings.lmstudio.address
+      : this.settings.ollama.address;
 
-    if (!targetAddress) {
+    if (!address) {
       return;
     }
 
@@ -127,7 +134,7 @@ export class SettingsService {
       const payload: TIpcEvent<EIpcChannel.MODEL, EIpcEvent.MODEL_LIST> = {
         channel: EIpcChannel.MODEL,
         event: EIpcEvent.MODEL_LIST,
-        payload: {},
+        payload: { provider },
       };
 
       const result = await this.ipcAdapter.invoke(EIpcChannel.MODEL, payload);
@@ -139,11 +146,28 @@ export class SettingsService {
       this.setAvailableModels(result.models);
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
-      this.setError('Failed to fetch available models from Ollama. Please check the address and ensure Ollama is running.');
+      const providerName = provider === 'lmstudio' ? 'LM Studio' : 'Ollama';
+      this.setError(`Failed to fetch available models from ${providerName}. Please check the address and ensure ${providerName} is running.`);
       logger.error('Failed to fetch models: %s', errorText);
     } finally {
       this.setLoadingModels(false);
     }
+  }
+
+  /**
+   * Update provider selection
+   */
+  public updateProvider(provider: 'ollama' | 'lmstudio'): void {
+    this.setSettings({
+      ...this.settings,
+      provider,
+    });
+
+    // Automatically fetch models for the new provider
+    this.fetchAvailableModels().catch((err: unknown) => {
+      const errorText = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to fetch models after provider change: %s', errorText);
+    });
   }
 
   /**
@@ -158,9 +182,9 @@ export class SettingsService {
       },
     });
 
-    // Automatically fetch models when address changes
-    if (address) {
-      this.fetchAvailableModels(address).catch((err: unknown) => {
+    // Automatically fetch models when address changes (if Ollama is selected)
+    if (address && (this.settings.provider || 'ollama') === 'ollama') {
+      this.fetchAvailableModels().catch((err: unknown) => {
         const errorText = err instanceof Error ? err.message : String(err);
         logger.error('Failed to fetch models after address change: %s', errorText);
       });
@@ -176,6 +200,66 @@ export class SettingsService {
       ollama: {
         ...this.settings.ollama,
         model,
+      },
+    });
+  }
+
+  /**
+   * Update Ollama API key
+   */
+  public updateOllamaApiKey(apiKey: string): void {
+    this.setSettings({
+      ...this.settings,
+      ollama: {
+        ...this.settings.ollama,
+        apiKey: apiKey.trim() === '' ? undefined : apiKey,
+      },
+    });
+  }
+
+  /**
+   * Update LM Studio address
+   */
+  public updateLMStudioAddress(address: string): void {
+    this.setSettings({
+      ...this.settings,
+      lmstudio: {
+        ...this.settings.lmstudio,
+        address,
+      },
+    });
+
+    // Automatically fetch models when address changes (if LM Studio is selected)
+    if (address && this.settings.provider === 'lmstudio') {
+      this.fetchAvailableModels().catch((err: unknown) => {
+        const errorText = err instanceof Error ? err.message : String(err);
+        logger.error('Failed to fetch models after address change: %s', errorText);
+      });
+    }
+  }
+
+  /**
+   * Update LM Studio model
+   */
+  public updateLMStudioModel(model: string): void {
+    this.setSettings({
+      ...this.settings,
+      lmstudio: {
+        ...this.settings.lmstudio,
+        model,
+      },
+    });
+  }
+
+  /**
+   * Update LM Studio API key
+   */
+  public updateLMStudioApiKey(apiKey: string): void {
+    this.setSettings({
+      ...this.settings,
+      lmstudio: {
+        ...this.settings.lmstudio,
+        apiKey: apiKey.trim() === '' ? undefined : apiKey,
       },
     });
   }

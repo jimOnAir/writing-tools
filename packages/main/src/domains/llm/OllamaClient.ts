@@ -4,6 +4,7 @@ import { Ollama } from 'ollama';
 
 export interface OllamaClientConfig {
   host: string;
+  apiKey?: string;
 }
 
 export interface OllamaChatResponse {

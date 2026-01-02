@@ -2,7 +2,7 @@ import React from 'react';
 
 import { ButtonStyles, InputStyles, BackgroundStyles, TypographyStyles, LayoutStyles, SpinnerIcon, ColorPalette } from '../../styles/Styles';
 
-interface OllamaSettingsSectionProps {
+interface LMStudioSettingsSectionProps {
   readonly address: string;
   readonly model: string | undefined;
   readonly apiKey: string | undefined;
@@ -14,7 +14,7 @@ interface OllamaSettingsSectionProps {
   readonly onRefreshModels: () => void;
 }
 
-export const OllamaSettingsSection: React.FC<OllamaSettingsSectionProps> = ({
+export const LMStudioSettingsSection: React.FC<LMStudioSettingsSectionProps> = ({
   address,
   model,
   apiKey,
@@ -28,27 +28,27 @@ export const OllamaSettingsSection: React.FC<OllamaSettingsSectionProps> = ({
   return (
     <>
       <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card}`}>
-        <label htmlFor="ollama-address" className={TypographyStyles.label}>
-          Ollama Address
+        <label htmlFor="lmstudio-address" className={TypographyStyles.label}>
+          LM Studio Address
         </label>
         <input
-          id="ollama-address"
+          id="lmstudio-address"
           type="text"
           value={address}
           onChange={(e) => {
             onAddressChange(e.target.value);
           }}
           className={InputStyles}
-          placeholder="http://localhost:11434"
+          placeholder="http://localhost:1234"
         />
       </div>
 
       <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card}`}>
-        <label htmlFor="ollama-apikey" className={TypographyStyles.label}>
-          Ollama API Key (Optional)
+        <label htmlFor="lmstudio-apikey" className={TypographyStyles.label}>
+          LM Studio API Key (Optional)
         </label>
         <input
-          id="ollama-apikey"
+          id="lmstudio-apikey"
           type="password"
           value={apiKey ?? ''}
           onChange={(e) => {
@@ -60,12 +60,12 @@ export const OllamaSettingsSection: React.FC<OllamaSettingsSectionProps> = ({
       </div>
 
       <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card}`}>
-        <label htmlFor="ollama-model" className={TypographyStyles.label}>
-          Ollama Model
+        <label htmlFor="lmstudio-model" className={TypographyStyles.label}>
+          LM Studio Model
         </label>
         <div className="flex items-center gap-3">
           <select
-            id="ollama-model"
+            id="lmstudio-model"
             value={model ?? ''}
             onChange={(e) => {
               onModelChange(e.target.value);

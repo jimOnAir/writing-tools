@@ -22,7 +22,22 @@ export class SettingsRepository {
       try {
         // Try to read existing settings file
         const settingsData = await fs.readFile(settingsPath, 'utf8');
-        const settings = JSON.parse(settingsData) as ISettings;
+        const loadedSettings = JSON.parse(settingsData) as Partial<ISettings>;
+
+        // Merge with default settings to ensure all fields are present
+        const settings: ISettings = {
+          ...DefaultSettings,
+          ...loadedSettings,
+          ollama: {
+            ...DefaultSettings.ollama,
+            ...loadedSettings.ollama,
+          },
+          lmstudio: {
+            ...DefaultSettings.lmstudio,
+            ...loadedSettings.lmstudio,
+          },
+          preconfiguredPrompts: loadedSettings.preconfiguredPrompts ?? DefaultSettings.preconfiguredPrompts,
+        };
 
         this.currentSettings = settings;
         this.settingsLoaded = true;

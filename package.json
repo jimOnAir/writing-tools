@@ -5,12 +5,16 @@
   "description": "Writing Tools Desktop Application",
   "author": "Writing Tools Team",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "main": "main/main.js",
   "scripts": {
     "build": "npm run build:shared && npm run build:main && npm run build:render",
     "build:main": "npm run build:esbuild -w @writing-tools/main",
     "build:render": "npm run build -w @writing-tools/renderer",
     "build:shared": "npm run build -w @writing-tools/shared",
+    "prestart": "npm run build:shared",
     "start": "concurrently 'npm run start:render' 'npm run start:main'",
     "prestart:main": "npm run build:main",
     "start:main": "npm run start -w @writing-tools/main",
