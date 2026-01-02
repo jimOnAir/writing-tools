@@ -439,6 +439,36 @@ export class SettingsService {
   private setAvailableModels(models: string[]): void {
     this.availableModels = models;
     this.onAvailableModelsChange?.(models);
+
+    // Clear current model if it doesn't exist in available models
+    // Only do this if models were successfully fetched (array is not empty)
+    if (models.length > 0) {
+      const provider = this.settings.provider || 'ollama';
+      const currentModel = provider === 'lmstudio'
+        ? this.settings.lmstudio.model
+        : this.settings.ollama.model;
+
+      // If current model exists but is not in available models, clear it
+      if (currentModel !== undefined && !models.includes(currentModel)) {
+        if (provider === 'lmstudio') {
+          this.setSettings({
+            ...this.settings,
+            lmstudio: {
+              ...this.settings.lmstudio,
+              model: undefined,
+            },
+          });
+        } else {
+          this.setSettings({
+            ...this.settings,
+            ollama: {
+              ...this.settings.ollama,
+              model: undefined,
+            },
+          });
+        }
+      }
+    }
   }
 
   private setLoadingModels(loading: boolean): void {
