@@ -5,7 +5,7 @@ import type { ISettings } from '../interfaces/ISettings';
 
 import type { TEnsureAllKeysMap } from './TEnsureAllKeysMap';
 
-export type TEnvGetResponse = { platform: NodeJS.Platform, os: string, arch: string };
+export type TEnvGetResponse = { arch: string, os: string, platform: NodeJS.Platform };
 
 export type TModelListSuccessResponse = { models: string[] };
 
@@ -17,7 +17,7 @@ export type TSettingsLoadResponse = ISettings;
 
 export type TSettingsSaveSuccessResponse = { success: true };
 
-export type TSettingsSaveFailedResponse = { success: false, error: string };
+export type TSettingsSaveFailedResponse = { error: string, success: false };
 
 export type TSettingsSaveResponse = TSettingsSaveSuccessResponse | TSettingsSaveFailedResponse;
 
@@ -53,13 +53,13 @@ export type TChatGetResponse = TChatGetSuccessResponse | TChatGetFailedResponse;
 
 export type TChatDeleteSuccessResponse = { success: true };
 
-export type TChatDeleteFailedResponse = { success: false, error: string };
+export type TChatDeleteFailedResponse = { error: string, success: false };
 
 export type TChatDeleteResponse = TChatDeleteSuccessResponse | TChatDeleteFailedResponse;
 
 export type TChatOpenSuccessResponse = { success: true };
 
-export type TChatOpenFailedResponse = { success: false, error: string };
+export type TChatOpenFailedResponse = { error: string, success: false };
 
 export type TChatOpenResponse = TChatOpenSuccessResponse | TChatOpenFailedResponse;
 

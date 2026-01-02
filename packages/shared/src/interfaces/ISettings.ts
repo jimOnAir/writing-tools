@@ -1,17 +1,17 @@
 import type { IPreconfiguredPrompt } from './IPreconfiguredPrompt';
 
 export interface ISettings {
-  provider?: 'ollama' | 'lmstudio';
-  ollama: {
-    address: string,
-    model: string | undefined,
-    apiKey?: string,
-  };
+  globalShortcut: string | undefined;
   lmstudio: {
     address: string,
-    model: string | undefined,
     apiKey?: string,
+    model: string | undefined,
   };
-  globalShortcut: string | undefined;
+  ollama: {
+    address: string,
+    apiKey?: string,
+    model: string | undefined,
+  };
   preconfiguredPrompts: IPreconfiguredPrompt[];
+  provider?: 'ollama' | 'lmstudio';
 }

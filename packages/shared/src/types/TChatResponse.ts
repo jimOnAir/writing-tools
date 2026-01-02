@@ -1,11 +1,11 @@
 export type TChatSuccessResponse = {
-  result: string,
   chatId?: number,
+  result: string,
 };
 
 export type TChatFailedResponse = {
-  error: string,
   chatId?: number,
+  error: string,
 };
 
 export type TChatResponse = TChatSuccessResponse | TChatFailedResponse;

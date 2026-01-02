@@ -414,3 +414,308 @@ When creating a new service, follow this complete pattern:
 5. **Composition root** - Wire concrete instance but store as interface
 
 See the [Composition Root Pattern](#composition-root-pattern) section for complete wiring examples, and the [Implementing Interfaces](#implementing-interfaces) section above for implementation details.
+
+## Electron Security Best Practices
+
+When working with Electron applications, always follow these essential security practices:
+
+### Context Isolation and Preload Scripts
+
+- **Always enable context isolation** - Context isolation is enabled by default since Electron 12 and must remain enabled
+  - Set `contextIsolation: true` in `webPreferences` for all BrowserWindow instances
+  - This prevents renderer processes from accessing Node.js APIs directly
+  - Prevents prototype pollution attacks
+
+- **Use `contextBridge` for IPC communication** - Never expose `ipcRenderer` directly
+  - Use `contextBridge.exposeInMainWorld()` to expose only specific, well-defined APIs
+  - Expose only the functions needed, not the entire `ipcRenderer` module
+  - Validate and sanitize all data passed through contextBridge
+
+```typescript
+// ✅ Good: Exposing specific, well-defined APIs
+contextBridge.exposeInMainWorld('electronAPI', {
+  invoke: async (channel: string, data: any) => {
+    // Validate channel and data before invoking
+    if (!isValidChannel(channel)) {
+      throw new Error('Invalid channel');
+    }
+    return ipcRenderer.invoke(channel, data);
+  },
+});
+
+// ❌ Bad: Exposing entire ipcRenderer
+contextBridge.exposeInMainWorld('electronAPI', {
+  send: ipcRenderer.send,  // Too permissive
+  invoke: ipcRenderer.invoke,  // No validation
+});
+```
+
+### Node.js Integration
+
+- **Always disable Node.js integration in renderer** - Set `nodeIntegration: false` in `webPreferences`
+  - Renderer processes should not have direct access to Node.js APIs
+  - All Node.js access should go through the main process via IPC
+  - This significantly reduces the attack surface
+
+```typescript
+// ✅ Good: Node integration disabled
+webPreferences: {
+  nodeIntegration: false,
+  contextIsolation: true,
+  preload: getPreloadPath(),
+}
+
+// ❌ Bad: Node integration enabled
+webPreferences: {
+  nodeIntegration: true,  // Security risk!
+  contextIsolation: false,  // Security risk!
+}
+```
+
+### Process Sandboxing
+
+- **Enable process sandboxing** - Sandboxing is enabled by default since Electron 20
+  - Sandboxing uses the OS to limit what renderer processes can access
+  - Add an extra layer of security beyond context isolation
+  - Verify sandboxing is enabled in production builds
+
+### IPC Security
+
+- **Validate and sanitize all IPC messages** - Never trust data from renderer processes
+  - Validate channel names against a whitelist
+  - Validate payload structure and types
+  - Sanitize user inputs before processing
+  - Use type guards and validation schemas
+
+```typescript
+// ✅ Good: Validating IPC messages
+ipcMain.handle('save-data', async (_event, payload: unknown) => {
+  // Validate payload structure
+  if (!isValidPayload(payload)) {
+    throw new Error('Invalid payload');
+  }
+
+  // Sanitize user input
+  const sanitized = sanitizeInput(payload.data);
+
+  return repository.save(sanitized);
+});
+
+// ❌ Bad: No validation
+ipcMain.handle('save-data', async (_event, payload: any) => {
+  return repository.save(payload.data);  // No validation!
+});
+```
+
+### Content Security Policy (CSP)
+
+- **Implement Content Security Policy** - Define CSP headers to restrict content sources
+  - Mitigate XSS attacks by restricting script sources
+  - Restrict resource loading to trusted sources only
+  - Use `webSecurity: true` in webPreferences (default)
+
+### Session Permissions
+
+- **Handle session permission requests** - Don't auto-approve all permission requests
+  - Implement custom handlers for notifications, camera, microphone, etc.
+  - Only grant permissions to trusted content
+  - Log permission requests for security auditing
+
+```typescript
+// ✅ Good: Custom permission handler
+session.defaultSession.setPermissionRequestHandler(
+  (webContents, permission, callback) => {
+    // Only allow specific permissions from trusted sources
+    if (permission === 'notifications' && isTrustedSource(webContents)) {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  }
+);
+```
+
+### Preload Script Security
+
+- **Keep preload scripts minimal** - Minimize code in preload scripts
+  - Reduce attack surface by limiting exposed functionality
+  - Only expose APIs that are absolutely necessary
+  - Avoid complex logic in preload scripts
+
+### Electron Updates
+
+- **Keep Electron updated** - Regularly update Electron to latest stable version
+  - Security patches are released regularly
+  - New security features are added in updates
+  - Use automated dependency updates where possible
+
+### Examples
+
+```typescript
+// ✅ Good: Secure BrowserWindow configuration
+const window = new BrowserWindow({
+  webPreferences: {
+    nodeIntegration: false,  // Disable Node.js in renderer
+    contextIsolation: true,  // Enable context isolation
+    preload: path.join(__dirname, 'preload.js'),  // Use preload script
+    sandbox: true,  // Enable sandboxing (default in Electron 20+)
+    webSecurity: true,  // Enable web security (default)
+  },
+});
+
+// ❌ Bad: Insecure configuration
+const window = new BrowserWindow({
+  webPreferences: {
+    nodeIntegration: true,  // Security risk!
+    contextIsolation: false,  // Security risk!
+    // No preload script - direct access to Node.js
+  },
+});
+```
+
+## Node.js Best Practices
+
+When working with Node.js in the main process, follow these essential practices:
+
+### Environment Variables
+
+- **Use environment variables for sensitive data** - Never hardcode secrets
+  - Store API keys, database credentials, and tokens in environment variables
+  - Use `.env` files for development (never commit to git)
+  - Use platform-specific secure storage for production
+  - Validate environment variables at startup
+
+```typescript
+// ✅ Good: Using environment variables
+const apiKey = process.env.API_KEY;
+if (!apiKey) {
+  throw new Error('API_KEY environment variable is required');
+}
+
+// ❌ Bad: Hardcoded secrets
+const apiKey = 'sk-1234567890abcdef';  // Never do this!
+```
+
+### Input Validation and Sanitization
+
+- **Validate and sanitize all inputs** - Never trust user input
+  - Validate input structure and types
+  - Sanitize strings to prevent injection attacks
+  - Use validation libraries (e.g., Zod, Joi) for complex validation
+  - Validate IPC payloads, file paths, and user-provided data
+
+```typescript
+// ✅ Good: Validating and sanitizing input
+import { z } from 'zod';
+
+const UserInputSchema = z.object({
+  name: z.string().min(1).max(100),
+  email: z.string().email(),
+});
+
+const validateInput = (input: unknown) => {
+  return UserInputSchema.parse(input);
+};
+
+// ❌ Bad: No validation
+const processInput = (input: any) => {
+  return repository.save(input);  // No validation!
+};
+```
+
+### Asynchronous Programming
+
+- **Embrace asynchronous patterns** - Use async/await for all I/O operations
+  - Never block the event loop with synchronous operations
+  - Use Promise.all() for parallel operations when appropriate
+  - Handle errors properly with try/catch
+  - Use proper error propagation
+
+```typescript
+// ✅ Good: Proper async/await usage
+public async loadData(): Promise<IData> {
+  try {
+    const data = await this.repository.load();
+    return this.transform(data);
+  } catch (error) {
+    logger.error('Failed to load data:', error);
+    throw error;
+  }
+}
+
+// ❌ Bad: Blocking operations
+public loadData(): IData {
+  return this.repository.loadSync();  // Blocks event loop!
+}
+```
+
+### Database Optimization
+
+- **Optimize database interactions** - Use efficient queries and connection management
+  - Use prepared statements to prevent SQL injection
+  - Implement connection pooling for better performance
+  - Use transactions for multiple related operations
+  - Index frequently queried columns
+  - Batch operations when possible
+
+```typescript
+// ✅ Good: Using prepared statements and transactions
+public async saveMultiple(items: IItem[]): Promise<void> {
+  const transaction = this.db.transaction(() => {
+    const stmt = this.db.prepare('INSERT INTO items (name, value) VALUES (?, ?)');
+    for (const item of items) {
+      stmt.run(item.name, item.value);
+    }
+  });
+  transaction();
+}
+
+// ❌ Bad: String concatenation in queries
+public async saveItem(item: IItem): Promise<void> {
+  this.db.run(`INSERT INTO items (name, value) VALUES ('${item.name}', ${item.value})`);  // SQL injection risk!
+}
+```
+
+### Error Handling
+
+- **Implement comprehensive error handling** - Handle errors at appropriate levels
+  - Log errors with context for debugging
+  - Use typed errors for better error handling
+  - Don't expose internal error details to renderer
+  - Return user-friendly error messages
+
+```typescript
+// ✅ Good: Proper error handling
+public async processData(data: IData): Promise<IResult> {
+  try {
+    return await this.repository.save(data);
+  } catch (error) {
+    logger.error('Failed to process data:', { error, data });
+
+    if (error instanceof ValidationError) {
+      throw new Error('Invalid data provided');
+    }
+
+    throw new Error('Failed to process data');
+  }
+}
+```
+
+### Resource Management
+
+- **Properly manage resources** - Clean up resources when done
+  - Close database connections
+  - Remove event listeners
+  - Clear timers and intervals
+  - Release file handles
+
+```typescript
+// ✅ Good: Resource cleanup
+public cleanup(): void {
+  this.db.close();
+  this.removeAllListeners();
+  if (this.timer) {
+    clearInterval(this.timer);
+  }
+}
+```

@@ -96,7 +96,7 @@ export class ChatService {
       // Handle error response
       if (isErrorResponse(response)) {
         const errorMessage: IChatMessage = {
-          id: Date.now().toString() + '-error',
+          id: `${Date.now().toString()}-error`,
           role: 'assistant',
           content: `Error: ${response.error}`,
           timestamp: new Date(),
@@ -114,7 +114,7 @@ export class ChatService {
       // Handle successful response
       if ('result' in response) {
         const assistantMessage: IChatMessage = {
-          id: Date.now().toString() + '-response',
+          id: `${Date.now().toString()}-response`,
           role: 'assistant',
           content: response.result,
           timestamp: new Date(),
@@ -249,7 +249,7 @@ export class ChatService {
       }
 
       const assistantMessage: IChatMessage = {
-        id: Date.now().toString() + '-response',
+        id: `${Date.now().toString()}-response`,
         role: 'assistant',
         content: response.response,
         timestamp: new Date(),
@@ -264,7 +264,7 @@ export class ChatService {
       this.setError(`Failed to send message: ${errorText}`);
 
       const errorMessage: IChatMessage = {
-        id: Date.now().toString() + '-error',
+        id: `${Date.now().toString()}-error`,
         role: 'assistant',
         content: `Error: ${errorText}`,
         timestamp: new Date(),

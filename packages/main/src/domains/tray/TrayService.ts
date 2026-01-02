@@ -67,8 +67,4 @@ export class TrayService implements ITrayService {
     this.tray.setContextMenu(contextMenu);
     this.tray.setIgnoreDoubleClickEvents(false);
   }
-
-  private getTray(): Tray | null {
-    return this.tray;
-  }
 }

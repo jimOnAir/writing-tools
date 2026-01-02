@@ -113,7 +113,7 @@ export class WindowService implements IWindowService {
     });
     this.promptSelectorWindow.setMenu(null);
 
-    const rendererUrl = this.getRendererUrl() + '?view=prompt-selector';
+    const rendererUrl = `${this.getRendererUrl()}?view=prompt-selector`;
 
     await this.promptSelectorWindow.loadURL(rendererUrl);
 
@@ -153,7 +153,7 @@ export class WindowService implements IWindowService {
 
     this.settingsWindow.setMenu(null);
 
-    const settingsUrl = this.getRendererUrl() + '?view=settings';
+    const settingsUrl = `${this.getRendererUrl()}?view=settings`;
 
     await this.settingsWindow.loadURL(settingsUrl);
 
@@ -193,7 +193,7 @@ export class WindowService implements IWindowService {
     });
     this.chatListWindow.setMenu(null);
 
-    const rendererUrl = this.getRendererUrl() + '?view=chat-list';
+    const rendererUrl = `${this.getRendererUrl()}?view=chat-list`;
 
     await this.chatListWindow.loadURL(rendererUrl);
 

@@ -780,6 +780,233 @@ Components should handle:
 - ✅ Calling service methods
 - ✅ Registering service callbacks
 
+## React Performance Optimization
+
+When optimizing React components, follow these essential practices:
+
+### Memoization Hooks
+
+- **Use `useMemo` for expensive computations** - Memoize values that are expensive to compute
+  - Only recompute when dependencies change
+  - Use for derived state, filtered lists, and complex calculations
+  - Don't overuse - profile first to identify actual bottlenecks
+
+```typescript
+// ✅ Good: Memoizing expensive computation
+const filteredItems = useMemo(() => {
+  return items.filter(item => item.category === selectedCategory);
+}, [items, selectedCategory]);
+
+// ❌ Bad: Recomputing on every render
+const filteredItems = items.filter(item => item.category === selectedCategory);
+```
+
+- **Use `useCallback` for stable function references** - Memoize callbacks passed to child components
+  - Prevents unnecessary re-renders of memoized child components
+  - Use when passing functions as props to `React.memo` components
+  - Include all dependencies in the dependency array
+
+```typescript
+// ✅ Good: Memoized callback with React.memo
+const MemoizedChild = React.memo(({ onClick }: { onClick: () => void }) => {
+  return <button onClick={onClick}>Click</button>;
+});
+
+const Parent = () => {
+  const handleClick = useCallback(() => {
+    console.log('Clicked');
+  }, []);  // Stable reference
+
+  return <MemoizedChild onClick={handleClick} />;
+};
+
+// ❌ Bad: New function on every render
+const Parent = () => {
+  const handleClick = () => {  // New function every render
+    console.log('Clicked');
+  };
+
+  return <MemoizedChild onClick={handleClick} />;  // Causes re-render
+};
+```
+
+- **Use `React.memo` for component memoization** - Prevent re-renders when props haven't changed
+  - Use for components that render frequently with same props
+  - Combine with `useCallback` for function props
+  - Don't use for components that always receive new props
+
+```typescript
+// ✅ Good: Memoized component
+const ExpensiveComponent = React.memo(({ data }: { data: IData }) => {
+  return <div>{/* Expensive rendering */}</div>;
+});
+
+// ❌ Bad: Unnecessary memoization
+const SimpleComponent = React.memo(({ text }: { text: string }) => {
+  return <div>{text}</div>;  // Too simple to benefit
+});
+```
+
+### Dependency Array Management
+
+- **Ensure complete and accurate dependency arrays** - Include all values used in the hook
+  - Missing dependencies can cause stale closures and bugs
+  - Use ESLint rules to catch missing dependencies
+  - Be careful with object and array dependencies (use stable references)
+
+```typescript
+// ✅ Good: Complete dependency array
+const filtered = useMemo(() => {
+  return items.filter(item => item.category === category && item.active);
+}, [items, category]);  // All dependencies included
+
+// ❌ Bad: Missing dependencies
+const filtered = useMemo(() => {
+  return items.filter(item => item.category === category && item.active);
+}, [items]);  // Missing 'category' - stale closure!
+```
+
+### Code Splitting and Lazy Loading
+
+- **Implement code splitting for large applications** - Split code into smaller chunks
+  - Use `React.lazy()` for route-based code splitting
+  - Load components on demand to reduce initial bundle size
+  - Use `Suspense` for loading states
+
+```typescript
+// ✅ Good: Lazy loading with Suspense
+const Settings = React.lazy(() => import('./components/Settings'));
+
+function App() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <Settings />
+    </Suspense>
+  );
+}
+
+// ❌ Bad: All components loaded upfront
+import Settings from './components/Settings';  // Loaded even if not used
+```
+
+### Performance Profiling
+
+- **Profile before optimizing** - Identify actual bottlenecks before applying optimizations
+  - Use React DevTools Profiler to identify slow components
+  - Measure before and after optimizations
+  - Don't optimize prematurely - focus on actual performance issues
+
+### Avoid Premature Optimization
+
+- **Only optimize when necessary** - Don't add memoization everywhere
+  - Memoization adds overhead - use only when beneficial
+  - Simple components don't need memoization
+  - Profile first to identify real performance issues
+
+### Examples
+
+```typescript
+// ✅ Good: Purposeful memoization
+const ExpensiveList = React.memo(({ items, filter }: Props) => {
+  const filtered = useMemo(() => {
+    return items.filter(item => item.category === filter);
+  }, [items, filter]);
+
+  const handleClick = useCallback((id: number) => {
+    onItemClick(id);
+  }, [onItemClick]);
+
+  return (
+    <div>
+      {filtered.map(item => (
+        <Item key={item.id} item={item} onClick={handleClick} />
+      ))}
+    </div>
+  );
+});
+
+// ❌ Bad: Over-memoization
+const SimpleList = React.memo(({ items }: Props) => {
+  const filtered = useMemo(() => items, [items]);  // Unnecessary
+  const handleClick = useCallback(() => {}, []);  // Unnecessary
+
+  return <div>{filtered.map(item => <div key={item.id}>{item.name}</div>)}</div>;
+});
+```
+
+## React Security Best Practices
+
+When working with React components, follow these essential security practices:
+
+### XSS Prevention
+
+- **Escape user inputs** - Never render user input without sanitization
+  - React automatically escapes content in JSX
+  - Never use `dangerouslySetInnerHTML` with user content
+  - Sanitize user content before rendering if HTML is required
+
+```typescript
+// ✅ Good: React automatically escapes
+const UserMessage = ({ message }: { message: string }) => {
+  return <div>{message}</div>;  // Automatically escaped
+};
+
+// ❌ Bad: Using dangerouslySetInnerHTML with user content
+const UserMessage = ({ message }: { message: string }) => {
+  return <div dangerouslySetInnerHTML={{ __html: message }} />;  // XSS risk!
+};
+```
+
+- **Sanitize user-generated content** - Use libraries like DOMPurify for HTML content
+  - Only use `dangerouslySetInnerHTML` with sanitized content
+  - Validate and sanitize all user inputs
+  - Be especially careful with rich text editors
+
+```typescript
+// ✅ Good: Sanitizing before rendering
+import DOMPurify from 'dompurify';
+
+const RichTextContent = ({ html }: { html: string }) => {
+  const sanitized = DOMPurify.sanitize(html);
+  return <div dangerouslySetInnerHTML={{ __html: sanitized }} />;
+};
+
+// ❌ Bad: No sanitization
+const RichTextContent = ({ html }: { html: string }) => {
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;  // XSS risk!
+};
+```
+
+### Dependency Management
+
+- **Keep dependencies updated** - Regularly update React and dependencies
+  - Security patches are released regularly
+  - Use automated dependency updates where possible
+  - Audit dependencies for known vulnerabilities
+
+### Input Validation
+
+- **Validate all user inputs** - Don't trust client-side validation alone
+  - Validate inputs in services before processing
+  - Use type guards and validation schemas
+  - Provide clear error messages for invalid inputs
+
+```typescript
+// ✅ Good: Validating inputs
+const handleSubmit = async (input: string) => {
+  if (!isValidInput(input)) {
+    setError('Invalid input');
+    return;
+  }
+  await service.processInput(input);
+};
+
+// ❌ Bad: No validation
+const handleSubmit = async (input: string) => {
+  await service.processInput(input);  // No validation!
+};
+```
+
 ## Application Architecture
 
 For application-specific architecture details, including:

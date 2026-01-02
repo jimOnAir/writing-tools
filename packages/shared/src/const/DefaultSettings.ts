@@ -1,30 +1,33 @@
 import type { ISettings } from '../interfaces/ISettings';
 
 export const DefaultSettings: ISettings = Object.freeze({
-  provider: 'ollama',
-  ollama: {
-    address: 'http://localhost:11434',
-    model: undefined,
-    apiKey: undefined,
-  },
+  globalShortcut: 'Ctrl+ALT+I',
   lmstudio: {
     address: 'http://localhost:1234',
-    model: undefined,
     apiKey: undefined,
+    model: undefined,
   },
-  globalShortcut: 'Ctrl+ALT+I',
+  ollama: {
+    address: 'http://localhost:11434',
+    apiKey: undefined,
+    model: undefined,
+  },
   preconfiguredPrompts: [
     {
-      title: 'Summarize',
+      icon: undefined,
       prompt: 'Summarize the following text in one sentence: {text}',
+      title: 'Summarize',
     },
     {
-      title: 'Explain',
+      icon: undefined,
       prompt: 'Explain the following text in simple terms: {text}',
+      title: 'Explain',
     },
     {
-      title: 'Translate',
+      icon: undefined,
       prompt: 'Translate the following text to English: {text}',
+      title: 'Translate',
     },
   ],
+  provider: 'ollama',
 });

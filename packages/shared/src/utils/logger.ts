@@ -13,43 +13,11 @@ export class Logger implements ILogger {
   private currentEnvironment: 'development' | 'production' | 'test' = 'development';
 
   /**
-   * Set the minimum log level
-   */
-  public setLevel(level: LogLevel): void {
-    this.currentLevel = level;
-  }
-
-  /**
-   * Set the environment for filtering
-   */
-  public setEnvironment(env: 'development' | 'production' | 'test'): void {
-    this.currentEnvironment = env;
-  }
-
-  /**
    * Log debug message
    */
   public debug(message: string, ...args: string[]): void {
     if (this.shouldLog('debug')) {
       console.debug(this.formatMessage('debug', message, ...args));
-    }
-  }
-
-  /**
-   * Log info message
-   */
-  public info(message: string, ...args: string[]): void {
-    if (this.shouldLog('info')) {
-      console.info(this.formatMessage('info', message, ...args));
-    }
-  }
-
-  /**
-   * Log warning message
-   */
-  public warn(message: string, ...args: string[]): void {
-    if (this.shouldLog('warn')) {
-      console.warn(this.formatMessage('warn', message, ...args));
     }
   }
 
@@ -63,33 +31,35 @@ export class Logger implements ILogger {
   }
 
   /**
-   * Get the minimum level to log based on environment
+   * Log info message
    */
-  private getMinLevel(): LogLevel {
-    switch (this.currentEnvironment) {
-      case 'production':
-        return 'info';
-      case 'test':
-        return 'debug';
-      default: // development
-        return 'debug';
+  public info(message: string, ...args: string[]): void {
+    if (this.shouldLog('info')) {
+      console.info(this.formatMessage('info', message, ...args));
     }
   }
 
   /**
-   * Check if a log level should be output
+   * Set the environment for filtering
    */
-  private shouldLog(level: LogLevel): boolean {
-    const minLevel = this.getMinLevel();
+  public setEnvironment(env: 'development' | 'production' | 'test'): void {
+    this.currentEnvironment = env;
+  }
 
-    const levelOrder = {
-      'debug': 0,
-      'info': 1,
-      'warn': 2,
-      'error': 3,
-    };
+  /**
+   * Set the minimum log level
+   */
+  public setLevel(level: LogLevel): void {
+    this.currentLevel = level;
+  }
 
-    return levelOrder[level] >= levelOrder[minLevel];
+  /**
+   * Log warning message
+   */
+  public warn(message: string, ...args: string[]): void {
+    if (this.shouldLog('warn')) {
+      console.warn(this.formatMessage('warn', message, ...args));
+    }
   }
 
   /**
@@ -117,6 +87,37 @@ export class Logger implements ILogger {
     }
 
     return `[${timestamp}] ${level.toUpperCase()}: ${formattedMessage}`;
+  }
+
+  /**
+   * Get the minimum level to log based on environment
+   */
+  private getMinLevel(): LogLevel {
+    switch (this.currentEnvironment) {
+      case 'production':
+        return 'info';
+      case 'test':
+        return 'debug';
+      default: // development
+        return 'debug';
+    }
+  }
+
+  /**
+   * Check if a log level should be output
+   */
+  private shouldLog(level: LogLevel): boolean {
+    const minLevel = this.getMinLevel();
+
+    // Note: levelOrder maintains logical ordering by severity, not alphabetical
+    const levelOrder = {
+      'debug': 0,
+      'info': 1,
+      'warn': 2,
+      'error': 3,
+    };
+
+    return levelOrder[level] >= levelOrder[minLevel];
   }
 }
 

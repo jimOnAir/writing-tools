@@ -9,9 +9,9 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
  */
 export interface ILogger {
   debug: (message: string, ...args: string[]) => void;
-  info: (message: string, ...args: string[]) => void;
-  warn: (message: string, ...args: string[]) => void;
   error: (message: string, ...args: string[]) => void;
-  setLevel: (level: LogLevel) => void;
+  info: (message: string, ...args: string[]) => void;
   setEnvironment: (env: 'development' | 'production' | 'test') => void;
+  setLevel: (level: LogLevel) => void;
+  warn: (message: string, ...args: string[]) => void;
 }

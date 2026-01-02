@@ -48,8 +48,8 @@ export class IpcHandlers implements IIpcHandlers {
   public register(): void {
     ipcMain.handle(EIpcChannel.ENV, (_, _data: TChannelEventPayloadEnv) => {
       return {
-        platform: os.platform(), // 'win32', 'darwin', 'linux'
         arch: os.arch(), // 'x64', 'arm64', etc.
+        platform: os.platform(), // 'win32', 'darwin', 'linux'
         release: os.release(),
       };
     });
@@ -144,7 +144,7 @@ export class IpcHandlers implements IIpcHandlers {
     if ('response' in llmResponse && llmResponse.response) {
       logger.info('Saving assistant response and triggering title generation');
       const assistantMessage: IChatMessage = {
-        id: Date.now().toString() + '-response',
+        id: `${Date.now().toString()}-response`,
         role: 'assistant',
         content: llmResponse.response,
         timestamp: new Date(),
@@ -346,7 +346,7 @@ export class IpcHandlers implements IIpcHandlers {
 
       // Save error message
       const errorMessage: IChatMessage = {
-        id: Date.now().toString() + '-error',
+        id: `${Date.now().toString()}-error`,
         role: 'assistant',
         content: `Error: ${response.error}`,
         timestamp: new Date(),
@@ -368,7 +368,7 @@ export class IpcHandlers implements IIpcHandlers {
 
     // Save assistant response
     const assistantMessage: IChatMessage = {
-      id: Date.now().toString() + '-response',
+      id: `${Date.now().toString()}-response`,
       role: 'assistant',
       content: response.response ?? '',
       timestamp: new Date(),
