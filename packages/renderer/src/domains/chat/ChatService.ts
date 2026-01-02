@@ -3,6 +3,7 @@ import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
+import { isErrorResponse } from '../../utils/responseTypeGuards';
 
 /**
  * Service for managing chat domain logic
@@ -93,7 +94,7 @@ export class ChatService {
       this.setHandlingResponse(true);
 
       // Handle error response
-      if ('error' in response) {
+      if (isErrorResponse(response)) {
         const errorMessage: IChatMessage = {
           id: Date.now().toString() + '-error',
           role: 'assistant',
@@ -243,7 +244,7 @@ export class ChatService {
     try {
       const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
 
-      if ('error' in response) {
+      if (isErrorResponse(response)) {
         throw new Error(response.error);
       }
 
@@ -384,7 +385,7 @@ export class ChatService {
 
       const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
 
-      if ('error' in response) {
+      if (isErrorResponse(response)) {
         logger.error('Failed to get chat info: %s', response.error);
 
         return null;
@@ -412,7 +413,7 @@ export class ChatService {
 
       const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
 
-      if ('error' in response) {
+      if (isErrorResponse(response)) {
         logger.error('Failed to load messages: %s', response.error);
         this.setError(`Failed to load messages: ${response.error}`);
 
@@ -443,7 +444,7 @@ export class ChatService {
 
       const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
 
-      if ('error' in response) {
+      if (isErrorResponse(response)) {
         logger.error('Failed to delete chat: %s', response.error);
 
         return response.error;
@@ -477,7 +478,7 @@ export class ChatService {
 
       const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
 
-      if ('error' in response) {
+      if (isErrorResponse(response)) {
         logger.error('Failed to create chat session: %s', response.error);
         this.currentChatId = null;
 

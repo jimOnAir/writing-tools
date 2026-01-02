@@ -1,12 +1,15 @@
 import type { IChatMessage } from '@writing-tools/shared';
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-import { ChatService } from '../domains/chat';
-import { ElectronIpcAdapter } from '../infrastructure/ipc';
+import type { ChatService } from '../domains/chat';
 import { ButtonStyles, MessageStyles, InputStyles, NotificationStyles, LoadingStyles, BackgroundStyles, LayoutStyles, SpinnerIcon, ColorPalette, TypographyStyles } from '../styles/Styles';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
-const ChatComponent: React.FC = () => {
+interface ChatComponentProps {
+  chatService: ChatService;
+}
+
+const ChatComponent: React.FC<ChatComponentProps> = ({ chatService }) => {
   const [messages, setMessages] = useState<IChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -16,22 +19,16 @@ const ChatComponent: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Create service instance
-  const chatService = useMemo(() => {
-    const ipcAdapter = new ElectronIpcAdapter();
-    const service = new ChatService(ipcAdapter);
-
-    // Register callbacks
-    service.setCallbacks({
+  // Register callbacks
+  useEffect(() => {
+    chatService.setCallbacks({
       onMessagesChange: setMessages,
       onLoadingChange: setIsLoading,
       onErrorChange: setError,
       onHandlingResponseChange: setIsHandlingResponse,
       onTitleChange: setChatTitle,
     });
-
-    return service;
-  }, []);
+  }, [chatService]);
 
   // Initialize listeners on mount
   useEffect(() => {

@@ -1,29 +1,26 @@
 import type { IPreconfiguredPrompt } from '@writing-tools/shared';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 
-import { PromptSelectorService } from '../domains/prompt-selector';
-import { ElectronIpcAdapter } from '../infrastructure/ipc';
+import type { PromptSelectorService } from '../domains/prompt-selector';
 import { ButtonStyles, InputStyles, BackgroundStyles, TypographyStyles, CardStyles, LayoutStyles, ColorPalette } from '../styles/Styles';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
-const PromptSelectorComponent: React.FC = () => {
+interface PromptSelectorComponentProps {
+  promptSelectorService: PromptSelectorService;
+}
+
+const PromptSelectorComponent: React.FC<PromptSelectorComponentProps> = ({ promptSelectorService }) => {
   const [selectedText, setSelectedText] = useState<string>('');
   const [preconfiguredPrompts, setPreconfiguredPrompts] = useState<IPreconfiguredPrompt[]>([]);
   const [customPrompt, setCustomPrompt] = useState<string>('');
 
-  // Create service instance
-  const promptSelectorService = useMemo(() => {
-    const ipcAdapter = new ElectronIpcAdapter();
-    const service = new PromptSelectorService(ipcAdapter);
-
-    // Register callbacks
-    service.setCallbacks({
+  // Register callbacks
+  useEffect(() => {
+    promptSelectorService.setCallbacks({
       onSelectedTextChange: setSelectedText,
       onPromptsChange: setPreconfiguredPrompts,
     });
-
-    return service;
-  }, []);
+  }, [promptSelectorService]);
 
   // Initialize listeners on mount
   useEffect(() => {

@@ -477,6 +477,309 @@ import { ColorPalette, ButtonStyles, TypographyStyles } from '../styles/Styles';
 </button>
 ```
 
+## IPC Response Handling
+
+When processing IPC responses, always use the centralized type guard functions from `utils/responseTypeGuards.ts`:
+
+### Type Guard Functions
+- **`isErrorResponse(response: unknown): response is { error: string }`**
+  - Checks if a response has an `error` property with a string value
+  - Use for responses that may have an `error` property (e.g., `TChatListChatsResponse`, `TChatSendMessageResponse`)
+
+- **`isFailedResponse(response: unknown): response is { error: string, success: false }`**
+  - Checks if a response has `success: false` and an `error` property with a string value
+  - Use for responses that have a `success` property (e.g., `TChatOpenResponse`, `TChatDeleteResponse`, `TSettingsSaveResponse`)
+
+### Usage Pattern
+Always use these type guards instead of direct property checks to ensure type safety and consistency:
+
+```typescript
+// ✅ Good: Using type guards from utils
+import { isErrorResponse, isFailedResponse } from '../utils/responseTypeGuards';
+
+const response = await ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+
+if (isErrorResponse(response)) {
+  throw new Error(response.error);
+}
+
+// Or for success-based responses
+if (isFailedResponse(response)) {
+  throw new Error(response.error);
+}
+```
+
+```typescript
+// ❌ Bad: Direct property checks without type guards
+const response = await ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+
+if ('error' in response) {
+  throw new Error(response.error); // TypeScript may not properly narrow the type
+}
+```
+
+### Benefits
+- **Type Safety**: TypeScript properly narrows the response type after the guard check
+- **Consistency**: All components use the same error checking logic
+- **Maintainability**: Error checking logic is centralized in one place
+- **Lint Compliance**: Avoids unsafe assignment and member access lint errors
+
+### When to Use Which Guard
+- Use `isErrorResponse` for responses like:
+  - `TChatListChatsResponse` (has `error` or `chats`)
+  - `TChatSendMessageResponse` (has `error` or `response`)
+  - `TChatGetResponse` (has `error` or `chat`)
+  - `TChatLoadMessagesResponse` (has `error` or `messages`)
+
+- Use `isFailedResponse` for responses like:
+  - `TChatOpenResponse` (has `success: true` or `success: false, error`)
+  - `TChatDeleteResponse` (has `success: true` or `success: false, error`)
+  - `TSettingsSaveResponse` (has `success: true` or `success: false, error`)
+
+## IPC Handling Architecture
+
+**All IPC communication must be handled in services, not in components.**
+
+**Services must be provided through props, not instantiated in components.**
+
+### Service Pattern
+- **Services handle all IPC calls** - Components should never directly call `ipcAdapter.invoke()`
+- **Services manage state** - Services maintain internal state and notify components via callbacks
+- **Services are provided through props** - Components receive services as props, never instantiate them
+- **Services encapsulate business logic** - All domain logic, error handling, and IPC communication belongs in services
+- **Service instantiation at app level** - Services are created in `App.tsx` (or top-level component) and passed down
+
+### Service Structure
+Services should follow this pattern:
+
+```typescript
+// ✅ Good: Service handles IPC and state management
+export class ChatListService {
+  private readonly ipcAdapter: IIpcAdapter;
+  private chats: IChatInfo[] = [];
+  private isLoading = false;
+  private error: string | null = null;
+
+  // Callbacks for component state updates
+  private onChatsChange?: (chats: IChatInfo[]) => void;
+  private onLoadingChange?: (isLoading: boolean) => void;
+  private onErrorChange?: (error: string | null) => void;
+
+  public constructor(ipcAdapter: IIpcAdapter) {
+    this.ipcAdapter = ipcAdapter;
+  }
+
+  public setCallbacks(callbacks: {
+    onChatsChange?: (chats: IChatInfo[]) => void,
+    onLoadingChange?: (isLoading: boolean) => void,
+    onErrorChange?: (error: string | null) => void,
+  }): void {
+    this.onChatsChange = callbacks.onChatsChange;
+    this.onLoadingChange = callbacks.onLoadingChange;
+    this.onErrorChange = callbacks.onErrorChange;
+  }
+
+  public async loadChats(): Promise<void> {
+    this.setLoading(true);
+    this.setError(null);
+
+    try {
+      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS> = {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_LIST_CHATS,
+        payload: {},
+      };
+
+      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+
+      if (isErrorResponse(response)) {
+        throw new Error(response.error);
+      }
+
+      if ('chats' in response && Array.isArray(response.chats)) {
+        this.setChats(response.chats);
+      }
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to load chats: %s', errorText);
+      this.setError(errorText);
+    } finally {
+      this.setLoading(false);
+    }
+  }
+
+  private setChats(chats: IChatInfo[]): void {
+    this.chats = chats;
+    this.onChatsChange?.(chats);
+  }
+
+  private setLoading(isLoading: boolean): void {
+    this.isLoading = isLoading;
+    this.onLoadingChange?.(isLoading);
+  }
+
+  private setError(error: string | null): void {
+    this.error = error;
+    this.onErrorChange?.(error);
+  }
+}
+```
+
+### Component Pattern
+Components should receive services as props, not instantiate them:
+
+```typescript
+// ✅ Good: Component receives service as prop
+interface ChatListComponentProps {
+  chatListService: ChatListService;
+}
+
+const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService }) => {
+  const [chats, setChats] = useState<IChatInfo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Register callbacks
+  useEffect(() => {
+    chatListService.setCallbacks({
+      onChatsChange: setChats,
+      onLoadingChange: setIsLoading,
+      onErrorChange: setError,
+    });
+  }, [chatListService]);
+
+  useEffect(() => {
+    void chatListService.loadChats();
+  }, [chatListService]);
+
+  const handleOpenChat = async (chatId: number) => {
+    await chatListService.openChat(chatId);
+  };
+
+  return (
+    // Component JSX
+  );
+};
+```
+
+### Service Instantiation Pattern
+**Services must be instantiated at the application level (e.g., in `App.tsx`) and passed down as props.**
+
+This pattern provides dependency injection, making components more testable and flexible:
+
+```typescript
+// ✅ Good: Services instantiated in App, passed as props
+function App() {
+  // Create shared IPC adapter
+  const ipcAdapter = useMemo(() => new ElectronIpcAdapter(), []);
+
+  // Create service instances
+  const chatService = useMemo(() => new ChatService(ipcAdapter), [ipcAdapter]);
+  const chatListService = useMemo(() => new ChatListService(ipcAdapter), [ipcAdapter]);
+  const settingsService = useMemo(() => new SettingsService(ipcAdapter), [ipcAdapter]);
+  const promptSelectorService = useMemo(() => new PromptSelectorService(ipcAdapter), [ipcAdapter]);
+
+  if (view === 'chat-list') {
+    return <ChatListComponent chatListService={chatListService} />;
+  }
+
+  if (view === 'settings') {
+    return <Settings settingsService={settingsService} />;
+  }
+
+  return <ChatComponent chatService={chatService} />;
+}
+```
+
+**Key Rules:**
+- ✅ Services are instantiated in `App.tsx` (or top-level component)
+- ✅ Services are passed to components via props
+- ✅ Components receive services through props interface
+- ✅ Use `useMemo` to prevent unnecessary service re-instantiation
+- ❌ Never instantiate services inside components
+- ❌ Never use `useMemo` to create services inside components
+
+```typescript
+// ❌ Bad: Component instantiates service
+const ChatListComponent: React.FC = () => {
+  const chatListService = useMemo(() => {
+    const ipcAdapter = new ElectronIpcAdapter();
+    return new ChatListService(ipcAdapter);
+  }, []);
+  // Service instantiation in component - WRONG! Services must come from props.
+};
+
+// ❌ Bad: Component creates IPC adapter
+const ChatListComponent: React.FC = () => {
+  const ipcAdapter = useMemo(() => new ElectronIpcAdapter(), []);
+  // IPC adapter should be created in App, not in components.
+};
+
+// ❌ Bad: Component directly calls IPC
+const ChatListComponent: React.FC = () => {
+  const [chats, setChats] = useState<IChatInfo[]>([]);
+  const ipcAdapter = useMemo(() => new ElectronIpcAdapter(), []);
+
+  const loadChats = async () => {
+    const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS> = {
+      channel: EIpcChannel.CHAT,
+      event: EIpcEvent.CHAT_LIST_CHATS,
+      payload: {},
+    };
+
+    const response = await ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+    // Direct IPC handling in component - WRONG!
+  };
+};
+```
+
+### Benefits
+- **Separation of Concerns**: Business logic is separated from UI logic
+- **Reusability**: Services can be reused across multiple components
+- **Testability**: Services can be tested independently of components, and components can be tested with mock services passed as props
+- **Maintainability**: IPC handling is centralized in services
+- **Type Safety**: Services provide type-safe interfaces for components
+- **Dependency Injection**: Services are injected via props, making components more testable and flexible
+- **Single Responsibility**: Components focus on rendering, services handle business logic
+- **Lifecycle Management**: Service instances are managed at the application level, ensuring proper initialization and cleanup
+- **Shared State**: Services can be shared between components when needed (e.g., same IPC adapter instance)
+
+### Testing with Dependency Injection
+When services are provided via props, testing becomes much easier:
+
+```typescript
+// ✅ Good: Component can be tested with mock service
+describe('ChatListComponent', () => {
+  it('should load chats on mount', () => {
+    const mockService = {
+      setCallbacks: jest.fn(),
+      loadChats: jest.fn(),
+      openChat: jest.fn(),
+      deleteChat: jest.fn(),
+    };
+
+    render(<ChatListComponent chatListService={mockService as unknown as ChatListService} />);
+
+    expect(mockService.setCallbacks).toHaveBeenCalled();
+    expect(mockService.loadChats).toHaveBeenCalled();
+  });
+});
+```
+
+### Service Responsibilities
+Services should handle:
+- ✅ All IPC communication (`ipcAdapter.invoke()`)
+- ✅ State management (internal state + callbacks)
+- ✅ Error handling and logging
+- ✅ Business logic and data transformation
+- ✅ Response validation using type guards
+
+Components should handle:
+- ✅ UI rendering and user interactions
+- ✅ Local UI state (form inputs, temporary UI state)
+- ✅ Calling service methods
+- ✅ Registering service callbacks
+
 ## Application Architecture
 
 For application-specific architecture details, including:

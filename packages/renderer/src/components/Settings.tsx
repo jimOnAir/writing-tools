@@ -2,8 +2,7 @@ import { DefaultSettings } from '@writing-tools/shared';
 import type { IPreconfiguredPrompt, ISettings } from '@writing-tools/shared';
 import React, { useState, useEffect, useMemo } from 'react';
 
-import { SettingsService } from '../domains/settings';
-import { ElectronIpcAdapter } from '../infrastructure/ipc';
+import type { SettingsService } from '../domains/settings';
 import { BackgroundStyles, TypographyStyles, LayoutStyles, InputStyles } from '../styles/Styles';
 
 import { GlobalShortcutsSection } from './settings/GlobalShortcutsSection';
@@ -13,7 +12,11 @@ import { PreconfiguredPromptsSection } from './settings/PreconfiguredPromptsSect
 import { SettingsActions } from './settings/SettingsActions';
 import { SettingsNotifications } from './settings/SettingsNotifications';
 
-const Settings: React.FC = () => {
+interface SettingsProps {
+  settingsService: SettingsService;
+}
+
+const Settings: React.FC<SettingsProps> = ({ settingsService }) => {
   const [settings, setSettings] = useState<ISettings>(useMemo(() => ({ ...DefaultSettings }), []));
   // originalSettings is managed via callback in SettingsService
   const [_originalSettings, setOriginalSettings] = useState<ISettings>(useMemo(() => ({ ...DefaultSettings }), []));
@@ -23,13 +26,9 @@ const Settings: React.FC = () => {
   const [newShortcut, setNewShortcut] = useState<string>('');
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Create service instance
-  const settingsService = useMemo(() => {
-    const ipcAdapter = new ElectronIpcAdapter();
-    const service = new SettingsService(ipcAdapter);
-
-    // Register callbacks
-    service.setCallbacks({
+  // Register callbacks
+  useEffect(() => {
+    settingsService.setCallbacks({
       onSettingsChange: setSettings,
       onOriginalSettingsChange: setOriginalSettings,
       onAvailableModelsChange: setAvailableModels,
@@ -37,9 +36,7 @@ const Settings: React.FC = () => {
       onErrorChange: setError,
       onSuccessChange: setSuccess,
     });
-
-    return service;
-  }, []);
+  }, [settingsService]);
 
   // Load settings on mount
   useEffect(() => {

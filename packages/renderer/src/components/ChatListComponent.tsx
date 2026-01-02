@@ -1,68 +1,37 @@
-import type { IChatInfo, TIpcEvent } from '@writing-tools/shared';
-import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
-import React, { useState, useEffect, useMemo } from 'react';
+import type { IChatInfo } from '@writing-tools/shared';
+import React, { useState, useEffect } from 'react';
 
-import { ElectronIpcAdapter } from '../infrastructure/ipc';
+import type { ChatListService } from '../domains/chat-list';
 import { ButtonStyles, BackgroundStyles, TypographyStyles, ColorPalette } from '../styles/Styles';
+import { renderMarkdown } from '../utils/markdownRenderer';
 
-const ChatListComponent: React.FC = () => {
+interface ChatListComponentProps {
+  chatListService: ChatListService;
+}
+
+const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService }) => {
   const [chats, setChats] = useState<IChatInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingChatId, setDeletingChatId] = useState<number | null>(null);
 
-  const ipcAdapter = useMemo(() => new ElectronIpcAdapter(), []);
+  // Register callbacks
+  useEffect(() => {
+    chatListService.setCallbacks({
+      onChatsChange: setChats,
+      onLoadingChange: setIsLoading,
+      onErrorChange: setError,
+      onDeletingChatIdChange: setDeletingChatId,
+    });
+  }, [chatListService]);
 
   // Load chats on mount
   useEffect(() => {
-    void loadChats();
-  }, []);
-
-  const loadChats = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS> = {
-        channel: EIpcChannel.CHAT,
-        event: EIpcEvent.CHAT_LIST_CHATS,
-        payload: {},
-      };
-
-      const response = await ipcAdapter.invoke(EIpcChannel.CHAT, payload);
-
-      if ('error' in response) {
-        throw new Error(response.error);
-      }
-
-      setChats(response.chats);
-    } catch (err: unknown) {
-      const errorText = err instanceof Error ? err.message : String(err);
-      logger.error('Failed to load chats: %s', errorText);
-      setError(errorText);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    void chatListService.loadChats();
+  }, [chatListService]);
 
   const handleOpenChat = async (chatId: number) => {
-    try {
-      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_OPEN> = {
-        channel: EIpcChannel.CHAT,
-        event: EIpcEvent.CHAT_OPEN,
-        payload: { chatId },
-      };
-
-      const response = await ipcAdapter.invoke(EIpcChannel.CHAT, payload);
-
-      if ('error' in response) {
-        throw new Error(response.error);
-      }
-    } catch (err: unknown) {
-      const errorText = err instanceof Error ? err.message : String(err);
-      logger.error('Failed to open chat: %s', errorText);
-      setError(errorText);
-    }
+    await chatListService.openChat(chatId);
   };
 
   const handleDeleteChat = async (chatId: number, event: React.MouseEvent) => {
@@ -71,34 +40,11 @@ const ChatListComponent: React.FC = () => {
     // Confirm deletion
     const confirmed = globalThis.confirm('Are you sure you want to delete this chat? This action cannot be undone.');
 
-    if (confirmed === false) {
+    if (!confirmed) {
       return;
     }
 
-    setDeletingChatId(chatId);
-
-    try {
-      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_DELETE> = {
-        channel: EIpcChannel.CHAT,
-        event: EIpcEvent.CHAT_DELETE,
-        payload: { chatId },
-      };
-
-      const response = await ipcAdapter.invoke(EIpcChannel.CHAT, payload);
-
-      if ('error' in response) {
-        throw new Error(response.error);
-      }
-
-      // Refresh chat list
-      await loadChats();
-    } catch (err: unknown) {
-      const errorText = err instanceof Error ? err.message : String(err);
-      logger.error('Failed to delete chat: %s', errorText);
-      setError(errorText);
-    } finally {
-      setDeletingChatId(null);
-    }
+    await chatListService.deleteChat(chatId);
   };
 
   const formatDate = (dateString: string): string => {
@@ -113,7 +59,7 @@ const ChatListComponent: React.FC = () => {
     } else if (diffDays === 1) {
       return 'Yesterday';
     } else if (diffDays < DAYS_IN_WEEK) {
-      return `${diffDays} days ago`;
+      return `${String(diffDays)} days ago`;
     } else {
       const isDifferentYear = date.getFullYear() !== now.getFullYear();
 
@@ -151,27 +97,24 @@ const ChatListComponent: React.FC = () => {
             return (
               <div
                 key={chat.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => {
-                  void handleOpenChat(chat.id);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    void handleOpenChat(chat.id);
-                  }
-                }}
                 className={`${BackgroundStyles.cardHover} p-3 rounded cursor-pointer flex items-center justify-between w-full`}
               >
-                <div className="flex-1 min-w-0">
-                  <div className={`${TypographyStyles.h3} ${ColorPalette.text.primary} truncate`}>
-                    {displayTitle}
-                  </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleOpenChat(chat.id);
+                  }}
+                  className="flex-1 min-w-0 text-left"
+                  aria-label={`Open chat: ${displayTitle}`}
+                >
+                  <div
+                    className={`${TypographyStyles.h3} ${ColorPalette.text.primary} truncate markdown-content`}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(displayTitle) }}
+                  />
                   <div className={`text-xs ${ColorPalette.text.muted} mt-1`}>
                     {formatDate(chat.updated_at)}
                   </div>
-                </div>
+                </button>
                 <button
                   type="button"
                   onClick={(e) => {
