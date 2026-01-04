@@ -1,10 +1,30 @@
 import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 
-let platform = '';
-await (async () => {
-  const env = await window.electronAPI.invoke(EIpcChannel.ENV, { channel: EIpcChannel.ENV, event: EIpcEvent.ENV_GET, payload: {} });
-  platform = env.platform;
-})();
+let platform: string | null = null;
+
+/**
+ * Gets the platform, loading it lazily if not already loaded
+ */
+const getPlatform = async (): Promise<string> => {
+  if (platform === null) {
+    try {
+      const electronAPI = (globalThis as unknown as { electronAPI?: typeof window.electronAPI }).electronAPI;
+      if (!electronAPI) {
+        platform = 'linux';
+      } else {
+        const env = await electronAPI.invoke(EIpcChannel.ENV, { channel: EIpcChannel.ENV, event: EIpcEvent.ENV_GET, payload: {} });
+        const platformValue = env.platform;
+        platform = (platformValue === 'darwin' || platformValue === 'win32' || platformValue === 'linux') ? platformValue : 'linux';
+      }
+    } catch {
+      // Fallback to linux if platform detection fails or electronAPI is unavailable
+      platform = 'linux';
+    }
+  }
+
+  // At this point, platform is guaranteed to be a string (never null)
+  return platform;
+};
 
 /**
  * Validates if a shortcut string is in a valid format for Electron accelerators
@@ -125,6 +145,8 @@ export const normalizeShortcut = (shortcut: string): string => {
     }
   }
 
+  // Preserve modifier order as they appear in input
+
   // Reconstruct with modifiers first, then key
   const sortedParts = [...modifiers];
   if (key) {
@@ -137,7 +159,7 @@ export const normalizeShortcut = (shortcut: string): string => {
 /**
  * Gets the cross-platform representation of a shortcut
  * @param shortcut The shortcut string
- * @returns Cross-platform representation
+ * @returns Cross-platform representation (synchronously, uses cached platform or defaults to linux)
  */
 export const getCrossPlatformShortcut = (shortcut: string): string => {
   if (!isValidShortcut(shortcut)) {
@@ -147,13 +169,32 @@ export const getCrossPlatformShortcut = (shortcut: string): string => {
   const normalized = normalizeShortcut(shortcut);
   const parts = normalized.split('+');
 
+  // Use cached platform or default to linux if not yet loaded
+  const currentPlatform = platform || 'linux';
+
   const crossPlatformParts = parts.map(part => {
     if (part === 'commandorcontrol') {
-      return platform === 'darwin' ? 'command' : 'control';
+      return currentPlatform === 'darwin' ? 'command' : 'control';
     }
 
     return part;
   });
 
   return crossPlatformParts.join('+');
+};
+
+/**
+ * Initializes the platform (call this early in the application lifecycle)
+ * This is optional - getCrossPlatformShortcut will work without it (defaults to linux)
+ */
+export const initializePlatform = async (): Promise<void> => {
+  await getPlatform();
+};
+
+/**
+ * Resets the platform cache (for testing only)
+ * @internal
+ */
+export const resetPlatform = (): void => {
+  platform = null;
 };

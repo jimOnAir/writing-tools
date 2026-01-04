@@ -14,7 +14,8 @@
     "rootDir": "src/",
     "sourceMap": true,
     "types": [
-      "electron"
+      "electron",
+      "jest"
     ]
   },
   "exclude": [

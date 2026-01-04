@@ -9,7 +9,7 @@ export type TEnvGetResponse = { arch: string, os: string, platform: NodeJS.Platf
 
 export type TModelListSuccessResponse = { models: string[] };
 
-export type TModelListFailedResponse = { error: string };
+export type TModelListFailedResponse = { error: string, models: string[] };
 
 export type TModelListResponse = TModelListSuccessResponse | TModelListFailedResponse;
 

@@ -13,4 +13,4 @@ export { DefaultSettings } from './const/DefaultSettings';
 export { EIpcChannel } from './enum/EIpcChannel';
 export { EIpcEvent } from './enum/EIpcEvent';
 export { EIpcRendererEvent } from './enum/EIpcRendererEvent';
-export { logger } from './utils/logger';
+export { Logger, logger } from './utils/logger';

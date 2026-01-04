@@ -14,7 +14,7 @@ export interface IModelService {
   /**
    * Fetch available models for a provider
    */
-  fetchModels: (providerOverride: 'ollama' | 'lmstudio') => Promise<{ models: string[] } | { error: string }>;
+  fetchModels: (providerOverride: 'ollama' | 'lmstudio') => Promise<{ models: string[] } | { error: string, models: string[] }>;
 
   /**
    * Send messages to the LLM and get response

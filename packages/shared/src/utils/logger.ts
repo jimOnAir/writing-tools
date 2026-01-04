@@ -9,8 +9,8 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
  * Logger implementation
  */
 export class Logger implements ILogger {
-  private currentLevel: LogLevel = 'debug';
   private currentEnvironment: 'development' | 'production' | 'test' = 'development';
+  private currentLevel: LogLevel | null = null;
 
   /**
    * Log debug message
@@ -44,6 +44,8 @@ export class Logger implements ILogger {
    */
   public setEnvironment(env: 'development' | 'production' | 'test'): void {
     this.currentEnvironment = env;
+    // Reset explicit level so environment defaults are used
+    this.currentLevel = null;
   }
 
   /**
@@ -75,6 +77,7 @@ export class Logger implements ILogger {
     if (args.length > 0) {
       // Create a copy of args to avoid modifying the original
       const argsCopy = [...args];
+      // Using replace with regex for pattern matching (%s|%d|%o) - replaceAll doesn't support regex
       formattedMessage = message.replace(/%s|%d|%o/g, (match) => {
         if (argsCopy.length > 0) {
           const arg = argsCopy.shift();
@@ -93,6 +96,11 @@ export class Logger implements ILogger {
    * Get the minimum level to log based on environment
    */
   private getMinLevel(): LogLevel {
+    // If explicit level is set, use it; otherwise derive from environment
+    if (this.currentLevel !== null) {
+      return this.currentLevel;
+    }
+
     switch (this.currentEnvironment) {
       case 'production':
         return 'info';

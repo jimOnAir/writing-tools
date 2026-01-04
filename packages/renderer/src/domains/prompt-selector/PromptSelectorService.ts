@@ -1,5 +1,5 @@
-import type { IPreconfiguredPrompt, TIpcEvent, IPromptSelectorData } from '@writing-tools/shared';
-import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
+import type { IPreconfiguredPrompt, TIpcEvent, IPromptSelectorData, ILogger } from '@writing-tools/shared';
+import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
@@ -10,6 +10,7 @@ import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
  */
 export class PromptSelectorService {
   private readonly ipcAdapter: IIpcAdapter;
+  private readonly logger: ILogger;
   private selectedText = '';
   private preconfiguredPrompts: IPreconfiguredPrompt[] = [];
   private promptSelectorDataListener: TIpcRenderListener | null = null;
@@ -18,8 +19,9 @@ export class PromptSelectorService {
   private onSelectedTextChange?: (text: string) => void;
   private onPromptsChange?: (prompts: IPreconfiguredPrompt[]) => void;
 
-  public constructor(ipcAdapter: IIpcAdapter) {
+  public constructor(ipcAdapter: IIpcAdapter, logger: ILogger) {
     this.ipcAdapter = ipcAdapter;
+    this.logger = logger;
   }
 
   /**
@@ -38,16 +40,16 @@ export class PromptSelectorService {
    */
   public initializeListeners(): void {
     const handlePromptSelectorData = (data: IPromptSelectorData) => {
-      logger.info('Received prompt selector data');
+      this.logger.info('Received prompt selector data');
       this.setSelectedText(data.selectedText);
       this.setPreconfiguredPrompts(data.preconfiguredPrompts);
     };
 
     try {
       this.promptSelectorDataListener = this.ipcAdapter.onPromptSelectorData(handlePromptSelectorData);
-    } catch (error) {
+    } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to initialize prompt selector listeners: %s', errorText);
+      this.logger.error('Failed to initialize prompt selector listeners: %s', errorText);
     }
   }
 
@@ -79,7 +81,7 @@ export class PromptSelectorService {
       await this.ipcAdapter.invoke(EIpcChannel.PROMPT_SELECTOR, payload);
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
-      logger.error('Error selecting prompt: %s', errorText);
+      this.logger.error('Error selecting prompt: %s', errorText);
       throw err;
     }
   }
@@ -106,7 +108,7 @@ export class PromptSelectorService {
       await this.ipcAdapter.invoke(EIpcChannel.PROMPT_SELECTOR, payload);
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
-      logger.error('Error selecting prompt: %s', errorText);
+      this.logger.error('Error selecting prompt: %s', errorText);
       throw err;
     }
   }
@@ -123,6 +125,15 @@ export class PromptSelectorService {
    */
   public getPreconfiguredPrompts(): IPreconfiguredPrompt[] {
     return this.preconfiguredPrompts;
+  }
+
+  /**
+   * Manually set prompt selector data
+   * Useful when data arrives before the listener is set up, or to update data programmatically
+   */
+  public setPromptSelectorData(data: IPromptSelectorData): void {
+    this.setSelectedText(data.selectedText);
+    this.setPreconfiguredPrompts(data.preconfiguredPrompts);
   }
 
   /**

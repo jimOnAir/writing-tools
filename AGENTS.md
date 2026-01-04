@@ -15,6 +15,495 @@ When working with TypeScript classes, always follow these rules:
   - Apply to injected dependencies that remain constant
   - Do not apply to properties that are reassigned (e.g., window instances, cached data)
 
+### Logger Dependency Injection
+- **Always inject logger via constructor, never import as global** - All classes that need logging must receive `ILogger` via constructor injection
+  - Never import `logger` from `@writing-tools/shared` directly in classes that use logging
+  - Accept `logger: ILogger` as a constructor parameter
+  - Store logger as `private readonly logger: ILogger`
+  - Use `this.logger.error()`, `this.logger.info()`, etc. instead of `logger.error()`, `logger.info()`
+  - Pass logger through the dependency chain: `AppBootstrap` → services/repositories → clients
+  - In tests, provide mock logger instances that implement `ILogger` interface
+  - Logger instance is created in `main.ts` and passed to `AppBootstrap` constructor
+
+### Electron Dependency Avoidance
+- **Never import Electron APIs directly in services or repositories** - Services and repositories must be platform-agnostic
+  - Never import `app`, `BrowserWindow`, or other Electron APIs in service/repository classes
+  - Never import `electron-is-dev` or other Electron-specific utilities in services/repositories
+  - Pass platform-specific values (like `appPath`) through constructor parameters instead
+  - Electron dependencies should only exist in infrastructure/bootstrap layer (e.g., `AppBootstrap`)
+  - This improves testability, separation of concerns, and makes services reusable across different platforms
+  - Services and repositories should receive all platform-specific values as constructor parameters
+
+```typescript
+// ✅ Good: Platform-agnostic repository with appPath injected
+export class ChatRepository implements IChatRepository {
+  private readonly dbPath: string;
+  private readonly logger: ILogger;
+
+  public constructor(logger: ILogger, appPath: string) {
+    this.logger = logger;
+    this.dbPath = path.join(appPath, 'chats.db');
+  }
+}
+
+// AppBootstrap.ts - Electron dependency only in bootstrap layer
+import { app } from 'electron';
+import * as path from 'node:path';
+
+export class AppBootstrap {
+  public constructor(logger: ILogger) {
+    const appPath = path.join(app.getPath('appData'), app.getName());
+    const chatRepository = new ChatRepository(this.logger, appPath);
+  }
+}
+
+// ❌ Bad: Electron dependency in repository
+import { app } from 'electron';
+import isDev from 'electron-is-dev';
+
+export class ChatRepository implements IChatRepository {
+  public constructor(logger: ILogger) {
+    // Direct Electron dependency - WRONG!
+    if (isDev) {
+      this.dbPath = path.join(process.cwd(), 'app-data', 'chats.db');
+    } else {
+      this.dbPath = path.join(app.getPath('appData'), app.getName(), 'chats.db');
+    }
+  }
+}
+```
+
+```typescript
+// ✅ Good: Platform-agnostic settings repository with appPath injected
+export class SettingsRepository implements ISettingsRepository {
+  private readonly appPath: string;
+  private readonly logger: ILogger;
+
+  public constructor(logger: ILogger, appPath: string) {
+    this.logger = logger;
+    this.appPath = appPath;
+  }
+
+  private getSettingsFilePath(): string {
+    return path.join(this.appPath, 'settings.json');
+  }
+}
+
+// AppBootstrap.ts - Electron dependency only in bootstrap layer
+import { app } from 'electron';
+import * as path from 'node:path';
+
+export class AppBootstrap {
+  public constructor(logger: ILogger) {
+    const appPath = path.join(app.getPath('appData'), app.getName());
+    const settingsRepository = new SettingsRepository(this.logger, appPath);
+  }
+}
+
+// ❌ Bad: Electron dependency in settings repository
+import { app } from 'electron';
+import isDev from 'electron-is-dev';
+
+export class SettingsRepository implements ISettingsRepository {
+  public constructor(logger: ILogger) {
+    // Direct Electron dependency - WRONG!
+    if (isDev) {
+      this.appPath = path.join(process.cwd(), 'app-data');
+    } else {
+      this.appPath = path.join(app.getPath('appData'), app.getName());
+    }
+  }
+}
+```
+
+```typescript
+// ✅ Good: Service receives all dependencies via constructor
+export class ChatService implements IChatService {
+  private readonly repository: IChatRepository;
+  private readonly logger: ILogger;
+
+  public constructor(repository: IChatRepository, logger: ILogger) {
+    this.repository = repository;
+    this.logger = logger;
+  }
+}
+
+// ❌ Bad: Service imports Electron directly
+import { app } from 'electron';
+
+export class ChatService implements IChatService {
+  public constructor(repository: IChatRepository) {
+    // Direct Electron dependency - WRONG!
+    const appPath = app.getPath('appData');
+  }
+}
+```
+
+```typescript
+// ✅ Good: Logger injected via constructor
+export class ChatService implements IChatService {
+  private readonly logger: ILogger;
+  private readonly repository: IChatRepository;
+
+  public constructor(repository: IChatRepository, logger: ILogger) {
+    this.logger = logger;
+    this.repository = repository;
+  }
+
+  public async generateChatTitle(): Promise<string | null> {
+    try {
+      // ... logic
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.logger.error('Error generating chat title: %s', errorText);
+      return null;
+    }
+  }
+}
+
+// ❌ Bad: Global logger import
+import { logger } from '@writing-tools/shared';
+
+export class ChatService implements IChatService {
+  public constructor(repository: IChatRepository) {
+    // Missing logger injection
+  }
+
+  public async generateChatTitle(): Promise<string | null> {
+    try {
+      // ... logic
+    } catch (error: unknown) {
+      logger.error('Error generating chat title: %s', errorText); // Using global logger
+      return null;
+    }
+  }
+}
+```
+
+```typescript
+// ✅ Good: Logger passed through dependency chain
+// main.ts
+import { Logger } from '@writing-tools/shared';
+const logger = new Logger();
+const bootstrap = new AppBootstrap(logger);
+
+// AppBootstrap.ts
+export class AppBootstrap {
+  private readonly logger: ILogger;
+
+  public constructor(logger: ILogger) {
+    this.logger = logger;
+    const chatRepository = new ChatRepository(this.logger);
+    const chatService = new ChatService(chatRepository, this.logger);
+  }
+}
+
+// ✅ Good: Test with mock logger
+describe('ChatService', () => {
+  let mockLogger: jest.Mocked<ILogger>;
+  let chatService: ChatService;
+
+  beforeEach(() => {
+    mockLogger = {
+      debug: jest.fn(),
+      error: jest.fn(),
+      info: jest.fn(),
+      setEnvironment: jest.fn(),
+      setLevel: jest.fn(),
+      warn: jest.fn(),
+    } as unknown as jest.Mocked<ILogger>;
+
+    chatService = new ChatService(mockRepository, mockLogger);
+  });
+});
+```
+
+### Logging Best Practices
+
+When using the logger, follow these essential rules for effective and maintainable logging:
+
+#### Log Levels
+
+- **Use `error` for errors and exceptions** - Log all caught exceptions, failed operations, and error conditions
+  - Always log errors in catch blocks
+  - Include error context and relevant parameters
+  - Use for operations that fail and cannot be recovered automatically
+
+- **Use `warn` for warnings and recoverable issues** - Log situations that are unusual but don't prevent operation
+  - Use for deprecated API usage, fallback behavior, or degraded functionality
+  - Use for validation failures that have fallbacks
+  - Use for configuration issues that don't prevent startup
+
+- **Use `info` for important state changes and operations** - Log significant application events and state transitions
+  - Use for service initialization, configuration loading, and startup events
+  - Use for important user actions (chat creation, settings changes)
+  - Use for successful completion of critical operations
+  - Don't use for frequent operations (e.g., every message sent)
+
+- **Use `debug` for detailed diagnostic information** - Log detailed execution flow for debugging
+  - Use for method entry/exit in complex flows
+  - Use for detailed state information during development
+  - Use for tracing data transformations and intermediate values
+  - Can be verbose - typically disabled in production
+
+#### Error Logging
+
+- **Always log errors in catch blocks** - Every catch block should log the error
+  - Extract error message safely: `error instanceof Error ? error.message : String(error)`
+  - Include context about what operation failed
+  - Include relevant parameters that led to the error
+
+```typescript
+// ✅ Good: Comprehensive error logging
+public async sendMessage(message: string): Promise<void> {
+  try {
+    const response = await this.modelService.sendMessages(messages);
+    if (response.success === false) {
+      this.logger.error('Failed to send message to model: %s', response.error);
+      return;
+    }
+    // ... handle success
+  } catch (error: unknown) {
+    const errorText = error instanceof Error ? error.message : String(error);
+    this.logger.error('Error sending message: %s', errorText);
+    throw error;
+  }
+}
+
+// ❌ Bad: Missing error logging
+public async sendMessage(message: string): Promise<void> {
+  try {
+    await this.modelService.sendMessages(messages);
+  } catch (error: unknown) {
+    // No logging - error is lost!
+    throw error;
+  }
+}
+```
+
+#### Log Message Formatting
+
+- **Use format strings with placeholders** - Use `%s`, `%d`, `%j` placeholders instead of string concatenation
+  - Format strings are more efficient and support structured logging
+  - Use `%s` for strings, `%d` for numbers, `%j` for JSON objects
+  - Include relevant context in log messages
+
+```typescript
+// ✅ Good: Using format strings
+this.logger.info('Chat created: id=%d, title=%s', chatId, title);
+this.logger.error('Failed to load settings: %s', errorText);
+this.logger.debug('Processing message: %j', { id: messageId, role: message.role });
+
+// ❌ Bad: String concatenation
+this.logger.info('Chat created: id=' + chatId + ', title=' + title);
+this.logger.error('Failed to load settings: ' + errorText);
+this.logger.debug('Processing message: ' + JSON.stringify({ id: messageId, role: message.role }));
+```
+
+#### Context and Information
+
+- **Include relevant context in log messages** - Log messages should be self-contained and informative
+  - Include identifiers (chatId, messageId, userId) when relevant
+  - Include operation names and method context
+  - Include relevant state information that helps diagnose issues
+
+```typescript
+// ✅ Good: Logging with context
+public async deleteChat(chatId: number): Promise<void> {
+  this.logger.info('Deleting chat: id=%d', chatId);
+  try {
+    await this.repository.deleteChat(chatId);
+    this.logger.info('Chat deleted successfully: id=%d', chatId);
+  } catch (error: unknown) {
+    const errorText = error instanceof Error ? error.message : String(error);
+    this.logger.error('Failed to delete chat: id=%d, error=%s', chatId, errorText);
+    throw error;
+  }
+}
+
+// ❌ Bad: Missing context
+public async deleteChat(chatId: number): Promise<void> {
+  this.logger.info('Deleting chat');
+  try {
+    await this.repository.deleteChat(chatId);
+  } catch (error: unknown) {
+    this.logger.error('Failed'); // No context about which chat or what error
+    throw error;
+  }
+}
+```
+
+#### What to Log
+
+- **Log important state changes** - Log when significant state changes occur
+  - Service initialization and shutdown
+  - Configuration loading and validation
+  - Critical user actions (chat creation, deletion, settings changes)
+  - External API calls and responses (at info level for success, error level for failures)
+
+- **Log entry/exit of critical methods** - Use debug level for method tracing
+  - Log method entry with parameters (debug level)
+  - Log method exit with results (debug level)
+  - Helps trace execution flow during debugging
+
+```typescript
+// ✅ Good: Logging method entry/exit at debug level
+public async loadChats(): Promise<IChatInfo[]> {
+  this.logger.debug('Loading chats');
+  try {
+    const chats = await this.repository.getAllChats();
+    this.logger.debug('Loaded %d chats', chats.length);
+    return chats;
+  } catch (error: unknown) {
+    const errorText = error instanceof Error ? error.message : String(error);
+    this.logger.error('Failed to load chats: %s', errorText);
+    throw error;
+  }
+}
+```
+
+#### What NOT to Log
+
+- **Never log sensitive information** - Never log passwords, API keys, tokens, or personal data
+  - Sanitize user input before logging if it might contain sensitive data
+  - Use placeholders for sensitive values: `this.logger.debug('API key: ***')`
+  - Be careful with full request/response bodies that might contain sensitive data
+
+- **Avoid excessive logging in hot paths** - Don't log in frequently called methods
+  - Avoid logging every message sent/received (use debug level if needed)
+  - Avoid logging in tight loops or high-frequency operations
+  - Use debug level for detailed tracing that can be disabled in production
+
+```typescript
+// ✅ Good: Selective logging
+public async sendMessage(message: string): Promise<void> {
+  // Don't log every message - too frequent
+  // Only log errors
+  try {
+    await this.processMessage(message);
+  } catch (error: unknown) {
+    const errorText = error instanceof Error ? error.message : String(error);
+    this.logger.error('Error processing message: %s', errorText);
+    throw error;
+  }
+}
+
+// ❌ Bad: Excessive logging
+public async sendMessage(message: string): Promise<void> {
+  this.logger.info('Sending message: %s', message); // Too verbose
+  try {
+    await this.processMessage(message);
+    this.logger.info('Message sent successfully'); // Too verbose
+  } catch (error: unknown) {
+    // ...
+  }
+}
+```
+
+#### Service Initialization Logging
+
+- **Log service initialization and lifecycle events** - Log when services start, stop, or encounter initialization errors
+  - Log successful initialization at info level
+  - Log initialization failures at error level
+  - Include relevant configuration in initialization logs
+
+```typescript
+// ✅ Good: Service initialization logging
+export class ChatService implements IChatService {
+  public constructor(repository: IChatRepository, logger: ILogger) {
+    this.logger = logger;
+    this.repository = repository;
+    this.logger.info('ChatService initialized');
+  }
+
+  public async initialize(): Promise<void> {
+    try {
+      await this.repository.initialize();
+      this.logger.info('ChatService ready');
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to initialize ChatService: %s', errorText);
+      throw error;
+    }
+  }
+}
+```
+
+#### Examples
+
+```typescript
+// ✅ Good: Comprehensive logging with appropriate levels
+export class ChatService implements IChatService {
+  private readonly logger: ILogger;
+  private readonly repository: IChatRepository;
+
+  public constructor(repository: IChatRepository, logger: ILogger) {
+    this.logger = logger;
+    this.repository = repository;
+    this.logger.info('ChatService initialized');
+  }
+
+  public async createChat(title: string, provider: string, model: string): Promise<number> {
+    this.logger.debug('Creating chat: title=%s, provider=%s, model=%s', title, provider, model);
+    try {
+      const chatId = this.repository.createChat(title, provider, model);
+      this.logger.info('Chat created: id=%d, title=%s', chatId, title);
+      return chatId;
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to create chat: title=%s, error=%s', title, errorText);
+      throw error;
+    }
+  }
+
+  public async sendMessage(chatId: number, message: string): Promise<void> {
+    this.logger.debug('Sending message: chatId=%d', chatId);
+    try {
+      const response = await this.modelService.sendMessages(messages);
+      if (response.success === false) {
+        this.logger.error('Model service error: chatId=%d, error=%s', chatId, response.error);
+        return;
+      }
+      // ... process response
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.logger.error('Error sending message: chatId=%d, error=%s', chatId, errorText);
+      throw error;
+    }
+  }
+}
+```
+
+```typescript
+// ❌ Bad: Poor logging practices
+export class ChatService implements IChatService {
+  public constructor(repository: IChatRepository, logger: ILogger) {
+    // No initialization logging
+  }
+
+  public async createChat(title: string, provider: string, model: string): Promise<number> {
+    // No debug logging
+    try {
+      const chatId = this.repository.createChat(title, provider, model);
+      // No success logging
+      return chatId;
+    } catch (error: unknown) {
+      // No error logging
+      throw error;
+    }
+  }
+
+  public async sendMessage(chatId: number, message: string): Promise<void> {
+    this.logger.info('Message: ' + message); // String concatenation, too verbose
+    try {
+      await this.processMessage(message);
+    } catch {
+      // No error logging
+    }
+  }
+}
+```
+
 ### Method Visibility
 - **Mark internal-only methods as `private`**
   - If a method is only called from within the same class, it must be `private`
@@ -477,6 +966,219 @@ import { ColorPalette, ButtonStyles, TypographyStyles } from '../styles/Styles';
 </button>
 ```
 
+## Native Look and Feel Design
+
+The application must provide a native look and feel that adapts to each operating system (macOS, Windows, Linux). This ensures the application feels integrated with the user's desktop environment and follows platform conventions.
+
+### Platform Detection
+
+- **Always use the platform detection utility** - Use `getPlatform()` from `utils/platformDetection.ts`
+- **Cache platform value** - Platform is detected once and cached for performance
+- **Fallback to Linux** - If detection fails or electronAPI is unavailable, default to Linux styling
+
+```typescript
+// ✅ Good: Using platform detection
+import { getPlatform } from '../utils/platformDetection';
+
+const [platform, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
+
+useEffect(() => {
+  void getPlatform().then(p => {
+    setPlatform(p);
+  });
+}, []);
+```
+
+### Native Styles System
+
+- **Always use `NativeStyles` for platform-specific styling** - Never hardcode platform-specific styles
+- **Import from `styles/NativeStyles.tsx`** - Use `getNativeStyles(platform)` to get platform-specific styles
+- **Apply styles based on detected platform** - Styles automatically adapt to the user's OS
+
+```typescript
+// ✅ Good: Using native styles
+import { getNativeStyles } from '../styles/NativeStyles';
+import { getPlatform } from '../utils/platformDetection';
+
+const nativeStyles = getNativeStyles(platform);
+
+<div className={nativeStyles.sidebar.background}>
+  {/* Sidebar content */}
+</div>
+
+<button className={nativeStyles.button.primary}>
+  Click me
+</button>
+```
+
+### Platform-Specific Design Principles
+
+#### macOS (darwin)
+- **Translucent backgrounds** - Use `backdrop-blur-xl` and opacity for glass-like effects
+- **Rounded corners** - Apply `rounded-lg`, `rounded-xl`, or `rounded-2xl` to elements
+- **Soft shadows** - Use `shadow-md`, `shadow-lg`, or `shadow-2xl` for depth
+- **Subtle borders** - Use low-opacity borders like `border-gray-700/30`
+- **SF Pro font stack** - Use system fonts that match macOS typography
+
+#### Windows (win32)
+- **Solid backgrounds** - Use opaque backgrounds without blur effects
+- **Flatter design** - Minimize shadows and depth effects
+- **Sharp or subtle corners** - Use minimal rounding or sharp corners
+- **Clear borders** - Use solid borders like `border-gray-800`
+- **Segoe UI font** - Use Windows system font for native feel
+
+#### Linux
+- **GTK-inspired design** - Follow GNOME/KDE design patterns
+- **Moderate transparency** - Use `backdrop-blur-sm` with high opacity backgrounds
+- **Moderate border radius** - Use `rounded-lg` or `rounded-xl` for balance
+- **System font stack** - Use the distribution's default system fonts
+
+### Window Styling (Main Process)
+
+- **Always use `getNativeWindowOptions()`** - WindowService provides platform-specific window options
+- **Native frames** - Always use `frame: true` to show native window controls
+- **Platform-specific title bars** - macOS uses `hiddenInset`, Windows/Linux use `default`
+- **Vibrancy effects** - macOS windows use `vibrancy: 'under-window'` for translucency
+- **Consistent window sizes** - All windows default to 1400×900 pixels
+
+```typescript
+// ✅ Good: WindowService automatically applies native styling
+this.chatWindow = new BrowserWindow({
+  ...this.getNativeWindowOptions(), // Platform-specific options applied
+  height: 900,
+  width: 1400,
+  resizable: true,
+  maximizable: true,
+});
+```
+
+### Component Styling Patterns
+
+- **Use native styles for UI components** - Tabs, sidebars, buttons, modals, inputs should use platform styles
+- **Maintain platform-specific patterns** - Tab styling differs by platform (rounded on macOS, flat on Windows)
+- **Font selection** - Use `nativeStyles.font.system` for typography that matches the OS
+
+```typescript
+// ✅ Good: Platform-aware component styling
+export const TabBar: React.FC<TabBarProps> = ({ multiChatService }) => {
+  const [platform, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
+
+  useEffect(() => {
+    void getPlatform().then(p => {
+      setPlatform(p);
+    });
+  }, []);
+
+  const nativeStyles = getNativeStyles(platform);
+
+  return (
+    <div className={nativeStyles.tabs.container}>
+      {tabs.map((tab) => (
+        <button
+          className={`
+            ${nativeStyles.tabs.tab.base}
+            ${isActive ? nativeStyles.tabs.tab.active : nativeStyles.tabs.tab.inactive}
+          `}
+        >
+          {tab.title}
+        </button>
+      ))}
+    </div>
+  );
+};
+```
+
+### Examples
+
+```typescript
+// ✅ Good: Using native styles throughout component
+import { getNativeStyles } from '../styles/NativeStyles';
+import { getPlatform } from '../utils/platformDetection';
+
+const Sidebar: React.FC<SidebarProps> = ({ chatListService }) => {
+  const [platform, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  useEffect(() => {
+    void getPlatform().then(p => {
+      setPlatform(p);
+    });
+  }, []);
+
+  const nativeStyles = getNativeStyles(platform);
+
+  return (
+    <div
+      className={`
+        ${nativeStyles.sidebar.background}
+        ${nativeStyles.sidebar.border}
+        ${isExpanded ? nativeStyles.sidebar.width.expanded : nativeStyles.sidebar.width.collapsed}
+        transition-all duration-300
+      `}
+    >
+      {/* Sidebar content */}
+    </div>
+  );
+};
+```
+
+```typescript
+// ✅ Good: Modal with platform-specific styling
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+  const [platform, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
+
+  useEffect(() => {
+    void getPlatform().then(p => {
+      setPlatform(p);
+    });
+  }, []);
+
+  const nativeStyles = getNativeStyles(platform);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className={nativeStyles.modal.backdrop}>
+      <div className={nativeStyles.modal.container}>
+        {/* Modal content */}
+      </div>
+    </div>
+  );
+};
+```
+
+```typescript
+// ❌ Bad: Hardcoded styles that don't adapt to platform
+const Sidebar: React.FC = () => {
+  return (
+    <div className="bg-gray-800/60 backdrop-blur-xl border-r border-gray-700/30">
+      {/* This only works on macOS - not native for Windows/Linux */}
+    </div>
+  );
+};
+```
+
+### Window Behavior
+
+- **All windows are resizable** - Users should be able to resize all windows
+- **Consistent default size** - All windows default to 1400×900 pixels
+- **Minimum size constraints** - Windows have minimum sizes (typically 600×400) to prevent unusable sizes
+- **Native window controls** - Always show native minimize, maximize, and close buttons
+- **Smooth window appearance** - Use `ready-to-show` event to prevent white flash on load
+
+### Accessibility and Consistency
+
+- **Consistent spacing** - Use platform-appropriate padding and margins
+- **Readable fonts** - Ensure font sizes and weights are appropriate for each platform
+- **Color contrast** - Maintain sufficient contrast for accessibility across all platforms
+- **Touch targets** - Ensure interactive elements are appropriately sized for mouse/trackpad input
+
+### Platform-Specific Features
+
+- **macOS**: Translucent backgrounds, vibrancy effects, rounded elements, soft shadows
+- **Windows**: Solid backgrounds, flat design, sharp corners, clear borders
+- **Linux**: GTK-inspired design, moderate transparency, balanced border radius, system fonts
+
 ## IPC Response Handling
 
 When processing IPC responses, always use the centralized type guard functions from `utils/responseTypeGuards.ts`:
@@ -535,6 +1237,195 @@ if ('error' in response) {
   - `TChatOpenResponse` (has `success: true` or `success: false, error`)
   - `TChatDeleteResponse` (has `success: true` or `success: false, error`)
   - `TSettingsSaveResponse` (has `success: true` or `success: false, error`)
+
+## Model Service Response Processing
+
+When processing model service responses (LLM API responses), always use the success/failed response pattern with explicit `success` property checks.
+
+### Response Type Pattern
+
+- **All model service responses must use success/failed pattern** - Model service responses must have a `success` boolean property
+  - Success responses: `{ response: string, success: true }`
+  - Failed responses: `{ error: string, success: false }`
+  - Union type: `type ModelResponse = { response: string, success: true } | { error: string, success: false }`
+  - This pattern provides type safety and clear distinction between success and failure states
+
+### Response Processing Rules
+
+- **Always check `success` property first** - Use explicit `success === false` check before accessing response data
+  - TypeScript will properly narrow the type after the check
+  - Never check for `'error' in response` or `'response' in response` - use the `success` property
+  - After checking `success === false`, TypeScript knows the response is a failed response
+  - After the check passes, TypeScript knows the response is a success response with `response` property
+
+### Type Narrowing
+
+- **Use type narrowing with success property** - The `success` property enables proper type narrowing
+  - Check `response.success === false` to narrow to failed response type
+  - After the check, TypeScript automatically narrows to success response type
+  - No need for optional chaining or undefined checks after type narrowing
+
+### Examples
+
+```typescript
+// ✅ Good: Using success property for type narrowing
+public async generateChatTitle(userMessage: string, assistantMessage: string): Promise<string | null> {
+  try {
+    const response = await this.modelService.sendMessages([
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ]);
+
+    if (response.success === false) {
+      this.logger.error('Failed to generate chat title: %s', response.error);
+      return null;
+    }
+
+    // TypeScript knows response.response exists here
+    let title = response.response.trim();
+    // ... process title
+    return title || null;
+  } catch (error: unknown) {
+    const errorText = error instanceof Error ? error.message : String(error);
+    this.logger.error('Error generating chat title: %s', errorText);
+    return null;
+  }
+}
+```
+
+```typescript
+// ✅ Good: Processing LLM response in handler
+const llmResponse = await this.modelService.sendMessages(messages);
+
+if (llmResponse.success === false) {
+  this.logger.error('LLM error: %s', llmResponse.error);
+  // Handle error...
+  return;
+}
+
+// TypeScript knows llmResponse.response exists here
+const assistantMessage: IChatMessage = {
+  id: `${Date.now().toString()}-response`,
+  role: 'assistant',
+  content: llmResponse.response,
+  timestamp: new Date(),
+};
+```
+
+```typescript
+// ❌ Bad: Checking for 'error' property instead of success
+const response = await this.modelService.sendMessages(messages);
+
+if ('error' in response) {
+  // TypeScript may not properly narrow the type
+  this.logger.error('Error: %s', response.error);
+  return;
+}
+
+// Unsafe: response.response might be undefined
+const content = response.response ?? ''; // Wrong pattern
+```
+
+```typescript
+// ❌ Bad: Using optional chaining when type narrowing is available
+const response = await this.modelService.sendMessages(messages);
+
+if (response.success === false) {
+  return;
+}
+
+// Unnecessary optional chaining - TypeScript already knows response.response exists
+const content = response.response ?? ''; // Unnecessary
+```
+
+```typescript
+// ❌ Bad: Checking response.response for undefined
+const response = await this.modelService.sendMessages(messages);
+
+if (response.success === false) {
+  return;
+}
+
+// Unnecessary check - TypeScript knows response.response exists after success check
+if (response.response === undefined) {
+  return null;
+}
+```
+
+### Response Type Definitions
+
+Model service response types should follow this pattern:
+
+```typescript
+// ✅ Good: Success/failed response types
+export type OllamaChatSuccessResponse = {
+  response: string;
+  success: true;
+};
+
+export type OllamaChatFailedResponse = {
+  error: string;
+  success: false;
+};
+
+export type OllamaChatResponse = OllamaChatSuccessResponse | OllamaChatFailedResponse;
+```
+
+```typescript
+// ❌ Bad: Optional properties without success flag
+export interface OllamaChatResponse {
+  response?: string;
+  error?: string;
+}
+```
+
+### Client Implementation
+
+Clients should return responses with explicit `success` property:
+
+```typescript
+// ✅ Good: Client returns success/failed response
+public async chat(model: string, messages: Message[]): Promise<OllamaChatResponse> {
+  try {
+    const response = await ollama.chat({
+      model,
+      messages,
+      stream: false,
+    });
+
+    return { response: response.message.content, success: true as const };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error
+      ? error.message
+      : String(error);
+    this.logger.error('Failed to send Ollama messages: %s', errorMessage);
+
+    return { error: errorMessage, success: false as const };
+  }
+}
+```
+
+```typescript
+// ❌ Bad: Client returns optional properties
+public async chat(model: string, messages: Message[]): Promise<OllamaChatResponse> {
+  try {
+    const response = await ollama.chat({ model, messages, stream: false });
+    return { response: response.message.content };
+  } catch (error: unknown) {
+    return { error: String(error) };
+  }
+}
+```
+
+### Benefits
+
+- **Type Safety**: TypeScript properly narrows response types after `success` check
+- **Clarity**: Explicit `success` property makes success/failure states obvious
+- **Consistency**: All model service responses follow the same pattern
+- **No Optional Chaining**: After type narrowing, no need for optional chaining or undefined checks
+- **Compile-Time Safety**: TypeScript catches errors when accessing properties that don't exist on the narrowed type
 
 ## IPC Handling Architecture
 
@@ -1005,6 +1896,965 @@ const handleSubmit = async (input: string) => {
 const handleSubmit = async (input: string) => {
   await service.processInput(input);  // No validation!
 };
+```
+
+## Component Design Principles
+
+When designing React components, follow these essential principles to ensure components are reusable and maintainable:
+
+### Generic Component Design
+
+- **Make components generic and reusable** - Components should be domain-agnostic and reusable across different contexts
+  - Remove domain-specific terminology from default values, labels, and text
+  - Use generic terms that describe the component's purpose, not its specific use case
+  - Avoid hardcoding domain-specific values in reusable components
+  - This improves reusability and makes components easier to understand and maintain
+
+```typescript
+// ✅ Good: Generic tab component
+export const Tab: React.FC<TabProps> = ({ tab, isActive, onSelect, onClose, platform }) => {
+  const displayTitle = tab.title && tab.title.trim().length > 0 ? tab.title : 'New Tab';
+  
+  return (
+    <button
+      onClick={onSelect}
+      aria-label={`Switch to tab: ${displayTitle}`}
+    >
+      {displayTitle}
+    </button>
+  );
+};
+
+// ❌ Bad: Domain-specific tab component
+export const Tab: React.FC<TabProps> = ({ tab, isActive, onSelect, onClose, platform }) => {
+  const displayTitle = tab.title && tab.title.trim().length > 0 ? tab.title : 'New Chat';
+  
+  return (
+    <button
+      onClick={onSelect}
+      aria-label={`Switch to chat: ${displayTitle}`}
+    >
+      {displayTitle}
+    </button>
+  );
+};
+```
+
+### Default Values and Labels
+
+- **Use generic default values** - Default values should describe the component's state, not the domain
+  - Use "New Tab" instead of "New Chat" for tab components
+  - Use "Item" instead of "Chat" for list items
+  - Use "Content" instead of "Message" for content areas
+  - This allows the same component to be used in different contexts
+
+```typescript
+// ✅ Good: Generic default values
+const displayTitle = tab.title && tab.title.trim().length > 0 ? tab.title : 'New Tab';
+const ariaLabel = `Switch to tab: ${displayTitle}`;
+
+// ❌ Bad: Domain-specific default values
+const displayTitle = tab.title && tab.title.trim().length > 0 ? tab.title : 'New Chat';
+const ariaLabel = `Switch to chat: ${displayTitle}`;
+```
+
+### Accessibility Labels
+
+- **Use generic accessibility labels** - Accessibility labels should describe the component's action, not the domain
+  - Use "Switch to tab:" instead of "Switch to chat:"
+  - Use "Close tab" instead of "Close chat"
+  - Use "Select item" instead of "Select chat"
+  - This ensures accessibility labels remain accurate when components are reused
+
+```typescript
+// ✅ Good: Generic accessibility labels
+<button aria-label={`Switch to tab: ${displayTitle}`}>
+  {displayTitle}
+</button>
+<button aria-label="Close tab">×</button>
+
+// ❌ Bad: Domain-specific accessibility labels
+<button aria-label={`Switch to chat: ${displayTitle}`}>
+  {displayTitle}
+</button>
+<button aria-label="Close chat">×</button>
+```
+
+### Component Naming
+
+- **Use generic component names** - Component names should describe what they are, not what they contain
+  - Use `Tab` instead of `ChatTab`
+  - Use `ListItem` instead of `ChatListItem`
+  - Use `Modal` instead of `ChatModal`
+  - This makes it clear the component is reusable
+
+### Examples
+
+```typescript
+// ✅ Good: Generic, reusable tab component
+export interface TabProps {
+  readonly tab: ITabInfo;
+  readonly isActive: boolean;
+  readonly onSelect: () => void;
+  readonly onClose: () => void;
+  readonly platform: 'darwin' | 'win32' | 'linux';
+}
+
+export const Tab: React.FC<TabProps> = ({ tab, isActive, onSelect, onClose, platform }) => {
+  const nativeStyles = getNativeStyles(platform);
+  const displayTitle = tab.title && tab.title.trim().length > 0 ? tab.title : 'New Tab';
+
+  return (
+    <div className={`${nativeStyles.tabs.tab.base} ${isActive ? nativeStyles.tabs.tab.active : nativeStyles.tabs.tab.inactive}`}>
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-label={`Switch to tab: ${displayTitle}`}
+      >
+        <span className="truncate">{displayTitle}</span>
+      </button>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close tab"
+      >
+        ×
+      </button>
+    </div>
+  );
+};
+```
+
+```typescript
+// ❌ Bad: Domain-specific tab component
+export interface ChatTabProps {
+  readonly chat: IChatInfo;
+  readonly isActive: boolean;
+  readonly onSelect: () => void;
+  readonly onClose: () => void;
+}
+
+export const ChatTab: React.FC<ChatTabProps> = ({ chat, isActive, onSelect, onClose }) => {
+  const displayTitle = chat.title && chat.title.trim().length > 0 ? chat.title : 'New Chat';
+
+  return (
+    <div className={isActive ? 'active-chat-tab' : 'inactive-chat-tab'}>
+      <button
+        onClick={onSelect}
+        aria-label={`Switch to chat: ${displayTitle}`}
+      >
+        {displayTitle}
+      </button>
+      <button
+        onClick={onClose}
+        aria-label="Close chat"
+      >
+        ×
+      </button>
+    </div>
+  );
+};
+```
+
+### Benefits
+
+- **Reusability**: Generic components can be used in multiple contexts without modification
+- **Maintainability**: Changes to generic components benefit all use cases
+- **Clarity**: Generic names and labels make it clear the component is reusable
+- **Flexibility**: Generic components can be adapted to different domains through props
+- **Consistency**: Generic components promote consistent UI patterns across the application
+
+## Testing Guidelines
+
+When writing tests, always follow these essential rules and patterns:
+
+### Test File Organization
+
+- **Place test files in the same folder as the class/component being tested**
+  - Component tests: `ComponentName.test.tsx` next to `ComponentName.tsx`
+  - Service/class tests: `ClassName.test.ts` next to `ClassName.ts`
+  - Utility tests: `utilityName.test.ts` next to `utilityName.ts`
+  - Never use separate `__tests__` directories - keep tests co-located with source files
+
+```typescript
+// ✅ Good: Test file next to source file
+packages/renderer/src/domains/chat/
+  ChatService.ts
+  ChatService.test.ts
+
+// ❌ Bad: Test file in separate directory
+packages/renderer/src/domains/chat/
+  ChatService.ts
+packages/renderer/src/domains/chat/__tests__/
+  ChatService.test.ts
+```
+
+### Component Testing
+
+- **Use React Testing Library for component tests**
+  - Test user interactions (clicks, input changes, form submissions)
+  - Test conditional rendering (loading states, error states, empty states)
+  - Test accessibility attributes (aria-labels, htmlFor, etc.)
+  - Test callback invocations
+  - Mock all service dependencies passed as props
+
+```typescript
+// ✅ Good: Component test with mocked service
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import React from 'react';
+
+import ChatComponent from './ChatComponent';
+
+const createMockChatService = (): ChatService => {
+  return {
+    setCallbacks: jest.fn(),
+    sendMessage: jest.fn().mockResolvedValue(null),
+    getMessages: jest.fn().mockReturnValue([]),
+    getIsLoading: jest.fn().mockReturnValue(false),
+    getError: jest.fn().mockReturnValue(null),
+  } as unknown as ChatService;
+};
+
+describe('ChatComponent', () => {
+  it('allows sending a message', async () => {
+    const mockService = createMockChatService();
+    render(<ChatComponent chatService={mockService} chatId={null} />);
+
+    const textarea = screen.getByPlaceholderText('Type your message...');
+    const sendButton = screen.getByText('Send');
+
+    fireEvent.change(textarea, { target: { value: 'Hello!' } });
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      expect(mockService.sendMessage).toHaveBeenCalledWith('Hello!');
+    });
+  });
+});
+```
+
+### React act() Warnings
+
+- **Always wrap state updates in `act()`** - When manually calling service callbacks that update React state, wrap them in `act()`
+  - Use `act()` from `@testing-library/react` to wrap state updates
+  - `waitFor()` automatically handles `act()` for async operations
+  - When manually invoking callbacks (e.g., `onMessagesChange`, `onLoadingChange`), wrap them in `act()`
+  - This ensures React state updates are properly batched and prevents warnings
+
+```typescript
+// ✅ Good: Using act() to wrap state updates
+import { render, screen, act } from '@testing-library/react';
+
+test('displays messages from service', () => {
+  const mockMessages = [
+    {
+      id: '1',
+      role: 'user' as const,
+      content: 'Hello',
+      timestamp: new Date(),
+    },
+  ];
+
+  let onMessagesChange: ((messages: typeof mockMessages) => void) | undefined;
+
+  mockChatService.setCallbacks.mockImplementation((callbacks) => {
+    onMessagesChange = callbacks.onMessagesChange;
+  });
+
+  render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+  if (onMessagesChange) {
+    act(() => {
+      onMessagesChange(mockMessages);
+    });
+  }
+
+  expect(screen.getByText('Hello')).toBeInTheDocument();
+});
+```
+
+```typescript
+// ✅ Good: Using waitFor for async operations (automatically handles act())
+import { render, screen, waitFor } from '@testing-library/react';
+
+test('loads messages when chatId is provided', async () => {
+  render(<ChatComponent chatService={mockChatService} chatId={1} />);
+
+  await waitFor(() => {
+    expect(mockChatService.loadChatMessages).toHaveBeenCalledWith(1);
+  });
+  // waitFor automatically wraps async state updates in act()
+});
+```
+
+```typescript
+// ❌ Bad: State update not wrapped in act()
+test('displays messages from service', () => {
+  let onMessagesChange: ((messages: typeof mockMessages) => void) | undefined;
+
+  mockChatService.setCallbacks.mockImplementation((callbacks) => {
+    onMessagesChange = callbacks.onMessagesChange;
+  });
+
+  render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+  if (onMessagesChange) {
+    onMessagesChange(mockMessages); // Warning: Not wrapped in act()
+  }
+
+  expect(screen.getByText('Hello')).toBeInTheDocument();
+});
+```
+
+```typescript
+// ❌ Bad: State update in async callback not wrapped in act()
+test('displays error message', () => {
+  let onErrorChange: ((error: string | null) => void) | undefined;
+
+  mockChatService.setCallbacks.mockImplementation((callbacks) => {
+    onErrorChange = callbacks.onErrorChange;
+  });
+
+  render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+  if (onErrorChange) {
+    onErrorChange('Test error'); // Warning: Not wrapped in act()
+  }
+
+  expect(screen.getByText('Test error')).toBeInTheDocument();
+});
+```
+
+- **When to use `act()`**
+  - Use `act()` when manually calling service callbacks that update React state
+  - Use `act()` when triggering state updates synchronously in tests
+  - Use `waitFor()` for async operations - it automatically handles `act()`
+  - Use `act()` when testing useEffect hooks that trigger state updates
+
+- **Common scenarios requiring `act()`**
+  - Manually invoking `onMessagesChange`, `onLoadingChange`, `onErrorChange` callbacks
+  - Testing components that update state in response to service callbacks
+  - Testing components with useEffect hooks that trigger state updates
+  - Testing components that update state based on async service responses
+
+### Component Props Interface Export
+
+- **Always export component props interfaces** - Export props interfaces from component files so they can be used in tests
+  - Export the props interface with the `export` keyword
+  - Use the exported interface type in test files for `defaultProps` and mock props
+  - This ensures type safety in tests and keeps props interface in sync between component and tests
+  - Provides better IDE autocomplete and type checking in test files
+
+```typescript
+// ✅ Good: Exported props interface used in test
+// ComponentName.tsx
+export interface ComponentNameProps {
+  readonly prop1: string;
+  readonly prop2: number;
+  readonly onAction: () => void;
+}
+
+export const ComponentName: React.FC<ComponentNameProps> = ({ prop1, prop2, onAction }) => {
+  // Component implementation
+};
+
+// ComponentName.test.tsx
+import { ComponentName, ComponentNameProps } from './ComponentName';
+
+describe('ComponentName', () => {
+  const defaultProps: ComponentNameProps = {
+    prop1: 'test',
+    prop2: 42,
+    onAction: jest.fn(),
+  };
+
+  it('renders correctly', () => {
+    render(<ComponentName {...defaultProps} />);
+    // Test implementation
+  });
+});
+```
+
+```typescript
+// ❌ Bad: Props interface not exported, test uses inline type
+// ComponentName.tsx
+interface ComponentNameProps {
+  readonly prop1: string;
+  readonly prop2: number;
+}
+
+export const ComponentName: React.FC<ComponentNameProps> = ({ prop1, prop2 }) => {
+  // Component implementation
+};
+
+// ComponentName.test.tsx
+import { ComponentName } from './ComponentName';
+
+describe('ComponentName', () => {
+  const defaultProps = { // No type safety, props might be out of sync
+    prop1: 'test',
+    prop2: 42,
+  };
+
+  it('renders correctly', () => {
+    render(<ComponentName {...defaultProps} />);
+  });
+});
+```
+
+### Service Testing
+
+- **Mock IPC adapter dependencies**
+  - Test all public methods
+  - Test callback registration and invocation
+  - Test error handling
+  - Test state management
+  - Test listener lifecycle (init/cleanup)
+
+```typescript
+// ✅ Good: Service test with mocked IPC adapter
+import { ElectronIpcAdapter } from '../../infrastructure/ipc/IpcAdapter';
+import { ChatService } from './ChatService';
+
+describe('ChatService', () => {
+  let mockIpcAdapter: jest.Mocked<ElectronIpcAdapter>;
+  let chatService: ChatService;
+
+  beforeEach(() => {
+    mockIpcAdapter = {
+      invoke: jest.fn(),
+      onChatWindowData: jest.fn(() => jest.fn()),
+      offChatWindowData: jest.fn(),
+      // ... other methods
+    } as unknown as jest.Mocked<ElectronIpcAdapter>;
+
+    chatService = new ChatService(mockIpcAdapter);
+  });
+
+  it('sends message and updates state', async () => {
+    const mockResponse = { response: 'Test response' };
+    mockIpcAdapter.invoke.mockResolvedValue(mockResponse);
+
+    const onMessagesChange = jest.fn();
+    chatService.setCallbacks({ onMessagesChange });
+
+    await chatService.sendMessage('Hello');
+
+    expect(mockIpcAdapter.invoke).toHaveBeenCalled();
+    expect(onMessagesChange).toHaveBeenCalled();
+  });
+});
+```
+
+### HTTP Mocking for LLM APIs
+
+- **Use `nock` for mocking LM Studio API calls**
+  - Intercept `fetch` API calls to LM Studio endpoints
+  - Mock both success and error responses
+  - Test API key handling in headers
+  - Clean up mocks after each test
+
+```typescript
+// ✅ Good: LM Studio client test with nock
+import nock from 'nock';
+import { LMStudioClient } from './LMStudioClient';
+
+describe('LMStudioClient', () => {
+  afterEach(() => {
+    nock.cleanAll();
+  });
+
+  it('sends chat message successfully', async () => {
+    const mockResponse = {
+      choices: [{ message: { content: 'Test response' } }],
+    };
+
+    nock('http://localhost:1234')
+      .post('/v1/chat/completions')
+      .reply(200, mockResponse);
+
+    const client = new LMStudioClient({
+      host: 'http://localhost:1234',
+      apiKey: 'test-key',
+    });
+
+    const result = await client.chat('model', [
+      { role: 'user', content: 'Hello' },
+    ]);
+
+    expect(result.response).toBe('Test response');
+  });
+
+  it('handles API errors', async () => {
+    nock('http://localhost:1234')
+      .post('/v1/chat/completions')
+      .reply(500, { error: 'Internal server error' });
+
+    const client = new LMStudioClient({
+      host: 'http://localhost:1234',
+    });
+
+    const result = await client.chat('model', [
+      { role: 'user', content: 'Hello' },
+    ]);
+
+    expect(result.error).toBeDefined();
+  });
+});
+```
+
+- **Use Jest mocks for Ollama package**
+  - Mock the `ollama` npm package's `Ollama` class
+  - Mock `chat()` and `list()` methods
+  - Test error handling and connection failures
+
+```typescript
+// ✅ Good: Ollama client test with Jest mocks
+import { OllamaClient } from './OllamaClient';
+
+jest.mock('ollama', () => ({
+  Ollama: jest.fn().mockImplementation(() => ({
+    chat: jest.fn(),
+    list: jest.fn(),
+  })),
+}));
+
+import { Ollama } from 'ollama';
+
+describe('OllamaClient', () => {
+  it('sends chat message successfully', async () => {
+    const mockOllama = {
+      chat: jest.fn().mockResolvedValue({
+        message: { content: 'Test response' },
+      }),
+    };
+
+    (Ollama as jest.Mock).mockImplementation(() => mockOllama);
+
+    const client = new OllamaClient({
+      host: 'http://localhost:11434',
+    });
+
+    const result = await client.chat('model', [
+      { role: 'user', content: 'Hello' },
+    ]);
+
+    expect(result.response).toBe('Test response');
+    expect(mockOllama.chat).toHaveBeenCalledWith({
+      model: 'model',
+      messages: [{ role: 'user', content: 'Hello' }],
+      stream: false,
+    });
+  });
+});
+```
+
+### Repository Testing
+
+- **Use in-memory database or test database files**
+  - Test all CRUD operations
+  - Test error handling
+  - Mock file system operations when needed
+  - Clean up test data after each test
+
+```typescript
+// ✅ Good: Repository test with test database
+import { ChatRepository } from './ChatRepository';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+describe('ChatRepository', () => {
+  let repository: ChatRepository;
+  let testDbPath: string;
+
+  beforeEach(async () => {
+    testDbPath = path.join(__dirname, 'test-chat.db');
+    repository = new ChatRepository();
+    // Override database path for testing
+    await repository.initialize();
+  });
+
+  afterEach(async () => {
+    await repository.close();
+    try {
+      await fs.unlink(testDbPath);
+    } catch {
+      // Ignore if file doesn't exist
+    }
+  });
+
+  it('creates and retrieves chat', () => {
+    const chatId = repository.createChat('Test Chat', 'ollama', 'model');
+    const chat = repository.getChat(chatId);
+
+    expect(chat).not.toBeNull();
+    expect(chat?.title).toBe('Test Chat');
+  });
+});
+```
+
+### Utility Testing
+
+- **Test all exported functions**
+  - Test edge cases (null, undefined, empty strings)
+  - Test type guards with various inputs
+  - Test normalization functions
+  - Test error handling
+
+```typescript
+// ✅ Good: Utility test with edge cases
+import { isErrorResponse, isFailedResponse } from './responseTypeGuards';
+
+describe('responseTypeGuards', () => {
+  describe('isErrorResponse', () => {
+    it('returns true for error response', () => {
+      expect(isErrorResponse({ error: 'Test error' })).toBe(true);
+    });
+
+    it('returns false for non-error response', () => {
+      expect(isErrorResponse({ data: 'test' })).toBe(false);
+    });
+
+    it('returns false for null', () => {
+      expect(isErrorResponse(null)).toBe(false);
+    });
+
+    it('returns false for undefined', () => {
+      expect(isErrorResponse(undefined)).toBe(false);
+    });
+  });
+});
+```
+
+### Mocking Strategy
+
+- **Mock `window.electronAPI` for renderer tests**
+  - Create a mock object with all required methods
+  - Mock `invoke` to return appropriate responses based on event type
+  - Mock all listener registration methods
+
+```typescript
+// ✅ Good: Mock electronAPI for renderer tests
+const mockElectronAPI = {
+  invoke: jest.fn((channel, data) => {
+    if (data.event === EIpcEvent.CHAT_LIST_CHATS) {
+      return Promise.resolve({ chats: [] });
+    }
+    if (data.event === EIpcEvent.ENV_GET) {
+      return Promise.resolve({ platform: 'linux' });
+    }
+    return Promise.resolve({ success: true });
+  }),
+  onChatWindowData: jest.fn(() => jest.fn()),
+  offChatWindowData: jest.fn(),
+  // ... other methods
+};
+
+Object.defineProperty(window, 'electronAPI', {
+  value: mockElectronAPI,
+  writable: true,
+});
+```
+
+- **Mock file system operations for repository tests**
+  - Use Jest mocks for `fs/promises` when needed
+  - Test directory creation and file operations
+  - Test error scenarios
+
+### Type Safety in Test Mocks
+
+- **Use `Pick` instead of `Partial` for mock objects** - When creating mock objects for tests, use `Pick<T, K>` to select only the properties you need
+  - `Pick` provides better type safety by requiring specific properties to be present
+  - `Partial` makes all properties optional, which can hide missing required properties
+  - Use `Pick` to explicitly specify which properties are needed for the test
+  - This ensures tests fail at compile time if required properties are missing
+
+```typescript
+// ✅ Good: Using Pick to select specific properties
+const mockSettings: Pick<ISettings, 'lmstudio'> = {
+  lmstudio: {
+    address: 'http://localhost:1234',
+    model: 'test-model',
+    apiKey: '',
+  },
+};
+
+mockSettingsService.loadSettings.mockResolvedValue(mockSettings as ISettings);
+
+// ❌ Bad: Using Partial makes all properties optional
+const mockSettings: Partial<ISettings> = {
+  lmstudio: {
+    address: 'http://localhost:1234',
+    model: 'test-model',
+    apiKey: '',
+  },
+};
+// TypeScript won't catch if other required properties are missing
+```
+
+### Test Coverage Goals
+
+- **Maintain comprehensive test coverage**
+  - **Statements**: >80%
+  - **Branches**: >75%
+  - **Functions**: >80%
+  - **Lines**: >80%
+
+### Test Structure
+
+Each test file should include:
+- Happy path scenarios
+- Error handling scenarios
+- Edge cases (null, undefined, empty strings, invalid inputs)
+- Boundary conditions
+- Integration scenarios where appropriate
+
+### Conditional Expects
+
+- **Never use conditional expects** - All expects must be executed unconditionally
+  - Never wrap expects in `if` statements or conditional blocks
+  - Use `toEqual` or `toMatchObject` to match expected object structures
+  - This ensures all test assertions are executed and failures are properly reported
+
+```typescript
+// ✅ Good: Using toEqual for exact object matching
+const result = await client.chat('model', [{ role: 'user', content: 'Hello' }]);
+
+expect(result).toEqual({
+  response: 'Test response',
+  success: true,
+});
+```
+
+```typescript
+// ❌ Bad: Conditional expects
+const result = await client.chat('model', [{ role: 'user', content: 'Hello' }]);
+
+expect(result.success).toBe(true);
+if (result.success) {
+  expect(result.response).toBe('Test response'); // May not execute if type narrowing fails
+}
+```
+
+### Object Matching in Tests
+
+- **Use `toEqual` or `toMatchObject` instead of type casting** - Match expected object structures directly
+  - Use `toEqual` for exact object matching when you know all properties
+  - Use `toMatchObject` for partial matching when you only need to verify specific properties
+  - Use exact error messages when the error is predictable and controlled (e.g., from mocked errors)
+  - Use `expect.stringContaining()` for partial string matching when error messages contain dynamic content (e.g., HTTP status codes, timestamps)
+  - Use `expect.stringMatching(/./)` only when you truly need to verify a property is a non-empty string but the exact value is unpredictable (prefer exact matching when possible)
+  - Never use `expect.any(String)` - it's too generic and doesn't verify the string is non-empty
+  - Never use type assertions (`as`) to access properties - match the object structure instead
+  - This provides better test coverage and clearer failure messages
+
+```typescript
+// ✅ Good: Using toEqual for exact matching
+const result = await client.chat('model', [{ role: 'user', content: 'Hello' }]);
+
+expect(result).toEqual({
+  response: 'Test response from LM Studio',
+  success: true,
+});
+```
+
+```typescript
+// ✅ Good: Using toMatchObject for partial matching with string contains
+const result = await client.chat('model', [{ role: 'user', content: 'Hello' }]);
+
+expect(result).toMatchObject({
+  error: expect.stringContaining('HTTP 500'),
+  success: false,
+});
+```
+
+```typescript
+// ✅ Good: Using exact error message when error is predictable
+nock(baseUrl)
+  .post('/v1/chat/completions')
+  .replyWithError('Network error');
+
+const result = await client.chat('model', [{ role: 'user', content: 'Hello' }]);
+
+expect(result).toEqual({
+  error: 'Network error',
+  success: false,
+});
+```
+
+```typescript
+// ✅ Good: Using stringContaining for dynamic error messages
+const result = await client.chat('model', [{ role: 'user', content: 'Hello' }]);
+
+expect(result).toMatchObject({
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  error: expect.stringContaining('HTTP 500'), // Error contains dynamic status code
+  success: false,
+});
+```
+
+```typescript
+// ❌ Bad: Using stringMatching when exact error is known
+nock(baseUrl)
+  .post('/v1/chat/completions')
+  .replyWithError('Network error');
+
+const result = await client.chat('model', [{ role: 'user', content: 'Hello' }]);
+
+expect(result).toMatchObject({
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  error: expect.stringMatching(/./), // Should use exact error: 'Network error'
+  success: false,
+});
+```
+
+```typescript
+// ❌ Bad: Using expect.any(String)
+const result = await client.chat('model', [{ role: 'user', content: 'Hello' }]);
+
+expect(result).toMatchObject({
+  error: expect.any(String), // Too generic, doesn't verify string is non-empty
+  success: false,
+});
+```
+
+```typescript
+// ❌ Bad: Type casting to access properties
+const result = await client.chat('model', [{ role: 'user', content: 'Hello' }]);
+
+expect(result.success).toBe(true);
+expect((result as { response: string, success: true }).response).toBe('Test response');
+```
+
+```typescript
+// ❌ Bad: Type casting with conditional access
+const result = await client.chat('model', [{ role: 'user', content: 'Hello' }]);
+
+if (result.success) {
+  expect((result as { response: string, success: true }).response).toBe('Test response');
+}
+```
+
+```typescript
+// ✅ Good: Using toMatchObject for union types without success property
+const result = await client.listModels();
+
+expect(result).toMatchObject({
+  error: expect.stringContaining('HTTP 404'),
+});
+```
+
+```typescript
+// ❌ Bad: Type casting for union types
+const result = await client.listModels();
+
+expect('error' in result).toBe(true);
+expect((result as { error: string }).error).toContain('HTTP 404');
+```
+
+### Examples
+
+```typescript
+// ✅ Good: Comprehensive test with multiple scenarios
+describe('SettingsService', () => {
+  let mockIpcAdapter: jest.Mocked<ElectronIpcAdapter>;
+  let settingsService: SettingsService;
+
+  beforeEach(() => {
+    mockIpcAdapter = createMockIpcAdapter();
+    settingsService = new SettingsService(mockIpcAdapter);
+  });
+
+  describe('loadSettings', () => {
+    it('loads settings successfully', async () => {
+      const mockSettings = { provider: 'ollama', /* ... */ };
+      mockIpcAdapter.invoke.mockResolvedValue(mockSettings);
+
+      const onSettingsChange = jest.fn();
+      settingsService.setCallbacks({ onSettingsChange });
+
+      await settingsService.loadSettings();
+
+      expect(onSettingsChange).toHaveBeenCalledWith(mockSettings);
+    });
+
+    it('handles load errors', async () => {
+      mockIpcAdapter.invoke.mockRejectedValue(new Error('Load failed'));
+
+      const onErrorChange = jest.fn();
+      settingsService.setCallbacks({ onErrorChange });
+
+      await settingsService.loadSettings();
+
+      expect(onErrorChange).toHaveBeenCalledWith(expect.stringContaining('Load failed'));
+    });
+  });
+});
+```
+
+```typescript
+// ✅ Good: Component test with user interactions
+describe('Settings', () => {
+  it('updates provider when selected', async () => {
+    const mockService = createMockSettingsService();
+    render(<Settings settingsService={mockService} />);
+
+    const providerSelect = screen.getByLabelText('Provider');
+    fireEvent.change(providerSelect, { target: { value: 'lmstudio' } });
+
+    await waitFor(() => {
+      expect(mockService.updateProvider).toHaveBeenCalledWith('lmstudio');
+    });
+  });
+
+  it('shows error message when save fails', async () => {
+    const mockService = createMockSettingsService();
+    (mockService.saveSettings as jest.Mock).mockResolvedValue('Save failed');
+
+    render(<Settings settingsService={mockService} />);
+
+    const saveButton = screen.getByText('Save');
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Save failed/i)).toBeInTheDocument();
+    });
+  });
+});
+```
+
+### E2E Testing for Bug Fixes
+
+- **Always add e2e tests for found bugs** - When fixing bugs discovered during development or debugging, create e2e tests to prevent regression
+  - Create e2e tests in the `e2e/` directory using Playwright
+  - Test the full user flow that reproduces the bug
+  - Verify that the fix prevents the bug from occurring
+  - Name test files descriptively: `bug-description.spec.ts` (e.g., `prompt-select-duplicate-request.spec.ts`)
+  - Include comments explaining the bug and the fix in the test file
+  - This ensures bugs don't regress and provides documentation of the issue
+
+```typescript
+// ✅ Good: E2E test for bug fix
+/**
+ * E2E test for duplicate LLM request bug fix
+ * 
+ * Bug: When switching from preconfigured prompts to chat tab,
+ * the LLM request was being sent twice.
+ * 
+ * Fix: MultiChatService no longer calls sendMessage when receiving CHAT_WINDOW_DATA
+ * from prompt select. Instead, it loads messages and lets the OLLAMA_RESPONSE
+ * listener handle the response.
+ */
+test.describe('Prompt Select - Duplicate Request Prevention', () => {
+  test('should not send duplicate LLM request when switching from preconfigured prompt to chat', async ({ page }) => {
+    // Test implementation that verifies only one request is sent
+  });
+});
+```
+
+```typescript
+// ❌ Bad: No e2e test for bug fix
+// Bug was fixed but no e2e test was added to prevent regression
 ```
 
 ## Application Architecture

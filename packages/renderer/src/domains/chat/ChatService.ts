@@ -1,4 +1,5 @@
-import type { IChatWindowData, IChatMessage, TChatResponse, TIpcEvent, IChatInfo } from '@writing-tools/shared';
+/* eslint-disable max-lines */
+import type { IChatMessage, TChatResponse, TIpcEvent, IChatInfo } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
@@ -30,6 +31,8 @@ export class ChatService {
   private onHistoryIndexChange?: (index: number) => void;
   private onHandlingResponseChange?: (isHandling: boolean) => void;
   private onTitleChange?: (title: string) => void;
+  // Support multiple title change callbacks (for ChatComponent and MultiChatService)
+  private readonly onTitleChangeCallbacks = new Set<(title: string) => void>();
 
   public constructor(ipcAdapter: IIpcAdapter) {
     this.ipcAdapter = ipcAdapter;
@@ -52,43 +55,46 @@ export class ChatService {
     this.onHistoryIndexChange = callbacks.onHistoryIndexChange;
     this.onHandlingResponseChange = callbacks.onHandlingResponseChange;
     this.onTitleChange = callbacks.onTitleChange;
+    // Also add to multiple callbacks set for title changes
+    if (callbacks.onTitleChange !== undefined) {
+      this.onTitleChangeCallbacks.add(callbacks.onTitleChange);
+    }
+  }
+
+  /**
+   * Add a title change callback (for MultiChatService to update tab titles)
+   * This allows multiple components to listen to title changes
+   */
+  public addTitleChangeCallback(callback: (title: string) => void): () => void {
+    this.onTitleChangeCallbacks.add(callback);
+
+    // Return cleanup function
+    return () => {
+      this.onTitleChangeCallbacks.delete(callback);
+    };
   }
 
   /**
    * Initialize IPC listeners for chat events
+   * Note: CHAT_WINDOW_DATA listener is disabled when used in multi-tab context
+   * MultiChatService handles routing CHAT_WINDOW_DATA events to the appropriate tab
    */
   public initializeListeners(): void {
-    const handleChatWindowData = (data: IChatWindowData) => {
-      if (data.prompt) {
-        logger.info('Clearing previous conversation and starting new one with prompt: %s, chatId=%s', data.prompt, data.chatId !== undefined ? String(data.chatId) : 'undefined');
-        const initialMessages: IChatMessage[] = [
-          {
-            id: Date.now().toString(),
-            role: 'user',
-            content: data.prompt,
-            timestamp: new Date(),
-          },
-        ];
-
-        this.setMessages(initialMessages);
-        this.setLoading(true);
-        // Set currentChatId if provided (for hotkey/prompt select flows), otherwise reset to null
-        if (data.chatId !== undefined) {
-          this.currentChatId = data.chatId;
-          logger.info('ChatId set from CHAT_WINDOW_DATA: chatId=%s', String(data.chatId));
-        } else {
-          this.currentChatId = null;
-        }
-      }
-    };
+    // CHAT_WINDOW_DATA listener is NOT set up here
+    // When used in multi-tab context, MultiChatService handles CHAT_WINDOW_DATA routing
+    // This prevents multiple ChatService instances from creating duplicate chats
 
     const handleOllamaResponse = (response: TChatResponse) => {
       logger.info('Current messages count: %s', this.messages.length.toString());
 
       // Update currentChatId if provided (for hotkey/prompt select flows)
-      if (response.chatId !== undefined && this.currentChatId === null) {
+      // Only set it if we're currently handling a response (isLoading or isHandlingOllamaResponse)
+      // This prevents other tabs from incorrectly adopting chatIds from responses meant for different tabs
+      if (response.chatId !== undefined && this.currentChatId === null && (this.isLoading || this.isHandlingOllamaResponse)) {
         this.currentChatId = response.chatId;
         logger.info('ChatId set from response: chatId=%s', String(response.chatId));
+      } else if (response.chatId !== undefined && this.currentChatId === null) {
+        logger.info('Ignoring chatId from response: chatId=%s (not handling response for this service)', String(response.chatId));
       }
 
       this.setHandlingResponse(true);
@@ -130,38 +136,50 @@ export class ChatService {
     };
 
     const handleChatTitleUpdated = (data: { chatId: number, title: string }) => {
-      // Update title if it matches the current chat, or if currentChatId is null
-      // (which happens when chat is created via hotkey/prompt select)
-      if (this.currentChatId === data.chatId || this.currentChatId === null) {
-        logger.info('Title updated for current chat: chatId=%s, title="%s", currentChatId=%s', String(data.chatId), data.title, this.currentChatId === null ? 'null' : String(this.currentChatId));
+      // Update title only if it matches the current chat
+      // Do NOT accept title updates when currentChatId is null - this causes bugs in multi-tab context
+      // where multiple ChatService instances receive the same event and the one with null accepts it incorrectly
+      if (this.currentChatId === data.chatId) {
+        logger.info('Title updated for current chat: chatId=%s, title="%s"', String(data.chatId), data.title);
+        // Call both the single callback (for backward compatibility) and all registered callbacks
         this.onTitleChange?.(data.title);
-        // If currentChatId was null, set it now so future updates match correctly
-        if (this.currentChatId === null) {
-          this.currentChatId = data.chatId;
-        }
+        this.onTitleChangeCallbacks.forEach(callback => {
+          callback(data.title);
+        });
       } else {
-        logger.info('Title update ignored: chatId=%s does not match currentChatId=%s', String(data.chatId), String(this.currentChatId));
+        logger.info('Title update ignored: chatId=%s does not match currentChatId=%s', String(data.chatId), this.currentChatId === null ? 'null' : String(this.currentChatId));
       }
     };
 
     const handleChatLoadMessagesData = (data: { chatId: number, messages: IChatMessage[] }) => {
-      logger.info('Loading messages for chat: chatId=%s, messageCount=%s', String(data.chatId), String(data.messages.length));
-      this.currentChatId = data.chatId;
-      this.setMessages(data.messages);
-      this.setLoading(false);
-      this.setError(null);
+      // Only accept CHAT_LOAD_MESSAGES_DATA if currentChatId is null (new tab) or matches the event's chatId
+      // This prevents other tabs from incorrectly adopting chatIds from load events meant for different tabs
+      if (this.currentChatId === null || this.currentChatId === data.chatId) {
+        logger.info('Loading messages for chat: chatId=%s, messageCount=%s', String(data.chatId), String(data.messages.length));
+        this.currentChatId = data.chatId;
+        this.setMessages(data.messages);
+        this.setLoading(false);
+        this.setError(null);
+      } else {
+        logger.info('Ignoring CHAT_LOAD_MESSAGES_DATA: chatId=%s does not match currentChatId=%s', String(data.chatId), String(this.currentChatId));
+      }
     };
 
     const handleChatDeleted = (data: { chatId: number }) => {
-      // If the deleted chat is the current chat, close the window
+      // If the deleted chat is the current chat, clear the current chat
+      // Do NOT close the window - MultiChatService will handle closing the tab
+      // Closing the window when a chat is deleted is not desired behavior
       if (this.currentChatId === data.chatId) {
-        logger.info('Current chat was deleted, closing window: chatId=%s', String(data.chatId));
-        globalThis.close();
+        logger.info('Current chat was deleted, clearing current chat: chatId=%s', String(data.chatId));
+        this.currentChatId = null;
+        this.setMessages([]);
+        this.setError(null);
+        // MultiChatService will handle closing the tab, so we don't need to close the window
       }
     };
 
     try {
-      this.chatWindowDataListener = this.ipcAdapter.onChatWindowData(handleChatWindowData);
+      // CHAT_WINDOW_DATA listener intentionally not set up - MultiChatService handles routing
       this.ollamaResponseListener = this.ipcAdapter.onOllamaResponse(handleOllamaResponse);
       this.chatTitleUpdatedListener = this.ipcAdapter.onChatTitleUpdated(handleChatTitleUpdated);
       this.chatLoadMessagesDataListener = this.ipcAdapter.onChatLoadMessagesData(handleChatLoadMessagesData);
@@ -211,14 +229,16 @@ export class ChatService {
     }
 
     // Ensure we have a chatId before sending
-    if (this.currentChatId === null) {
-      const chatId = await this.createNewChatSession();
-      if (chatId === null) {
+    let chatId = this.currentChatId;
+    if (chatId === null) {
+      const newChatId = await this.createNewChatSession();
+      if (newChatId === null) {
         logger.error('Cannot send message: no chat session available');
         this.setError('Failed to create chat session');
 
         return 'Failed to create chat session';
       }
+      chatId = newChatId;
     }
 
     this.setHandlingResponse(true);
@@ -238,7 +258,7 @@ export class ChatService {
     const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_MESSAGE> = {
       channel: EIpcChannel.CHAT,
       event: EIpcEvent.CHAT_SEND_MESSAGE,
-      payload: { chatId: this.currentChatId!, messages: this.messages },
+      payload: { chatId, messages: this.messages },
     };
 
     try {
@@ -295,15 +315,17 @@ export class ChatService {
     if (this.historyIndex === -1) {
       this.setHistoryIndex(0);
 
-      return userMessages[userMessages.length - 1].content;
+      return userMessages[userMessages.length - 1]?.content ?? null;
     } else if (this.historyIndex < userMessages.length - 1) {
       const newIndex = this.historyIndex + 1;
       this.setHistoryIndex(newIndex);
 
-      return userMessages[userMessages.length - 1 - newIndex].content;
-    }
+      const targetIndex = userMessages.length - 1 - newIndex;
 
-    return null;
+      return userMessages[targetIndex]?.content ?? null;
+    } else {
+      return null;
+    }
   }
 
   /**
@@ -422,7 +444,13 @@ export class ChatService {
 
       this.currentChatId = chatId;
       this.setMessages(response.messages);
-      this.setLoading(false);
+      // Check if we're waiting for an LLM response (user message exists but no assistant message yet)
+      // This happens when a prompt is selected - the user message is saved immediately,
+      // but the LLM response is still in flight
+      const hasUserMessage = response.messages.some(m => m.role === 'user');
+      const hasAssistantMessage = response.messages.some(m => m.role === 'assistant');
+      const shouldShowLoading = hasUserMessage && !hasAssistantMessage;
+      this.setLoading(shouldShowLoading);
       this.setError(null);
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);

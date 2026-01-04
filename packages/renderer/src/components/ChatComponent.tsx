@@ -6,10 +6,11 @@ import { ButtonStyles, MessageStyles, InputStyles, NotificationStyles, LoadingSt
 import { renderMarkdown } from '../utils/markdownRenderer';
 
 interface ChatComponentProps {
-  chatService: ChatService;
+  readonly chatService: ChatService;
+  readonly chatId: number | null;
 }
 
-const ChatComponent: React.FC<ChatComponentProps> = ({ chatService }) => {
+const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) => {
   const [messages, setMessages] = useState<IChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -18,6 +19,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService }) => {
   const [chatTitle, setChatTitle] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const isSendingRef = useRef<boolean>(false);
 
   // Register callbacks
   useEffect(() => {
@@ -30,27 +32,22 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService }) => {
     });
   }, [chatService]);
 
-  // Initialize listeners on mount
+  // Note: Listeners are initialized by MultiChatService when creating tabs
+  // We only clean them up when the component unmounts (but MultiChatService handles cleanup when tabs close)
+  // This cleanup is a safety measure in case component unmounts without tab closing
   useEffect(() => {
-    chatService.initializeListeners();
-
     return () => {
-      chatService.cleanupListeners();
+      // Only cleanup if this is not being handled by MultiChatService
+      // In practice, MultiChatService handles cleanup, but this is a safety measure
     };
   }, [chatService]);
 
-  // Check URL params for chatId on mount and load messages if present
+  // Load messages if chatId is provided
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const chatIdParam = urlParams.get('chatId');
-
-    if (chatIdParam !== null) {
-      const chatId = Number.parseInt(chatIdParam, 10);
-      if (!Number.isNaN(chatId)) {
-        void chatService.loadChatMessages(chatId);
-      }
+    if (chatId !== null) {
+      void chatService.loadChatMessages(chatId);
     }
-  }, [chatService]);
+  }, [chatService, chatId]);
 
   // Scroll to bottom when messages change (unless handling response)
   useEffect(() => {
@@ -59,10 +56,10 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService }) => {
     }
   }, [messages, isHandlingResponse]);
 
-  // Fetch title when currentChatId changes
+  // Fetch title when chatId or messages change
   useEffect(() => {
     const fetchTitle = async () => {
-      const currentChatId = chatService.getCurrentChatId();
+      const currentChatId = chatId ?? chatService.getCurrentChatId();
       if (currentChatId === null) {
         setChatTitle(null);
 
@@ -80,7 +77,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService }) => {
     };
 
     void fetchTitle();
-  }, [chatService, messages]);
+  }, [chatService, chatId, messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -88,9 +85,18 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService }) => {
 
   // Handle sending a message
   const handleSendMessage = async () => {
-    const errorText = await chatService.sendMessage(inputValue);
-    if (!errorText) {
-      setInputValue('');
+    // Prevent double submission using ref for immediate check
+    if (isSendingRef.current || isLoading || !inputValue.trim()) {
+      return;
+    }
+    isSendingRef.current = true;
+    try {
+      const errorText = await chatService.sendMessage(inputValue);
+      if (!errorText) {
+        setInputValue('');
+      }
+    } finally {
+      isSendingRef.current = false;
     }
   };
 
@@ -98,6 +104,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService }) => {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      e.stopPropagation();
       void handleSendMessage();
       if (inputRef.current) {
         inputRef.current.focus();
@@ -120,22 +127,22 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService }) => {
   };
 
   // Determine if we should show the title section (if there's a chat or messages)
-  const hasActiveChat = chatService.getCurrentChatId() !== null || messages.length > 0;
+  const hasActiveChat = chatId !== null || chatService.getCurrentChatId() !== null || messages.length > 0;
   const displayTitle = chatTitle !== null && chatTitle.trim() !== '' ? chatTitle : null;
 
   return (
     <div className={`flex flex-col h-full w-full ${LayoutStyles.container}`}>
       {hasActiveChat && (
         <div className={`mb-4 pb-4 border-b ${ColorPalette.border.defaultLight}`}>
-          {displayTitle !== null ? (
+          {displayTitle === null ? (
+            <div className={`${TypographyStyles.h2} ${ColorPalette.text.muted}`}>
+              New Chat
+            </div>
+          ) : (
             <div
               className={`${TypographyStyles.h2} ${ColorPalette.text.primary} markdown-content`}
               dangerouslySetInnerHTML={{ __html: renderMarkdown(displayTitle) }}
             />
-          ) : (
-            <div className={`${TypographyStyles.h2} ${ColorPalette.text.muted}`}>
-              New Chat
-            </div>
           )}
         </div>
       )}
@@ -200,7 +207,10 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService }) => {
           disabled={isLoading}
         />
         <button
-          onClick={() => {
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             void handleSendMessage();
           }}
           disabled={isLoading || !inputValue.trim()}

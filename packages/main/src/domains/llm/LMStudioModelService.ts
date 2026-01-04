@@ -1,3 +1,4 @@
+import type { ILogger } from '@writing-tools/shared';
 import type { Message } from 'ollama';
 
 import type { ISettingsService } from '../settings/ISettingsService';
@@ -7,9 +8,11 @@ import type { LMStudioChatResponse } from './LMStudioClient';
 import { LMStudioClient } from './LMStudioClient';
 
 export class LMStudioModelService implements ILMStudioModelService {
+  private readonly logger: ILogger;
   private readonly settingsService: ISettingsService;
 
-  public constructor(settingsService: ISettingsService) {
+  public constructor(settingsService: ISettingsService, logger: ILogger) {
+    this.logger = logger;
     this.settingsService = settingsService;
   }
 
@@ -18,7 +21,7 @@ export class LMStudioModelService implements ILMStudioModelService {
     const client = new LMStudioClient({
       host: settings.lmstudio.address,
       apiKey: settings.lmstudio.apiKey,
-    });
+    }, this.logger);
 
     return client.listModels();
   };
@@ -34,7 +37,7 @@ export class LMStudioModelService implements ILMStudioModelService {
     const client = new LMStudioClient({
       host: address,
       apiKey,
-    });
+    }, this.logger);
 
     // Convert Ollama Message format to LM Studio format (they're compatible)
     const lmStudioMessages = messages.map(msg => ({

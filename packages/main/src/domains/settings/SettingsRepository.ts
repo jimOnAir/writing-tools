@@ -1,15 +1,20 @@
-import type { ISettings } from '@writing-tools/shared';
-import { DefaultSettings, logger } from '@writing-tools/shared';
-import { app } from 'electron';
-import isDev from 'electron-is-dev';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import type { ISettings, ILogger } from '@writing-tools/shared';
+import { DefaultSettings } from '@writing-tools/shared';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 
 import type { ISettingsRepository } from './ISettingsRepository';
 
 export class SettingsRepository implements ISettingsRepository {
   private currentSettings: ISettings | null = null;
+  private readonly appPath: string;
+  private readonly logger: ILogger;
   private settingsLoaded = false;
+
+  public constructor(logger: ILogger, appPath: string) {
+    this.logger = logger;
+    this.appPath = appPath;
+  }
 
   public async loadSettings(): Promise<ISettings> {
     // If settings are already loaded, return cached version
@@ -58,7 +63,7 @@ export class SettingsRepository implements ISettingsRepository {
         ? error.message
         : String(error);
 
-      logger.error('Failed to load settings: %s', errorText);
+      this.logger.error('Failed to load settings: %s', errorText);
 
       // Return default settings on error
       const defaultSettings = DefaultSettings;
@@ -77,37 +82,27 @@ export class SettingsRepository implements ISettingsRepository {
 
       // Update in-memory cache
       this.currentSettings = settings;
+      this.settingsLoaded = true;
     } catch (error) {
       const errorText = error instanceof Error
         ? error.message
         : String(error);
 
-      logger.error('Failed to save settings: %s', errorText);
+      this.logger.error('Failed to save settings: %s', errorText);
       throw error;
     }
   }
 
-  private getSettingsFilePath(): string {
-    const appDataDir = this.getAppDataDirectory();
-
-    return path.join(appDataDir, 'settings.json');
-  }
-
   private async ensureSettingsDirectory(): Promise<void> {
-    const appDataDir = this.getAppDataDirectory();
     try {
-      await fs.access(appDataDir);
+      await fs.access(this.appPath);
     } catch {
       // Directory doesn't exist, create it
-      await fs.mkdir(appDataDir, { recursive: true });
+      await fs.mkdir(this.appPath, { recursive: true });
     }
   }
 
-  private getAppDataDirectory(): string {
-    if (isDev) {
-      return path.join(process.cwd(), 'app-data');
-    }
-
-    return path.join(app.getPath('appData'), app.getName());
+  private getSettingsFilePath(): string {
+    return path.join(this.appPath, 'settings.json');
   }
 }

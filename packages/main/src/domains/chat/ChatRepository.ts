@@ -1,31 +1,31 @@
-import { logger } from '@writing-tools/shared';
-import type { IChatMessage, IChatInfo } from '@writing-tools/shared';
+import type { IChatMessage, IChatInfo, ILogger } from '@writing-tools/shared';
 import Database from 'better-sqlite3-multiple-ciphers';
-import { app } from 'electron';
-import isDev from 'electron-is-dev';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 
 import type { IChatRepository } from './IChatRepository';
 
 export class ChatRepository implements IChatRepository {
   private db: Database.Database | null = null;
-  private readonly dbPath: string;
+  private readonly appPath: string;
+  private readonly logger: ILogger;
 
-  public constructor() {
-    this.dbPath = this.getDatabasePath();
+  public constructor(logger: ILogger, appPath: string) {
+    this.logger = logger;
+    this.appPath = appPath;
   }
 
   public async initialize(): Promise<void> {
     try {
       await this.ensureDatabaseDirectory();
-      this.db = new Database(this.dbPath);
+      const dbPath = this.getDatabasePath();
+      this.db = new Database(dbPath);
       this.createTables();
-      logger.info('Chat database initialized at: %s', this.dbPath);
+      this.logger.info('Chat database initialized at: %s', dbPath);
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
 
-      logger.error('Failed to initialize chat database: %s', errorText);
+      this.logger.error('Failed to initialize chat database: %s', errorText);
       throw error;
     }
   }
@@ -168,7 +168,7 @@ export class ChatRepository implements IChatRepository {
     if (this.db !== null) {
       this.db.close();
       this.db = null;
-      logger.info('Chat database connection closed');
+      this.logger.info('Chat database connection closed');
     }
   }
 
@@ -234,26 +234,15 @@ export class ChatRepository implements IChatRepository {
   }
 
   private getDatabasePath(): string {
-    const appDataDir = this.getAppDataDirectory();
-
-    return path.join(appDataDir, 'chats.db');
+    return path.join(this.appPath, 'chats.db');
   }
 
   private async ensureDatabaseDirectory(): Promise<void> {
-    const appDataDir = this.getAppDataDirectory();
     try {
-      await fs.access(appDataDir);
+      await fs.access(this.appPath);
     } catch {
       // Directory doesn't exist, create it
-      await fs.mkdir(appDataDir, { recursive: true });
+      await fs.mkdir(this.appPath, { recursive: true });
     }
-  }
-
-  private getAppDataDirectory(): string {
-    if (isDev) {
-      return path.join(process.cwd(), 'app-data');
-    }
-
-    return path.join(app.getPath('appData'), app.getName());
   }
 }

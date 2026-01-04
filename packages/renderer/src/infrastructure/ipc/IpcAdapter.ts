@@ -68,6 +68,16 @@ export interface IIpcAdapter {
   offChatLoadMessagesData: (listener: TIpcRenderListener) => void;
 
   /**
+   * Register a listener for chat created events
+   */
+  onChatCreated: (callback: (data: { chatId: number }) => void) => TIpcRenderListener;
+
+  /**
+   * Unregister a chat created listener
+   */
+  offChatCreated: (listener: TIpcRenderListener) => void;
+
+  /**
    * Register a listener for chat deleted events
    */
   onChatDeleted: (callback: (data: { chatId: number }) => void) => TIpcRenderListener;
@@ -173,6 +183,22 @@ export class ElectronIpcAdapter implements IIpcAdapter {
     }
 
     window.electronAPI.offChatLoadMessagesData(listener);
+  }
+
+  public onChatCreated(callback: (data: { chatId: number }) => void): TIpcRenderListener {
+    if (typeof window.electronAPI === 'undefined') {
+      throw new Error('electronAPI is not available');
+    }
+
+    return window.electronAPI.onChatCreated(callback);
+  }
+
+  public offChatCreated(listener: TIpcRenderListener): void {
+    if (typeof window.electronAPI === 'undefined') {
+      return;
+    }
+
+    window.electronAPI.offChatCreated(listener);
   }
 
   public onChatDeleted(callback: (data: { chatId: number }) => void): TIpcRenderListener {

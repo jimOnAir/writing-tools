@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "baseUrl": ".",
+    "isolatedModules": true,
     "jsx": "react-jsx",
     "paths": {
       "@writing-tools/shared": [

@@ -1,13 +1,16 @@
-import { EIpcRendererEvent, logger } from '@writing-tools/shared';
-import { globalShortcut } from 'electron';
+import type { ILogger } from '@writing-tools/shared';
+import { EIpcRendererEvent } from '@writing-tools/shared';
 
 import type { ISettingsService } from '../settings/ISettingsService';
 import type { ITextSelectionService } from '../text-selection/ITextSelectionService';
 import type { IWindowService } from '../windows/IWindowService';
 
+import type { IGlobalShortcut } from './IGlobalShortcut';
 import type { IShortcutService } from './IShortcutService';
 
 export class ShortcutService implements IShortcutService {
+  private readonly globalShortcut: IGlobalShortcut;
+  private readonly logger: ILogger;
   private readonly settingsService: ISettingsService;
   private readonly textSelectionService: ITextSelectionService;
   private readonly windowService: IWindowService;
@@ -16,54 +19,57 @@ export class ShortcutService implements IShortcutService {
     settingsService: ISettingsService,
     textSelectionService: ITextSelectionService,
     windowService: IWindowService,
+    logger: ILogger,
+    globalShortcut: IGlobalShortcut,
   ) {
+    this.logger = logger;
     this.settingsService = settingsService;
     this.textSelectionService = textSelectionService;
     this.windowService = windowService;
+    this.globalShortcut = globalShortcut;
   }
 
   public async registerGlobalShortcuts(): Promise<void> {
     const settings = await this.settingsService.loadSettings();
 
-    globalShortcut.unregisterAll();
+    this.globalShortcut.unregisterAll();
 
     if (settings.globalShortcut) {
       try {
-        globalShortcut.register(settings.globalShortcut, () => {
+        this.globalShortcut.register(settings.globalShortcut, () => {
           this.processGlobalShortcut().catch((error: unknown) => {
             const errorText = error instanceof Error
               ? error.message
               : String(error);
-            logger.error(`Error processing shortcut: %s`, errorText);
+            this.logger.error(`Error processing shortcut: %s`, errorText);
           });
         });
-        logger.info(`Registered global shortcut: ${settings.globalShortcut}`);
+        this.logger.info(`Registered global shortcut: ${settings.globalShortcut}`);
       } catch (error: unknown) {
         const errorText = error instanceof Error
           ? error.message
           : String(error);
-        logger.error(`Failed to register global shortcut ${settings.globalShortcut}: %s`, errorText);
+        this.logger.error(`Failed to register global shortcut ${settings.globalShortcut}: %s`, errorText);
       }
     }
   }
 
   public async processGlobalShortcut(): Promise<void> {
     try {
-      console.log('processingShortcut');
       const selectedText = this.textSelectionService.getSelectedText();
-      console.log(`selectedText`, selectedText);
 
-      if (!selectedText || !selectedText.trim()) {
-        logger.warn('No text selected, nothing to process');
+      if (!selectedText?.trim()) {
+        this.logger.warn('No text selected, nothing to process');
 
         return;
       }
 
       const settings = await this.settingsService.loadSettings();
 
-      // Show the prompt selector window instead of directly processing
-      const { window: promptSelectorWindow } = await this.windowService.getPromptSelectorWindow();
-      promptSelectorWindow.webContents.send(EIpcRendererEvent.PROMPT_SELECTOR_DATA, {
+      // Send prompt selector data to the main chat window
+      // The chat window's MultiChatService will create a prompt selector tab
+      const { window: chatWindow } = await this.windowService.getChatWindow();
+      chatWindow.webContents.send(EIpcRendererEvent.PROMPT_SELECTOR_DATA, {
         selectedText,
         preconfiguredPrompts: settings.preconfiguredPrompts,
       });
@@ -71,7 +77,7 @@ export class ShortcutService implements IShortcutService {
       const errorText = error instanceof Error
         ? error.message
         : String(error);
-      logger.error('Error processing clipboard content: %s', errorText);
+      this.logger.error('Error processing clipboard content: %s', errorText);
     }
   }
 }

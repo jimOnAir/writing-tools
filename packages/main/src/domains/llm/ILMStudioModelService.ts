@@ -10,7 +10,7 @@ export interface ILMStudioModelService {
   /**
    * Fetch available LM Studio models
    */
-  fetchModels: () => Promise<{ models: string[] } | { error: string }>;
+  fetchModels: () => Promise<{ models: string[] } | { error: string, models: string[] }>;
 
   /**
    * Send messages to LM Studio and get response

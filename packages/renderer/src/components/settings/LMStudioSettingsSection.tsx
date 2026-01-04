@@ -2,7 +2,7 @@ import React from 'react';
 
 import { ButtonStyles, InputStyles, BackgroundStyles, TypographyStyles, LayoutStyles, SpinnerIcon, ColorPalette } from '../../styles/Styles';
 
-interface LMStudioSettingsSectionProps {
+export interface LMStudioSettingsSectionProps {
   readonly address: string;
   readonly model: string | undefined;
   readonly apiKey: string | undefined;

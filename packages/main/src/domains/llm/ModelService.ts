@@ -5,25 +5,27 @@ import type { ISettingsService } from '../settings/ISettingsService';
 import type { ILMStudioModelService } from './ILMStudioModelService';
 import type { IModelService, LLMChatResponse } from './IModelService';
 import type { IOllamaModelService } from './IOllamaModelService';
-import { LMStudioModelService } from './LMStudioModelService';
-import { OllamaModelService } from './OllamaModelService';
 
 /**
  * Adapter service that selects the appropriate provider service based on settings
  * Implements IModelService by delegating to provider-specific services
  */
 export class ModelService implements IModelService {
-  private readonly settingsService: ISettingsService;
-  private readonly ollamaModelService: IOllamaModelService;
   private readonly lmStudioModelService: ILMStudioModelService;
+  private readonly ollamaModelService: IOllamaModelService;
+  private readonly settingsService: ISettingsService;
 
-  public constructor(settingsService: ISettingsService) {
+  public constructor(
+    settingsService: ISettingsService,
+    ollamaModelService: IOllamaModelService,
+    lmStudioModelService: ILMStudioModelService,
+  ) {
+    this.lmStudioModelService = lmStudioModelService;
+    this.ollamaModelService = ollamaModelService;
     this.settingsService = settingsService;
-    this.ollamaModelService = new OllamaModelService(settingsService);
-    this.lmStudioModelService = new LMStudioModelService(settingsService);
   }
 
-  public fetchModels = async (provider: 'ollama' | 'lmstudio'): Promise<{ models: string[] } | { error: string }> => {
+  public fetchModels = async (provider: 'ollama' | 'lmstudio'): Promise<{ models: string[] } | { error: string, models: string[] }> => {
     switch (provider) {
       case 'lmstudio':
         return this.lmStudioModelService.fetchModels();

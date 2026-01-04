@@ -3,7 +3,7 @@ import React from 'react';
 
 import { ButtonStyles, InputStyles, TypographyStyles, CardStyles, FileInputStyles, ColorPalette } from '../../styles/Styles';
 
-interface PreconfiguredPromptItemProps {
+export interface PreconfiguredPromptItemProps {
   readonly prompt: IPreconfiguredPrompt;
   readonly index: number;
   readonly onUpdate: (index: number, field: keyof IPreconfiguredPrompt, value: string) => void;

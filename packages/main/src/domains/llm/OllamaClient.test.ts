@@ -1,0 +1,179 @@
+import type { ILogger } from '@writing-tools/shared';
+import type { Message } from 'ollama';
+import { Ollama } from 'ollama';
+
+import { OllamaClient } from './OllamaClient';
+
+// Mock the ollama package
+jest.mock('ollama', () => ({
+  Ollama: jest.fn().mockImplementation(() => ({
+    chat: jest.fn(),
+    list: jest.fn(),
+  })),
+}));
+
+describe('OllamaClient', () => {
+  let client: OllamaClient;
+  let mockLogger: jest.Mocked<ILogger>;
+  let mockOllamaInstance: {
+    chat: jest.Mock,
+    list: jest.Mock,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockLogger = {
+      debug: jest.fn(),
+      error: jest.fn(),
+      info: jest.fn(),
+      setEnvironment: jest.fn(),
+      setLevel: jest.fn(),
+      warn: jest.fn(),
+    } as unknown as jest.Mocked<ILogger>;
+
+    mockOllamaInstance = {
+      chat: jest.fn(),
+      list: jest.fn(),
+    };
+
+    (Ollama as jest.Mock).mockImplementation(() => mockOllamaInstance);
+
+    client = new OllamaClient({
+      host: 'http://localhost:11434',
+    }, mockLogger);
+  });
+
+  describe('chat', () => {
+    it('sends chat message successfully', async () => {
+      const mockResponse = {
+        message: {
+          content: 'Test response from Ollama',
+        },
+      };
+
+      mockOllamaInstance.chat.mockResolvedValue(mockResponse);
+
+      const messages: Message[] = [
+        { role: 'user', content: 'Hello' },
+      ];
+
+      const result = await client.chat('test-model', messages);
+
+      expect(result).toEqual({
+        response: 'Test response from Ollama',
+        success: true,
+      });
+      expect(mockOllamaInstance.chat).toHaveBeenCalledWith({
+        model: 'test-model',
+        messages,
+        stream: false,
+      });
+      expect(Ollama).toHaveBeenCalledWith({ host: 'http://localhost:11434' });
+    });
+
+    it('handles chat errors', async () => {
+      const error = new Error('Connection refused');
+      mockOllamaInstance.chat.mockRejectedValue(error);
+
+      const messages: Message[] = [
+        { role: 'user', content: 'Hello' },
+      ];
+
+      const result = await client.chat('test-model', messages);
+
+      expect(result).toEqual({
+        error: 'Connection refused',
+        success: false,
+      });
+    });
+
+    it('handles non-Error exceptions', async () => {
+      mockOllamaInstance.chat.mockRejectedValue('String error');
+
+      const messages: Message[] = [
+        { role: 'user', content: 'Hello' },
+      ];
+
+      const result = await client.chat('test-model', messages);
+
+      expect(result).toEqual({
+        error: 'String error',
+        success: false,
+      });
+    });
+
+    it('uses custom host from config', async () => {
+      const customClient = new OllamaClient({
+        host: 'http://custom-host:11434',
+      }, mockLogger);
+
+      mockOllamaInstance.chat.mockResolvedValue({
+        message: { content: 'Response' },
+      });
+
+      await customClient.chat('model', []);
+
+      expect(Ollama).toHaveBeenCalledWith({ host: 'http://custom-host:11434' });
+    });
+  });
+
+  describe('listModels', () => {
+    it('fetches list of models successfully', async () => {
+      const mockResponse = {
+        models: [
+          { name: 'llama2' },
+          { name: 'mistral' },
+          { name: 'codellama' },
+        ],
+      };
+
+      mockOllamaInstance.list.mockResolvedValue(mockResponse);
+
+      const result = await client.listModels();
+
+      expect(result).toEqual({
+        models: ['llama2', 'mistral', 'codellama'],
+      });
+      expect(mockOllamaInstance.list).toHaveBeenCalled();
+      expect(Ollama).toHaveBeenCalledWith({ host: 'http://localhost:11434' });
+    });
+
+    it('handles list errors', async () => {
+      const error = new Error('Connection refused');
+      mockOllamaInstance.list.mockRejectedValue(error);
+
+      const result = await client.listModels();
+
+      expect(result).toEqual({ error: 'Connection refused', models: [] });
+    });
+
+    it('handles non-Error exceptions', async () => {
+      mockOllamaInstance.list.mockRejectedValue('String error');
+
+      const result = await client.listModels();
+
+      expect(result).toEqual({ error: 'String error', models: [] });
+    });
+
+    it('returns empty array when no models available', async () => {
+      mockOllamaInstance.list.mockResolvedValue({ models: [] });
+
+      const result = await client.listModels();
+
+      expect(result).toEqual({ models: [] });
+    });
+
+    it('uses custom host from config', async () => {
+      const customClient = new OllamaClient({
+        host: 'http://custom-host:11434',
+      }, mockLogger);
+
+      mockOllamaInstance.list.mockResolvedValue({ models: [] });
+
+      await customClient.listModels();
+
+      expect(Ollama).toHaveBeenCalledWith({ host: 'http://custom-host:11434' });
+    });
+  });
+});

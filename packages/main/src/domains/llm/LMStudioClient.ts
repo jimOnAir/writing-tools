@@ -1,14 +1,21 @@
-import { logger } from '@writing-tools/shared';
+import type { ILogger } from '@writing-tools/shared';
 
 export interface LMStudioClientConfig {
-  host: string;
   apiKey?: string;
+  host: string;
 }
 
-export interface LMStudioChatResponse {
-  response?: string;
-  error?: string;
-}
+export type LMStudioChatSuccessResponse = {
+  response: string,
+  success: true,
+};
+
+export type LMStudioChatFailedResponse = {
+  error: string,
+  success: false,
+};
+
+export type LMStudioChatResponse = LMStudioChatSuccessResponse | LMStudioChatFailedResponse;
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -37,9 +44,11 @@ interface LMStudioModelsResponse {
 
 export class LMStudioClient {
   private readonly config: LMStudioClientConfig;
+  private readonly logger: ILogger;
 
-  public constructor(config: LMStudioClientConfig) {
+  public constructor(config: LMStudioClientConfig, logger: ILogger) {
     this.config = config;
+    this.logger = logger;
   }
 
   public async chat(model: string, messages: ChatMessage[]): Promise<LMStudioChatResponse> {
@@ -68,18 +77,18 @@ export class LMStudioClient {
         throw new Error('No response from LM Studio');
       }
 
-      return { response: data.choices[0].message.content };
+      return { response: data.choices[0].message.content, success: true } as const;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error
         ? error.message
         : String(error);
-      logger.error('Failed to send LM Studio messages: %s', errorMessage);
+      this.logger.error('Failed to send LM Studio messages: %s', errorMessage);
 
-      return { error: errorMessage };
+      return { error: errorMessage, success: false } as const;
     }
   }
 
-  public async listModels(): Promise<{ models: string[] } | { error: string }> {
+  public async listModels(): Promise<{ models: string[] } | { error: string, models: string[] }> {
     try {
       const url = `${this.config.host}/v1/models`;
 
@@ -100,9 +109,9 @@ export class LMStudioClient {
       const errorMessage = error instanceof Error
         ? error.message
         : String(error);
-      logger.error('Failed to fetch LM Studio models: %s', errorMessage);
+      this.logger.error('Failed to fetch LM Studio models: %s', errorMessage);
 
-      return { error: errorMessage };
+      return { error: errorMessage, models: [] };
     }
   }
 

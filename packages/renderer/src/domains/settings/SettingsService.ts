@@ -3,6 +3,7 @@ import { DefaultSettings, logger, EIpcChannel, EIpcEvent } from '@writing-tools/
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import { isValidShortcut } from '../../utils/globalShortcuts';
+import { isErrorResponse } from '../../utils/responseTypeGuards';
 
 /**
  * Service for managing settings domain logic
@@ -139,11 +140,15 @@ export class SettingsService {
 
       const result = await this.ipcAdapter.invoke(EIpcChannel.MODEL, payload);
 
-      if ('error' in result) {
-        throw new Error(result.error);
+      // Models property is always present in both success and error responses
+      if ('models' in result && Array.isArray(result.models)) {
+        this.setAvailableModels(result.models);
       }
 
-      this.setAvailableModels(result.models);
+      if (isErrorResponse(result)) {
+        // Even on error, models array is always present (empty array)
+        throw new Error(result.error);
+      }
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
       const providerName = provider === 'lmstudio' ? 'LM Studio' : 'Ollama';

@@ -5,7 +5,7 @@ import { ButtonStyles, TypographyStyles, LayoutStyles, BackgroundStyles } from '
 
 import { PreconfiguredPromptItem } from './PreconfiguredPromptItem';
 
-interface PreconfiguredPromptsSectionProps {
+export interface PreconfiguredPromptsSectionProps {
   readonly prompts: IPreconfiguredPrompt[];
   readonly onAdd: () => void;
   readonly onUpdate: (index: number, field: keyof IPreconfiguredPrompt, value: string) => void;

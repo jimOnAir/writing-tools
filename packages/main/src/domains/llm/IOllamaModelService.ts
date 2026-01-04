@@ -10,7 +10,7 @@ export interface IOllamaModelService {
   /**
    * Fetch available Ollama models
    */
-  fetchModels: () => Promise<{ models: string[] } | { error: string }>;
+  fetchModels: () => Promise<{ models: string[] } | { error: string, models: string[] }>;
 
   /**
    * Send messages to Ollama and get response

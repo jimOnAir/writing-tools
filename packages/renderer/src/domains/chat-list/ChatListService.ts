@@ -2,6 +2,7 @@ import type { IChatInfo, TIpcEvent } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
+import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
 import { isErrorResponse, isFailedResponse } from '../../utils/responseTypeGuards';
 
 /**
@@ -14,6 +15,7 @@ export class ChatListService {
   private isLoading = false;
   private error: string | null = null;
   private deletingChatId: number | null = null;
+  private chatCreatedListener: TIpcRenderListener | null = null;
 
   // Callbacks for component state updates
   private onChatsChange?: (chats: IChatInfo[]) => void;
@@ -23,6 +25,27 @@ export class ChatListService {
 
   public constructor(ipcAdapter: IIpcAdapter) {
     this.ipcAdapter = ipcAdapter;
+  }
+
+  /**
+   * Initialize IPC listeners for chat events
+   */
+  public initializeListeners(): void {
+    const handleChatCreated = (_data: { chatId: number }) => {
+      void this.loadChats();
+    };
+
+    this.chatCreatedListener = this.ipcAdapter.onChatCreated(handleChatCreated);
+  }
+
+  /**
+   * Cleanup IPC listeners
+   */
+  public cleanupListeners(): void {
+    if (this.chatCreatedListener) {
+      this.ipcAdapter.offChatCreated(this.chatCreatedListener);
+      this.chatCreatedListener = null;
+    }
   }
 
   /**

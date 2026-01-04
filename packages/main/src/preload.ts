@@ -67,6 +67,18 @@ if (typeof window !== 'undefined') {
     offChatLoadMessagesData: (listener: TIpcRenderListener) => {
       return ipcRenderer.off(EIpcRendererEvent.CHAT_LOAD_MESSAGES_DATA, listener);
     },
+    onChatCreated: (cb: (message: any) => void) => {
+      const chatCreatedListener = (_: IpcRendererEvent, message: any) => {
+        cb(message);
+      };
+
+      ipcRenderer.on(EIpcRendererEvent.CHAT_CREATED, chatCreatedListener);
+
+      return chatCreatedListener;
+    },
+    offChatCreated: (listener: TIpcRenderListener) => {
+      return ipcRenderer.off(EIpcRendererEvent.CHAT_CREATED, listener);
+    },
     onChatDeleted: (cb: (message: any) => void) => {
       const chatDeletedListener = (_: IpcRendererEvent, message: any) => {
         cb(message);

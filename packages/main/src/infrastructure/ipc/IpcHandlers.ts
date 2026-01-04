@@ -1,7 +1,9 @@
-import { EIpcChannel, EIpcEvent, EIpcRendererEvent, logger } from '@writing-tools/shared';
-import type { IChatMessage, ISettings, TIpcEvent } from '@writing-tools/shared';
-import { ipcMain } from 'electron';
-import os from 'os';
+/* eslint-disable max-lines */
+import type { IChatMessage, ILogger, ISettings, TIpcEvent } from '@writing-tools/shared';
+import { EIpcChannel, EIpcEvent, EIpcRendererEvent } from '@writing-tools/shared';
+import { BrowserWindow, ipcMain } from 'electron';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
 
 import type { IChatService } from '../../domains/chat/IChatService';
 import type { IModelService } from '../../domains/llm/IModelService';
@@ -28,21 +30,25 @@ type TChatChannelEventPayload = TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_
 type TPromptSelectEventPayload = TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT>;
 
 export class IpcHandlers implements IIpcHandlers {
-  private readonly settingsService: ISettingsService;
-  private readonly modelService: IModelService;
-  private readonly windowService: IWindowService;
   private readonly chatService: IChatService;
+  private readonly logger: ILogger;
+  private readonly modelService: IModelService;
+  private readonly settingsService: ISettingsService;
+  private readonly windowService: IWindowService;
+  private readonly processingChatIds = new Set<number>();
 
   public constructor(
     settingsService: ISettingsService,
     modelService: IModelService,
     windowService: IWindowService,
     chatService: IChatService,
+    logger: ILogger,
   ) {
-    this.settingsService = settingsService;
-    this.modelService = modelService;
-    this.windowService = windowService;
     this.chatService = chatService;
+    this.logger = logger;
+    this.modelService = modelService;
+    this.settingsService = settingsService;
+    this.windowService = windowService;
   }
 
   public register(): void {
@@ -55,8 +61,7 @@ export class IpcHandlers implements IIpcHandlers {
     });
 
     ipcMain.handle(EIpcChannel.SETTINGS, async (_, data: TSettingChannelEventPayload) => {
-      const eventType = String((data as any).event);
-
+      const eventType = data.event;
       switch (data.event) {
         case EIpcEvent.SETTINGS_LOAD:
           return this.handleSettingsLoad();
@@ -73,13 +78,12 @@ export class IpcHandlers implements IIpcHandlers {
     });
 
     ipcMain.handle(EIpcChannel.CHAT, async (_, data: TChatChannelEventPayload) => {
-      const eventType = String((data as any).event);
-
+      const eventType = data.event;
       switch (data.event) {
         case EIpcEvent.CHAT_SEND_MESSAGE:
-          return await this.handleChatSendMessage(data.payload.chatId, data.payload.messages);
+          return this.handleChatSendMessage(data.payload.chatId, data.payload.messages);
         case EIpcEvent.CHAT_CREATE_SESSION:
-          return await this.handleChatCreateSession(data.payload);
+          return this.handleChatCreateSession(data.payload);
         case EIpcEvent.CHAT_LOAD_MESSAGES:
           return this.handleChatLoadMessages(data.payload.chatId);
         case EIpcEvent.CHAT_LIST_CHATS:
@@ -87,9 +91,9 @@ export class IpcHandlers implements IIpcHandlers {
         case EIpcEvent.CHAT_GET:
           return this.handleChatGet(data.payload.chatId);
         case EIpcEvent.CHAT_DELETE:
-          return await this.handleChatDelete(data.payload.chatId);
+          return this.handleChatDelete(data.payload.chatId);
         case EIpcEvent.CHAT_OPEN:
-          return await this.handleChatOpen(data.payload.chatId);
+          return this.handleChatOpen(data.payload.chatId);
 
         default:
           throw new Error(`Unsupported event: ${eventType}`);
@@ -102,7 +106,7 @@ export class IpcHandlers implements IIpcHandlers {
   }
 
   private async handleSettingsLoad() {
-    return await this.settingsService.loadSettings();
+    return this.settingsService.loadSettings();
   }
 
   private async handleSettingsSave(settings: ISettings) {
@@ -120,53 +124,72 @@ export class IpcHandlers implements IIpcHandlers {
   }
 
   private async handleChatSendMessage(chatId: number, messages: IChatMessage[]) {
-    // Save all messages before sending to LLM
-    for (const message of messages) {
-      try {
-        this.chatService.saveMessage(chatId, message);
-      } catch (error: unknown) {
-        const errorText = error instanceof Error ? error.message : String(error);
-        logger.error('Failed to save message before sending: %s', errorText);
-        // Continue even if save fails
-      }
-    }
-
-    const llmResponse = await this.modelService.sendMessages(messages.map((message => {
-      return {
-        role: message.role,
-        content: message.content,
-      };
-    })));
-
-    logger.info('LLM response received: hasResponse=%s', String('response' in llmResponse));
-
-    // Save assistant response if successful
-    if ('response' in llmResponse && llmResponse.response) {
-      logger.info('Saving assistant response and triggering title generation');
-      const assistantMessage: IChatMessage = {
-        id: `${Date.now().toString()}-response`,
-        role: 'assistant',
-        content: llmResponse.response,
-        timestamp: new Date(),
-      };
-
-      try {
-        this.chatService.saveMessage(chatId, assistantMessage);
-      } catch (error: unknown) {
-        const errorText = error instanceof Error ? error.message : String(error);
-        logger.error('Failed to save assistant response: %s', errorText);
-        // Continue even if save fails
+    // Prevent duplicate processing for the same chatId
+    if (this.processingChatIds.has(chatId)) {
+      this.logger.warn('handleChatSendMessage: Already processing chatId=%s, ignoring duplicate request', String(chatId));
+      // Return the last message as response to avoid breaking the UI
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        return { response: lastMessage.content, success: true } as const;
       }
 
-      // Generate title after first exchange (2 messages: user + assistant)
-      logger.info('Triggering title generation for chatId=%s', String(chatId));
-      void this.generateTitleIfNeeded(chatId);
+      return { error: 'Request already processing', success: false } as const;
     }
+    this.processingChatIds.add(chatId);
+    try {
+      // Save all messages before sending to LLM
+      for (const message of messages) {
+        try {
+          this.chatService.saveMessage(chatId, message);
+        } catch (error: unknown) {
+          const errorText = error instanceof Error ? error.message : String(error);
+          this.logger.error('Failed to save message before sending: %s', errorText);
+        // Continue even if save fails
+        }
+      }
 
-    return llmResponse;
+      const llmResponse = await this.modelService.sendMessages(messages.map((message => {
+        return {
+          role: message.role,
+          content: message.content,
+        };
+      })));
+
+      this.logger.info('LLM response received: success=%s', String(llmResponse.success));
+
+      // Save assistant response if successful
+      if (llmResponse.success) {
+        this.logger.info('Saving assistant response and triggering title generation');
+        const assistantMessage: IChatMessage = {
+          id: `${Date.now().toString()}-response`,
+          role: 'assistant',
+          content: llmResponse.response,
+          timestamp: new Date(),
+        };
+
+        try {
+          this.chatService.saveMessage(chatId, assistantMessage);
+        } catch (error: unknown) {
+          const errorText = error instanceof Error ? error.message : String(error);
+          this.logger.error('Failed to save assistant response: %s', errorText);
+        // Continue even if save fails
+        }
+
+        // Generate title after first exchange (2 messages: user + assistant)
+        this.logger.info('Triggering title generation for chatId=%s', String(chatId));
+        void this.generateTitleIfNeeded(chatId);
+      }
+
+      return llmResponse;
+    } finally {
+      this.processingChatIds.delete(chatId);
+    }
   }
 
   private async handleChatCreateSession(payload: { title?: string, provider?: string, model?: string }) {
+    // #region agent log
+    try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:188',message:'handleChatCreateSession entry',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})+'\n');}catch(_){}
+    // #endregion
     try {
       // Get current provider and model from settings
       const settings = await this.settingsService.loadSettings();
@@ -185,11 +208,82 @@ export class IpcHandlers implements IIpcHandlers {
         providerValue,
         modelValue,
       );
+      // #region agent log
+      try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:207',message:'Chat created before window notification',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+      // #endregion
 
+      // Notify main chat window if it already exists (don't create window just to notify)
+      try {
+        // #region agent log
+        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:212',message:'Before getChatWindow call',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+        // #endregion
+        const { window: chatWindow, created: chatWindowCreated } = await this.windowService.getChatWindow();
+        // #region agent log
+        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:215',message:'After getChatWindow call',data:{chatId,chatWindowCreated,isDestroyed:chatWindow.isDestroyed()},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+        // #endregion
+        // Only send notification if window already existed (created === false)
+        // If window was just created (created === true), don't send notification and close it
+        if (chatWindowCreated === false && !chatWindow.isDestroyed()) {
+          // #region agent log
+          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:218',message:'Sending CHAT_CREATED notification to existing window',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+          // #endregion
+          chatWindow.webContents.send(EIpcRendererEvent.CHAT_CREATED, {
+            chatId,
+          });
+        } else if (chatWindowCreated === true) {
+          // #region agent log
+          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:223',message:'Window was created unnecessarily, closing it',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+          // #endregion
+          // Window was created unnecessarily - close it to prevent it from showing
+          chatWindow.close();
+        }
+      } catch (error: unknown) {
+        // #region agent log
+        const errorText = error instanceof Error ? error.message : String(error);
+        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:229',message:'Error in getChatWindow try block',data:{chatId,error:errorText},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'B'})+'\n');}catch(_){}
+        // #endregion
+        // Chat window might not exist, ignore
+      }
+
+      // Notify chat list window if it already exists (don't create window just to notify)
+      try {
+        // #region agent log
+        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:235',message:'Before getChatListWindow call',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
+        // #endregion
+        const { window: chatListWindow, created: chatListWindowCreated } = await this.windowService.getChatListWindow();
+        // #region agent log
+        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:238',message:'After getChatListWindow call',data:{chatId,chatListWindowCreated,isDestroyed:chatListWindow.isDestroyed()},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
+        // #endregion
+        // Only send notification if window already existed (created === false)
+        // If window was just created (created === true), don't send notification and close it
+        if (chatListWindowCreated === false && !chatListWindow.isDestroyed()) {
+          // #region agent log
+          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:242',message:'Sending CHAT_CREATED notification to existing chat list window',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
+          // #endregion
+          chatListWindow.webContents.send(EIpcRendererEvent.CHAT_CREATED, {
+            chatId,
+          });
+        } else if (chatListWindowCreated === true) {
+          // #region agent log
+          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:248',message:'Chat list window was created unnecessarily, closing it',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
+          // #endregion
+          // Window was created unnecessarily - close it to prevent it from showing
+          chatListWindow.close();
+        }
+      } catch {
+        // Chat list window might not exist, ignore
+      }
+
+      // #region agent log
+      try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:255',message:'handleChatCreateSession exit',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+      // #endregion
       return { chatId };
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to create chat session: %s', errorText);
+      // #region agent log
+      try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:234',message:'handleChatCreateSession error',data:{error:errorText},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})+'\n');}catch(_){}
+      // #endregion
+      this.logger.error('Failed to create chat session: %s', errorText);
 
       return { error: errorText };
     }
@@ -202,7 +296,7 @@ export class IpcHandlers implements IIpcHandlers {
       return { messages };
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to load messages: %s', errorText);
+      this.logger.error('Failed to load messages: %s', errorText);
 
       return { error: errorText };
     }
@@ -215,7 +309,7 @@ export class IpcHandlers implements IIpcHandlers {
       return { chats };
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to list chats: %s', errorText);
+      this.logger.error('Failed to list chats: %s', errorText);
 
       return { error: errorText };
     }
@@ -226,13 +320,13 @@ export class IpcHandlers implements IIpcHandlers {
       const chat = this.chatService.getChat(chatId);
 
       if (chat === null) {
-        return { error: `Chat with id ${chatId} not found` };
+        return { error: `Chat with id ${String(chatId)} not found` };
       }
 
       return { chat };
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to get chat: %s', errorText);
+      this.logger.error('Failed to get chat: %s', errorText);
 
       return { error: errorText };
     }
@@ -243,28 +337,31 @@ export class IpcHandlers implements IIpcHandlers {
       // Check if chat exists before deleting
       const chat = this.chatService.getChat(chatId);
       if (chat === null) {
-        return { success: false, error: `Chat with id ${chatId} not found` };
+        return { success: false, error: `Chat with id ${String(chatId)} not found` };
       }
 
       // Delete the chat (messages cascade delete automatically)
       this.chatService.deleteChat(chatId);
 
-      // Notify chat window if it exists and is displaying this chat
-      try {
-        const { window: chatWindow } = await this.windowService.getChatWindow();
-        if (!chatWindow.isDestroyed()) {
-          chatWindow.webContents.send(EIpcRendererEvent.CHAT_DELETED, {
-            chatId,
-          });
+      // Notify all existing windows (don't create windows just to notify)
+      // Each window's renderer will handle the notification if it has tabs that need closing
+      const allWindows = BrowserWindow.getAllWindows();
+      for (const win of allWindows) {
+        if (!win.isDestroyed()) {
+          try {
+            win.webContents.send(EIpcRendererEvent.CHAT_DELETED, {
+              chatId,
+            });
+          } catch {
+            // Window might be destroyed, ignore
+          }
         }
-      } catch {
-        // Chat window might not exist, ignore
       }
 
       return { success: true };
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to delete chat: %s', errorText);
+      this.logger.error('Failed to delete chat: %s', errorText);
 
       return { success: false, error: errorText };
     }
@@ -275,7 +372,7 @@ export class IpcHandlers implements IIpcHandlers {
       // Check if chat exists
       const chat = this.chatService.getChat(chatId);
       if (chat === null) {
-        return { success: false, error: `Chat with id ${chatId} not found` };
+        return { success: false, error: `Chat with id ${String(chatId)} not found` };
       }
 
       // Get or create chat window
@@ -293,17 +390,13 @@ export class IpcHandlers implements IIpcHandlers {
       return { success: true };
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to open chat: %s', errorText);
+      this.logger.error('Failed to open chat: %s', errorText);
 
       return { success: false, error: errorText };
     }
   }
 
   private async handlePromptSelect(prompt: string): Promise<void> {
-    const { window: promptSelectorWindow } = await this.windowService.getPromptSelectorWindow();
-
-    promptSelectorWindow.close();
-
     const { window: chatWindow } = await this.windowService.getChatWindow();
 
     // Create a new chat session for the prompt
@@ -325,10 +418,10 @@ export class IpcHandlers implements IIpcHandlers {
       this.chatService.saveMessage(chatId, userMessage);
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to save user message in prompt select: %s', errorText);
+      this.logger.error('Failed to save user message in prompt select: %s', errorText);
     }
 
-    logger.info('Send chat-window-data: %s, chatId=%s', prompt, String(chatId));
+    this.logger.info('Send chat-window-data: %s, chatId=%s', prompt, String(chatId));
     chatWindow.webContents.send(EIpcRendererEvent.CHAT_WINDOW_DATA, {
       prompt,
       chatId,
@@ -341,8 +434,8 @@ export class IpcHandlers implements IIpcHandlers {
       },
     ]);
 
-    if (response.error) {
-      logger.error('LLM error: %s', response.error);
+    if (!response.success) {
+      this.logger.error('LLM error: %s', response.error);
 
       // Save error message
       const errorMessage: IChatMessage = {
@@ -355,7 +448,7 @@ export class IpcHandlers implements IIpcHandlers {
         this.chatService.saveMessage(chatId, errorMessage);
       } catch (error: unknown) {
         const errorText = error instanceof Error ? error.message : String(error);
-        logger.error('Failed to save error message: %s', errorText);
+        this.logger.error('Failed to save error message: %s', errorText);
       }
 
       chatWindow.webContents.send(EIpcRendererEvent.OLLAMA_RESPONSE, {
@@ -370,18 +463,18 @@ export class IpcHandlers implements IIpcHandlers {
     const assistantMessage: IChatMessage = {
       id: `${Date.now().toString()}-response`,
       role: 'assistant',
-      content: response.response ?? '',
+      content: response.response,
       timestamp: new Date(),
     };
     try {
       this.chatService.saveMessage(chatId, assistantMessage);
-      logger.info('Assistant message saved: chatId=%s, messageId=%s', String(chatId), assistantMessage.id);
+      this.logger.info('Assistant message saved: chatId=%s, messageId=%s', String(chatId), assistantMessage.id);
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to save assistant response in prompt select: %s', errorText);
+      this.logger.error('Failed to save assistant response in prompt select: %s', errorText);
     }
 
-    const result = response.response ?? '';
+    const result = response.response;
     chatWindow.webContents.send(EIpcRendererEvent.OLLAMA_RESPONSE, {
       result,
       chatId,
@@ -389,24 +482,24 @@ export class IpcHandlers implements IIpcHandlers {
 
     // Generate title after first exchange (2 messages: user + assistant)
     // Add small delay to ensure database write is committed
-    logger.info('Triggering title generation from prompt select for chatId=%s', String(chatId));
+    this.logger.info('Triggering title generation from prompt select for chatId=%s', String(chatId));
     setTimeout(() => {
       void this.generateTitleIfNeeded(chatId);
     }, 100);
   }
 
   private async generateTitleIfNeeded(chatId: number): Promise<void> {
-    logger.info('generateTitleIfNeeded called for chatId=%s', String(chatId));
+    this.logger.info('generateTitleIfNeeded called for chatId=%s', String(chatId));
     try {
       // Load chat messages to check count
       const messages = this.chatService.loadChatMessages(chatId);
 
-      logger.info('Title generation check: chatId=%s, messageCount=%s', String(chatId), String(messages.length));
-      logger.info('Messages in DB: %s', JSON.stringify(messages.map(m => ({ id: m.id, role: m.role, contentLength: m.content.length }))));
+      this.logger.info('Title generation check: chatId=%s, messageCount=%s', String(chatId), String(messages.length));
+      this.logger.info('Messages in DB: %s', JSON.stringify(messages.map(m => ({ id: m.id, role: m.role, contentLength: m.content.length }))));
 
       // Only generate title after first exchange (2 messages: user + assistant)
       if (messages.length !== 2) {
-        logger.info('Title generation skipped: message count is %s (expected 2)', String(messages.length));
+        this.logger.info('Title generation skipped: message count is %s (expected 2)', String(messages.length));
 
         return;
       }
@@ -414,13 +507,13 @@ export class IpcHandlers implements IIpcHandlers {
       // Check if title is already set
       const chat = this.chatService.getChat(chatId);
       if (chat === null) {
-        logger.error('Title generation failed: chat not found for chatId=%s', String(chatId));
+        this.logger.error('Title generation failed: chat not found for chatId=%s', String(chatId));
 
         return;
       }
 
       if (chat.title.trim() !== '') {
-        logger.info('Title generation skipped: chat already has title "%s"', chat.title);
+        this.logger.info('Title generation skipped: chat already has title "%s"', chat.title);
 
         return;
       }
@@ -430,46 +523,64 @@ export class IpcHandlers implements IIpcHandlers {
       const assistantMessage = messages.find(m => m.role === 'assistant');
 
       if (userMessage === undefined || assistantMessage === undefined) {
-        logger.error('Title generation failed: missing user or assistant message');
+        this.logger.error('Title generation failed: missing user or assistant message');
 
         return;
       }
 
-      logger.info('Generating title for chatId=%s', String(chatId));
+      this.logger.info('Generating title for chatId=%s', String(chatId));
 
       // Generate title using LLM
       const title = await this.generateChatTitle(userMessage.content, assistantMessage.content);
 
       if (title !== null && title.trim() !== '') {
         this.chatService.updateChatTitle(chatId, title);
-        logger.info('Title generated and saved: chatId=%s, title="%s"', String(chatId), title);
+        this.logger.info('Title generated and saved: chatId=%s, title="%s"', String(chatId), title);
 
-        // Send title update event to chat window
+        // Send title update event to chat window if it already exists (don't create window just to notify)
         try {
-          logger.info('Attempting to send title update event: chatId=%s', String(chatId));
-          const { window: chatWindow } = await this.windowService.getChatWindow();
-          if (chatWindow.isDestroyed()) {
-            logger.warn('Chat window is destroyed, cannot send title update event: chatId=%s', String(chatId));
-
-            return;
+          // #region agent log
+          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:539',message:'Before getChatWindow call for title update',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+          // #endregion
+          this.logger.info('Attempting to send title update event: chatId=%s', String(chatId));
+          const { window: chatWindow, created: chatWindowCreated } = await this.windowService.getChatWindow();
+          // #region agent log
+          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:542',message:'After getChatWindow call for title update',data:{chatId,chatWindowCreated,isDestroyed:chatWindow.isDestroyed()},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+          // #endregion
+          // Only send notification if window already existed (created === false)
+          // If window was just created (created === true), don't send notification and close it
+          if (chatWindowCreated === false && !chatWindow.isDestroyed()) {
+            // #region agent log
+            try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:545',message:'Sending CHAT_TITLE_UPDATED notification to existing window',data:{chatId,title},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+            // #endregion
+            chatWindow.webContents.send(EIpcRendererEvent.CHAT_TITLE_UPDATED, {
+              chatId,
+              title,
+            });
+            this.logger.info('Title update event sent: chatId=%s, title="%s"', String(chatId), title);
+          } else if (chatWindowCreated === true) {
+            // #region agent log
+            try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:554',message:'Window was created unnecessarily for title update, closing it',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+            // #endregion
+            // Window was created unnecessarily - close it to prevent it from showing
+            chatWindow.close();
+          } else if (chatWindow.isDestroyed()) {
+            this.logger.warn('Chat window is destroyed, cannot send title update event: chatId=%s', String(chatId));
           }
-
-          chatWindow.webContents.send(EIpcRendererEvent.CHAT_TITLE_UPDATED, {
-            chatId,
-            title,
-          });
-          logger.info('Title update event sent: chatId=%s, title="%s"', String(chatId), title);
         } catch (error: unknown) {
           const errorText = error instanceof Error ? error.message : String(error);
-          logger.error('Failed to send title update event: %s', errorText);
+          // #region agent log
+          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:561',message:'Error sending title update event',data:{chatId,error:errorText},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'B'})+'\n');}catch(_){}
+          // #endregion
+          this.logger.error('Failed to send title update event: %s', errorText);
           // Don't throw - title update event failure shouldn't break chat functionality
         }
       } else {
-        logger.error('Title generation returned empty result for chatId=%s', String(chatId));
+        this.logger.error('Title generation returned empty result for chatId=%s', String(chatId));
       }
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to generate chat title: %s', errorText);
+      this.logger.error('Failed to generate chat title: %s', errorText);
       // Don't throw - title generation failure shouldn't break chat functionality
     }
   }
@@ -490,14 +601,8 @@ Title:`;
         },
       ]);
 
-      if ('error' in response && response.error) {
-        logger.error('Failed to generate chat title: %s', response.error);
-
-        return null;
-      }
-
-      if (!response.response) {
-        logger.error('Failed to generate chat title: empty response');
+      if (!response.success) {
+        this.logger.error('Failed to generate chat title: %s', response.error);
 
         return null;
       }
@@ -520,7 +625,7 @@ Title:`;
       return title || null;
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Error generating chat title: %s', errorText);
+      this.logger.error('Error generating chat title: %s', errorText);
 
       return null;
     }

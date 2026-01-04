@@ -1,4 +1,4 @@
-import { logger } from '@writing-tools/shared';
+import type { ILogger } from '@writing-tools/shared';
 import type { MenuItemConstructorOptions } from 'electron';
 import { Tray, Menu, app } from 'electron';
 
@@ -9,9 +9,11 @@ import type { ITrayService } from './ITrayService';
 
 export class TrayService implements ITrayService {
   private tray: Tray | null = null;
+  private readonly logger: ILogger;
   private readonly windowService: IWindowService;
 
-  public constructor(windowService: IWindowService) {
+  public constructor(windowService: IWindowService, logger: ILogger) {
+    this.logger = logger;
     this.windowService = windowService;
   }
 
@@ -24,9 +26,9 @@ export class TrayService implements ITrayService {
         click: () => {
           this.windowService.getChatListWindow().catch((error: unknown) => {
             if (error instanceof Error) {
-              logger.error(error.message);
+              this.logger.error(error.message);
             } else {
-              logger.error(String(error));
+              this.logger.error(String(error));
             }
           });
         },
@@ -36,9 +38,9 @@ export class TrayService implements ITrayService {
         click: () => {
           this.windowService.getChatWindow().catch((error: unknown) => {
             if (error instanceof Error) {
-              logger.error(error.message);
+              this.logger.error(error.message);
             } else {
-              logger.error(String(error));
+              this.logger.error(String(error));
             }
           });
         },
@@ -48,9 +50,9 @@ export class TrayService implements ITrayService {
         click: () => {
           this.windowService.createSettingsWindow().catch((error: unknown) => {
             if (error instanceof Error) {
-              logger.error(error.message);
+              this.logger.error(error.message);
             } else {
-              logger.error(String(error));
+              this.logger.error(String(error));
             }
           });
         },

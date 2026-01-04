@@ -13,13 +13,13 @@ import { SettingsActions } from './settings/SettingsActions';
 import { SettingsNotifications } from './settings/SettingsNotifications';
 
 interface SettingsProps {
-  settingsService: SettingsService;
+  readonly settingsService: SettingsService;
+  readonly isModal?: boolean;
 }
 
-const Settings: React.FC<SettingsProps> = ({ settingsService }) => {
+const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false }) => {
   const [settings, setSettings] = useState<ISettings>(useMemo(() => ({ ...DefaultSettings }), []));
-  // originalSettings is managed via callback in SettingsService
-  const [_originalSettings, setOriginalSettings] = useState<ISettings>(useMemo(() => ({ ...DefaultSettings }), []));
+  // originalSettings is managed via callback in SettingsService, but component doesn't need to track it
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,9 @@ const Settings: React.FC<SettingsProps> = ({ settingsService }) => {
   useEffect(() => {
     settingsService.setCallbacks({
       onSettingsChange: setSettings,
-      onOriginalSettingsChange: setOriginalSettings,
+      onOriginalSettingsChange: () => {
+        // Component doesn't need to track originalSettings, service handles it internally
+      },
       onAvailableModelsChange: setAvailableModels,
       onLoadingModelsChange: setLoadingModels,
       onErrorChange: setError,
@@ -140,10 +142,14 @@ const Settings: React.FC<SettingsProps> = ({ settingsService }) => {
   };
 
   return (
-    <div className={`min-h-screen p-4 font-sans ${BackgroundStyles.main}`}>
-      <div className={LayoutStyles.container}>
-        <h2 className={TypographyStyles.h1}>Settings</h2>
-        <p className={`${TypographyStyles.subtitle} mb-6`}>Configure your application preferences</p>
+    <div className={isModal ? 'font-sans' : `min-h-screen p-4 font-sans ${BackgroundStyles.main}`}>
+      <div className={isModal ? '' : LayoutStyles.container}>
+        {!isModal && (
+          <>
+            <h2 className={TypographyStyles.h1}>Settings</h2>
+            <p className={`${TypographyStyles.subtitle} mb-6`}>Configure your application preferences</p>
+          </>
+        )}
 
         <SettingsNotifications error={error} success={success} />
 

@@ -1,9 +1,11 @@
-import { logger } from '@writing-tools/shared';
-import { app } from 'electron';
+import type { ILogger } from '@writing-tools/shared';
+import { app, globalShortcut } from 'electron';
+import isDev from 'electron-is-dev';
+import * as path from 'node:path';
 
 import type { IChatService } from '../../domains/chat';
 import { ChatRepository, ChatService } from '../../domains/chat';
-import { ModelService } from '../../domains/llm';
+import { LMStudioModelService, ModelService, OllamaModelService } from '../../domains/llm';
 import { SettingsRepository, SettingsService } from '../../domains/settings';
 import type { ISettingsService } from '../../domains/settings/ISettingsService';
 import { ShortcutService } from '../../domains/shortcuts';
@@ -20,16 +22,25 @@ import type { IIpcHandlers } from '../ipc/IIpcHandlers';
 export class AppBootstrap {
   private readonly chatService: IChatService;
   private readonly ipcHandlers: IIpcHandlers;
+  private readonly logger: ILogger;
   private readonly settingsService: ISettingsService;
   private readonly shortcutService: IShortcutService;
   private readonly textSelectionService: ITextSelectionService;
   private readonly trayService: ITrayService;
   private readonly windowService: IWindowService;
 
-  public constructor() {
+  public constructor(logger: ILogger) {
+    this.logger = logger;
     // Create repositories (no dependencies)
-    const settingsRepository = new SettingsRepository();
-    const chatRepository = new ChatRepository();
+    // In development, use the development app-data directory
+    // In production, use Electron's app data directory
+    // process.cwd() in development: packages/main
+    // So path.resolve(process.cwd(), 'app-data') = packages/main/app-data
+    const appPath = isDev
+      ? path.resolve(process.cwd(), 'app-data')
+      : path.join(app.getPath('appData'), app.getName());
+    const settingsRepository = new SettingsRepository(this.logger, appPath);
+    const chatRepository = new ChatRepository(this.logger, appPath);
 
     // Create services in dependency order
     this.settingsService = new SettingsService(settingsRepository);
@@ -39,15 +50,24 @@ export class AppBootstrap {
       this.settingsService,
       this.textSelectionService,
       this.windowService,
+      this.logger,
+      globalShortcut,
     );
-    this.trayService = new TrayService(this.windowService);
-    const modelService = new ModelService(this.settingsService);
-    this.chatService = new ChatService(chatRepository, modelService);
+    this.trayService = new TrayService(this.windowService, this.logger);
+    const ollamaModelService = new OllamaModelService(this.settingsService, this.logger);
+    const lmStudioModelService = new LMStudioModelService(this.settingsService, this.logger);
+    const modelService = new ModelService(
+      this.settingsService,
+      ollamaModelService,
+      lmStudioModelService,
+    );
+    this.chatService = new ChatService(chatRepository, modelService, this.logger);
     this.ipcHandlers = new IpcHandlers(
       this.settingsService,
       modelService,
       this.windowService,
       this.chatService,
+      this.logger,
     );
   }
 
@@ -63,7 +83,7 @@ export class AppBootstrap {
           const errorText = error instanceof Error
             ? error.message
             : String(error);
-          logger.error('Failed to load settings on startup: %s', errorText);
+          this.logger.error('Failed to load settings on startup: %s', errorText);
         }
 
         try {
@@ -73,7 +93,7 @@ export class AppBootstrap {
           const errorText = error instanceof Error
             ? error.message
             : String(error);
-          logger.error('Failed to initialize chat database: %s', errorText);
+          this.logger.error('Failed to initialize chat database: %s', errorText);
         }
 
         this.trayService.createTray();
@@ -83,7 +103,7 @@ export class AppBootstrap {
         const errorText = error instanceof Error
           ? error.message
           : String(error);
-        logger.error('Error in ready handler: %s', errorText);
+        this.logger.error('Error in ready handler: %s', errorText);
       });
     });
 
@@ -96,7 +116,7 @@ export class AppBootstrap {
         const errorText = error instanceof Error
           ? error.message
           : String(error);
-        logger.error(`Can't show window: %s`, errorText);
+        this.logger.error(`Can't show window: %s`, errorText);
       });
     });
 
@@ -105,7 +125,7 @@ export class AppBootstrap {
         const errorText = error instanceof Error
           ? error.message
           : String(error);
-        logger.error(`Can't show window: %s`, errorText);
+        this.logger.error(`Can't show window: %s`, errorText);
       });
     });
   }

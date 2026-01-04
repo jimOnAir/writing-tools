@@ -14,22 +14,20 @@ const PromptSelectorComponent: React.FC<PromptSelectorComponentProps> = ({ promp
   const [preconfiguredPrompts, setPreconfiguredPrompts] = useState<IPreconfiguredPrompt[]>([]);
   const [customPrompt, setCustomPrompt] = useState<string>('');
 
-  // Register callbacks
+  // Register callbacks and load initial data
   useEffect(() => {
     promptSelectorService.setCallbacks({
       onSelectedTextChange: setSelectedText,
       onPromptsChange: setPreconfiguredPrompts,
     });
+
+    // Load initial data from the service
+    setSelectedText(promptSelectorService.getSelectedText());
+    setPreconfiguredPrompts(promptSelectorService.getPreconfiguredPrompts());
   }, [promptSelectorService]);
 
-  // Initialize listeners on mount
-  useEffect(() => {
-    promptSelectorService.initializeListeners();
-
-    return () => {
-      promptSelectorService.cleanupListeners();
-    };
-  }, [promptSelectorService]);
+  // Note: Listeners are initialized in MainLayout
+  // The service is shared across tabs, so we don't initialize/cleanup here
 
   const handlePromptSelect = async (promptTemplate: string) => {
     try {

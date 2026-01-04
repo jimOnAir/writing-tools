@@ -6,10 +6,11 @@ import { ButtonStyles, BackgroundStyles, TypographyStyles, ColorPalette } from '
 import { renderMarkdown } from '../utils/markdownRenderer';
 
 interface ChatListComponentProps {
-  chatListService: ChatListService;
+  readonly chatListService: ChatListService;
+  readonly onChatSelect: (chatId: number) => void;
 }
 
-const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService }) => {
+const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, onChatSelect }) => {
   const [chats, setChats] = useState<IChatInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,13 +26,22 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService }
     });
   }, [chatListService]);
 
+  // Initialize listeners
+  useEffect(() => {
+    chatListService.initializeListeners();
+
+    return () => {
+      chatListService.cleanupListeners();
+    };
+  }, [chatListService]);
+
   // Load chats on mount
   useEffect(() => {
     void chatListService.loadChats();
   }, [chatListService]);
 
-  const handleOpenChat = async (chatId: number) => {
-    await chatListService.openChat(chatId);
+  const handleOpenChat = (chatId: number): void => {
+    onChatSelect(chatId);
   };
 
   const handleDeleteChat = async (chatId: number, event: React.MouseEvent) => {
@@ -68,23 +78,21 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService }
   };
 
   return (
-    <div className={`flex flex-col h-full p-4 w-full ${BackgroundStyles.main}`}>
-      <h1 className={TypographyStyles.h1}>Chat List</h1>
-
+    <div className="flex flex-col h-full p-2 overflow-hidden">
       {error && (
-        <div className={`mb-3 p-3 ${BackgroundStyles.card} ${ColorPalette.text.secondary} rounded`}>
+        <div className={`mb-2 p-2 ${BackgroundStyles.card} ${ColorPalette.text.secondary} rounded text-sm`}>
           Error: {error}
         </div>
       )}
 
       {isLoading && (
         <div className={`flex-1 flex items-center justify-center ${ColorPalette.text.muted}`}>
-          <p>Loading chats...</p>
+          <p className="text-sm">Loading chats...</p>
         </div>
       )}
       {!isLoading && chats.length === 0 && (
-        <div className={`flex-1 flex items-center justify-center ${ColorPalette.text.muted}`}>
-          <p>No chats yet. Start a new conversation to see it here.</p>
+        <div className={`flex-1 flex items-center justify-center ${ColorPalette.text.muted} px-2`}>
+          <p className="text-sm text-center">No chats yet. Start a new conversation to see it here.</p>
         </div>
       )}
       {!isLoading && chats.length > 0 && (
@@ -102,7 +110,7 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService }
                 <button
                   type="button"
                   onClick={() => {
-                    void handleOpenChat(chat.id);
+                    handleOpenChat(chat.id);
                   }}
                   className="flex-1 min-w-0 text-left"
                   aria-label={`Open chat: ${displayTitle}`}

@@ -1,4 +1,7 @@
+import { Logger } from '@writing-tools/shared';
+
 import { AppBootstrap } from './infrastructure/bootstrap';
 
-const bootstrap = new AppBootstrap();
+const logger = new Logger();
+const bootstrap = new AppBootstrap(logger);
 bootstrap.initialize();

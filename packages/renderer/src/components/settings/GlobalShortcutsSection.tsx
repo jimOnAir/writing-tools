@@ -2,7 +2,7 @@ import React from 'react';
 
 import { ButtonStyles, InputStyles, BackgroundStyles, TypographyStyles, LayoutStyles, ColorPalette } from '../../styles/Styles';
 
-interface GlobalShortcutsSectionProps {
+export interface GlobalShortcutsSectionProps {
   readonly currentShortcut: string | undefined;
   readonly newShortcut: string;
   readonly onNewShortcutChange: (value: string) => void;

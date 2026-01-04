@@ -16,6 +16,8 @@ declare global {
       offChatTitleUpdated: (listener: TIpcRenderListener) => void,
       onChatLoadMessagesData: (callback: (data: { chatId: number, messages: IChatMessage[] }) => void) => TIpcRenderListener,
       offChatLoadMessagesData: (listener: TIpcRenderListener) => void,
+      onChatCreated: (callback: (data: { chatId: number }) => void) => TIpcRenderListener,
+      offChatCreated: (listener: TIpcRenderListener) => void,
       onChatDeleted: (callback: (data: { chatId: number }) => void) => TIpcRenderListener,
       offChatDeleted: (listener: TIpcRenderListener) => void,
     };

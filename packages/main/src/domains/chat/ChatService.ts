@@ -1,5 +1,4 @@
-import { logger } from '@writing-tools/shared';
-import type { IChatInfo, IChatMessage } from '@writing-tools/shared';
+import type { IChatInfo, IChatMessage, ILogger } from '@writing-tools/shared';
 
 import type { IModelService } from '../llm/IModelService';
 
@@ -7,12 +6,14 @@ import type { IChatRepository } from './IChatRepository';
 import type { IChatService } from './IChatService';
 
 export class ChatService implements IChatService {
-  private readonly repository: IChatRepository;
+  private readonly logger: ILogger;
   private readonly modelService: IModelService;
+  private readonly repository: IChatRepository;
 
-  public constructor(repository: IChatRepository, modelService: IModelService) {
-    this.repository = repository;
+  public constructor(repository: IChatRepository, modelService: IModelService, logger: ILogger) {
+    this.logger = logger;
     this.modelService = modelService;
+    this.repository = repository;
   }
 
   public async initialize(): Promise<void> {
@@ -65,8 +66,8 @@ Assistant: ${assistantMessage}
         },
       ]);
 
-      if ('error' in response) {
-        logger.error('Failed to generate chat title: %s', response.error);
+      if (response.success === false) {
+        this.logger.error('Failed to generate chat title: %s', response.error);
 
         return null;
       }
@@ -89,7 +90,7 @@ Assistant: ${assistantMessage}
       return title || null;
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Error generating chat title: %s', errorText);
+      this.logger.error('Error generating chat title: %s', errorText);
 
       return null;
     }
