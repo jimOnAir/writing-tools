@@ -117,10 +117,7 @@ describe('IpcHandlers', () => {
     } as unknown as jest.Mocked<ISettingsService>;
 
     mockWindowService = {
-      getChatWindow: jest.fn(),
-      getSettingsWindow: jest.fn(),
-      getPromptSelectorWindow: jest.fn(),
-      getChatListWindow: jest.fn(),
+      getMainWindow: jest.fn(),
     } as unknown as jest.Mocked<IWindowService>;
 
     mockLogger = {
@@ -140,8 +137,9 @@ describe('IpcHandlers', () => {
       mockLogger,
     );
 
-    (mockWindowService.getChatWindow as jest.Mock).mockResolvedValue({
+    (mockWindowService.getMainWindow as jest.Mock).mockResolvedValue({
       window: mockChatWindow,
+      created: false,
     });
   });
 

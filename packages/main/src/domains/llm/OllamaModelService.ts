@@ -16,7 +16,7 @@ export class OllamaModelService implements IOllamaModelService {
     this.settingsService = settingsService;
   }
 
-  public fetchModels = async (): Promise<{ models: string[] } | { error: string }> => {
+  public fetchModels = async () => {
     const settings = await this.settingsService.loadSettings();
     const client = new OllamaClient({
       host: settings.ollama.address,

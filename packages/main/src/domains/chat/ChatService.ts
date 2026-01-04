@@ -66,7 +66,7 @@ Assistant: ${assistantMessage}
         },
       ]);
 
-      if (response.success === false) {
+      if (!response.success) {
         this.logger.error('Failed to generate chat title: %s', response.error);
 
         return null;

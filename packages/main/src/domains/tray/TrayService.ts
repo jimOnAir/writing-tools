@@ -22,33 +22,9 @@ export class TrayService implements ITrayService {
 
     const menuItems: MenuItemConstructorOptions[] = [
       {
-        label: 'Chat List',
-        click: () => {
-          this.windowService.getChatListWindow().catch((error: unknown) => {
-            if (error instanceof Error) {
-              this.logger.error(error.message);
-            } else {
-              this.logger.error(String(error));
-            }
-          });
-        },
-      },
-      {
         label: 'Show',
         click: () => {
-          this.windowService.getChatWindow().catch((error: unknown) => {
-            if (error instanceof Error) {
-              this.logger.error(error.message);
-            } else {
-              this.logger.error(String(error));
-            }
-          });
-        },
-      },
-      {
-        label: 'Settings',
-        click: () => {
-          this.windowService.createSettingsWindow().catch((error: unknown) => {
+          this.windowService.getMainWindow().catch((error: unknown) => {
             if (error instanceof Error) {
               this.logger.error(error.message);
             } else {

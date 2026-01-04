@@ -66,10 +66,10 @@ export class ShortcutService implements IShortcutService {
 
       const settings = await this.settingsService.loadSettings();
 
-      // Send prompt selector data to the main chat window
-      // The chat window's MultiChatService will create a prompt selector tab
-      const { window: chatWindow } = await this.windowService.getChatWindow();
-      chatWindow.webContents.send(EIpcRendererEvent.PROMPT_SELECTOR_DATA, {
+      // Send prompt selector data to the mainWindow
+      // The mainWindow's MultiChatService will create a prompt selector tab
+      const { window: mainWindow } = await this.windowService.getMainWindow();
+      mainWindow.webContents.send(EIpcRendererEvent.PROMPT_SELECTOR_DATA, {
         selectedText,
         preconfiguredPrompts: settings.preconfiguredPrompts,
       });

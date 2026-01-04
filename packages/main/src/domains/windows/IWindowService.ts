@@ -6,22 +6,7 @@ import type { WindowCreationResult } from './WindowTypes';
  */
 export interface IWindowService {
   /**
-   * Get or create the chat window
+   * Get or create the main window
    */
-  getChatWindow: () => Promise<WindowCreationResult>;
-
-  /**
-   * Get or create the prompt selector window
-   */
-  getPromptSelectorWindow: () => Promise<WindowCreationResult>;
-
-  /**
-   * Create or show the settings window
-   */
-  createSettingsWindow: () => Promise<void>;
-
-  /**
-   * Get or create the chat list window
-   */
-  getChatListWindow: () => Promise<WindowCreationResult>;
+  getMainWindow: () => Promise<WindowCreationResult>;
 }

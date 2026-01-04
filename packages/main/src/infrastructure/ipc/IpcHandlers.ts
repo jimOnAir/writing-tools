@@ -212,66 +212,33 @@ export class IpcHandlers implements IIpcHandlers {
       try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:207',message:'Chat created before window notification',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
       // #endregion
 
-      // Notify main chat window if it already exists (don't create window just to notify)
+      // Notify mainWindow if it already exists (don't create window just to notify)
       try {
         // #region agent log
-        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:212',message:'Before getChatWindow call',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:212',message:'Before getMainWindow call',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
         // #endregion
-        const { window: chatWindow, created: chatWindowCreated } = await this.windowService.getChatWindow();
+        const { window: mainWindow, created: mainWindowCreated } = await this.windowService.getMainWindow();
         // #region agent log
-        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:215',message:'After getChatWindow call',data:{chatId,chatWindowCreated,isDestroyed:chatWindow.isDestroyed()},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:215',message:'After getMainWindow call',data:{chatId,mainWindowCreated,isDestroyed:mainWindow.isDestroyed()},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
         // #endregion
         // Only send notification if window already existed (created === false)
         // If window was just created (created === true), don't send notification and close it
-        if (chatWindowCreated === false && !chatWindow.isDestroyed()) {
+        if (mainWindowCreated === false && !mainWindow.isDestroyed()) {
           // #region agent log
-          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:218',message:'Sending CHAT_CREATED notification to existing window',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:218',message:'Sending CHAT_CREATED notification to existing mainWindow',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
           // #endregion
-          chatWindow.webContents.send(EIpcRendererEvent.CHAT_CREATED, {
+          mainWindow.webContents.send(EIpcRendererEvent.CHAT_CREATED, {
             chatId,
           });
-        } else if (chatWindowCreated === true) {
+        } else if (mainWindowCreated === true) {
           // #region agent log
-          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:223',message:'Window was created unnecessarily, closing it',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:223',message:'MainWindow was created unnecessarily, closing it',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
           // #endregion
           // Window was created unnecessarily - close it to prevent it from showing
-          chatWindow.close();
-        }
-      } catch (error: unknown) {
-        // #region agent log
-        const errorText = error instanceof Error ? error.message : String(error);
-        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:229',message:'Error in getChatWindow try block',data:{chatId,error:errorText},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'B'})+'\n');}catch(_){}
-        // #endregion
-        // Chat window might not exist, ignore
-      }
-
-      // Notify chat list window if it already exists (don't create window just to notify)
-      try {
-        // #region agent log
-        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:235',message:'Before getChatListWindow call',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
-        // #endregion
-        const { window: chatListWindow, created: chatListWindowCreated } = await this.windowService.getChatListWindow();
-        // #region agent log
-        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:238',message:'After getChatListWindow call',data:{chatId,chatListWindowCreated,isDestroyed:chatListWindow.isDestroyed()},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
-        // #endregion
-        // Only send notification if window already existed (created === false)
-        // If window was just created (created === true), don't send notification and close it
-        if (chatListWindowCreated === false && !chatListWindow.isDestroyed()) {
-          // #region agent log
-          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:242',message:'Sending CHAT_CREATED notification to existing chat list window',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
-          // #endregion
-          chatListWindow.webContents.send(EIpcRendererEvent.CHAT_CREATED, {
-            chatId,
-          });
-        } else if (chatListWindowCreated === true) {
-          // #region agent log
-          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:248',message:'Chat list window was created unnecessarily, closing it',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
-          // #endregion
-          // Window was created unnecessarily - close it to prevent it from showing
-          chatListWindow.close();
+          mainWindow.close();
         }
       } catch {
-        // Chat list window might not exist, ignore
+        // MainWindow might not exist, ignore
       }
 
       // #region agent log
@@ -375,14 +342,14 @@ export class IpcHandlers implements IIpcHandlers {
         return { success: false, error: `Chat with id ${String(chatId)} not found` };
       }
 
-      // Get or create chat window
-      const { window: chatWindow } = await this.windowService.getChatWindow();
+      // Get or create mainWindow
+      const { window: mainWindow } = await this.windowService.getMainWindow();
 
       // Load messages for this chat
       const messages = this.chatService.loadChatMessages(chatId);
 
-      // Send messages to chat window
-      chatWindow.webContents.send(EIpcRendererEvent.CHAT_LOAD_MESSAGES_DATA, {
+      // Send messages to mainWindow
+      mainWindow.webContents.send(EIpcRendererEvent.CHAT_LOAD_MESSAGES_DATA, {
         chatId,
         messages,
       });
@@ -397,7 +364,7 @@ export class IpcHandlers implements IIpcHandlers {
   }
 
   private async handlePromptSelect(prompt: string): Promise<void> {
-    const { window: chatWindow } = await this.windowService.getChatWindow();
+    const { window: mainWindow } = await this.windowService.getMainWindow();
 
     // Create a new chat session for the prompt
     const settings = await this.settingsService.loadSettings();
@@ -422,7 +389,7 @@ export class IpcHandlers implements IIpcHandlers {
     }
 
     this.logger.info('Send chat-window-data: %s, chatId=%s', prompt, String(chatId));
-    chatWindow.webContents.send(EIpcRendererEvent.CHAT_WINDOW_DATA, {
+    mainWindow.webContents.send(EIpcRendererEvent.CHAT_WINDOW_DATA, {
       prompt,
       chatId,
     });
@@ -451,7 +418,7 @@ export class IpcHandlers implements IIpcHandlers {
         this.logger.error('Failed to save error message: %s', errorText);
       }
 
-      chatWindow.webContents.send(EIpcRendererEvent.OLLAMA_RESPONSE, {
+      mainWindow.webContents.send(EIpcRendererEvent.OLLAMA_RESPONSE, {
         error: response.error,
         chatId,
       });
@@ -475,7 +442,7 @@ export class IpcHandlers implements IIpcHandlers {
     }
 
     const result = response.response;
-    chatWindow.webContents.send(EIpcRendererEvent.OLLAMA_RESPONSE, {
+    mainWindow.webContents.send(EIpcRendererEvent.OLLAMA_RESPONSE, {
       result,
       chatId,
     });
@@ -537,35 +504,35 @@ export class IpcHandlers implements IIpcHandlers {
         this.chatService.updateChatTitle(chatId, title);
         this.logger.info('Title generated and saved: chatId=%s, title="%s"', String(chatId), title);
 
-        // Send title update event to chat window if it already exists (don't create window just to notify)
+        // Send title update event to mainWindow if it already exists (don't create window just to notify)
         try {
           // #region agent log
-          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:539',message:'Before getChatWindow call for title update',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:539',message:'Before getMainWindow call for title update',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
           // #endregion
           this.logger.info('Attempting to send title update event: chatId=%s', String(chatId));
-          const { window: chatWindow, created: chatWindowCreated } = await this.windowService.getChatWindow();
+          const { window: mainWindow, created: mainWindowCreated } = await this.windowService.getMainWindow();
           // #region agent log
-          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:542',message:'After getChatWindow call for title update',data:{chatId,chatWindowCreated,isDestroyed:chatWindow.isDestroyed()},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:542',message:'After getMainWindow call for title update',data:{chatId,mainWindowCreated,isDestroyed:mainWindow.isDestroyed()},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
           // #endregion
           // Only send notification if window already existed (created === false)
           // If window was just created (created === true), don't send notification and close it
-          if (chatWindowCreated === false && !chatWindow.isDestroyed()) {
+          if (mainWindowCreated === false && !mainWindow.isDestroyed()) {
             // #region agent log
-            try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:545',message:'Sending CHAT_TITLE_UPDATED notification to existing window',data:{chatId,title},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+            try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:545',message:'Sending CHAT_TITLE_UPDATED notification to existing mainWindow',data:{chatId,title},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
             // #endregion
-            chatWindow.webContents.send(EIpcRendererEvent.CHAT_TITLE_UPDATED, {
+            mainWindow.webContents.send(EIpcRendererEvent.CHAT_TITLE_UPDATED, {
               chatId,
               title,
             });
             this.logger.info('Title update event sent: chatId=%s, title="%s"', String(chatId), title);
-          } else if (chatWindowCreated === true) {
+          } else if (mainWindowCreated === true) {
             // #region agent log
-            try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:554',message:'Window was created unnecessarily for title update, closing it',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
+            try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:554',message:'MainWindow was created unnecessarily for title update, closing it',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
             // #endregion
             // Window was created unnecessarily - close it to prevent it from showing
-            chatWindow.close();
-          } else if (chatWindow.isDestroyed()) {
-            this.logger.warn('Chat window is destroyed, cannot send title update event: chatId=%s', String(chatId));
+            mainWindow.close();
+          } else if (mainWindow.isDestroyed()) {
+            this.logger.warn('MainWindow is destroyed, cannot send title update event: chatId=%s', String(chatId));
           }
         } catch (error: unknown) {
           const errorText = error instanceof Error ? error.message : String(error);

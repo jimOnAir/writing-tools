@@ -44,7 +44,7 @@ export class AppBootstrap {
 
     // Create services in dependency order
     this.settingsService = new SettingsService(settingsRepository);
-    this.windowService = new WindowService(this.settingsService);
+    this.windowService = new WindowService();
     this.textSelectionService = new TextSelectionService();
     this.shortcutService = new ShortcutService(
       this.settingsService,
@@ -111,17 +111,8 @@ export class AppBootstrap {
       // do nothing
     });
 
-    app.on('activate', () => {
-      this.windowService.getChatWindow().catch((error: unknown) => {
-        const errorText = error instanceof Error
-          ? error.message
-          : String(error);
-        this.logger.error(`Can't show window: %s`, errorText);
-      });
-    });
-
     app.on('second-instance', () => {
-      this.windowService.getChatWindow().catch((error: unknown) => {
+      this.windowService.getMainWindow().catch((error: unknown) => {
         const errorText = error instanceof Error
           ? error.message
           : String(error);

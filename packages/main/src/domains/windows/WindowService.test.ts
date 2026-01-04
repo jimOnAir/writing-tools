@@ -1,7 +1,5 @@
 import { BrowserWindow } from 'electron';
 
-import type { ISettingsService } from '../settings/ISettingsService';
-
 import { WindowService } from './WindowService';
 
 // Mock electron modules
@@ -57,7 +55,6 @@ jest.mock('../../icons', () => ({
 }));
 
 describe('WindowService', () => {
-  let mockSettingsService: jest.Mocked<ISettingsService>;
   let windowService: WindowService;
 
   beforeEach(() => {
@@ -68,97 +65,107 @@ describe('WindowService', () => {
       windows.length = 0;
     }
 
-    mockSettingsService = {
-      loadSettings: jest.fn(),
-      saveSettings: jest.fn(),
-    } as unknown as jest.Mocked<ISettingsService>;
-
-    windowService = new WindowService(mockSettingsService);
+    windowService = new WindowService();
   });
 
-  describe('getChatWindow', () => {
-    it('creates a new chat window', async () => {
-      const result = await windowService.getChatWindow();
+  describe('getMainWindow', () => {
+    it('creates a new mainWindow', async () => {
+      const result = await windowService.getMainWindow();
 
       expect(BrowserWindow).toHaveBeenCalled();
       expect(result.created).toBe(true);
       expect(result.window).toBeDefined();
     });
 
-    it('reuses existing chat window', async () => {
-      const firstResult = await windowService.getChatWindow();
-      const secondResult = await windowService.getChatWindow();
+    it('reuses existing mainWindow', async () => {
+      const firstResult = await windowService.getMainWindow();
+      const secondResult = await windowService.getMainWindow();
 
       expect(secondResult.created).toBe(false);
       expect(secondResult.window).toBe(firstResult.window);
     });
 
     it('shows and focuses existing window', async () => {
-      const firstResult = await windowService.getChatWindow();
+      const firstResult = await windowService.getMainWindow();
       const mockWindow = firstResult.window as {
         focus: jest.Mock,
         show: jest.Mock,
       };
 
-      await windowService.getChatWindow();
+      await windowService.getMainWindow();
 
       expect(mockWindow.show).toHaveBeenCalled();
       expect(mockWindow.focus).toHaveBeenCalled();
     });
-  });
 
-  describe('getPromptSelectorWindow', () => {
-    it('creates a new prompt selector window', async () => {
-      const result = await windowService.getPromptSelectorWindow();
+    it('finds existing mainWindow when reference is lost', async () => {
+      const firstResult = await windowService.getMainWindow();
+      const mockWindow = firstResult.window as {
+        webContents: { getURL: jest.Mock },
+        isDestroyed: jest.Mock,
+        on: jest.Mock,
+        show: jest.Mock,
+        focus: jest.Mock,
+      };
 
-      expect(BrowserWindow).toHaveBeenCalled();
-      expect(result.created).toBe(true);
-    });
+      // Simulate losing the reference by clearing the internal reference
+      // Use empty string URL which matches the condition (winUrl === '' || winUrl === rendererUrl)
+      // This simulates a window that's still loading or matches the renderer URL
+      mockWindow.webContents.getURL.mockReturnValue('');
+      mockWindow.isDestroyed.mockReturnValue(false);
 
-    it('reuses existing prompt selector window', async () => {
-      await windowService.getPromptSelectorWindow();
-      const secondResult = await windowService.getPromptSelectorWindow();
+      // Clear the internal reference (simulating it was lost)
+      (windowService as unknown as { chatListWindow: Electron.BrowserWindow | null }).chatListWindow = null;
 
-      expect(secondResult.created).toBe(false);
-    });
-  });
+      // Get all windows mock to return our window
+      const getAllWindowsMock = BrowserWindow.getAllWindows as jest.Mock;
+      getAllWindowsMock.mockReturnValue([mockWindow]);
 
-  describe('createSettingsWindow', () => {
-    it('creates a new settings window', async () => {
-      await windowService.createSettingsWindow();
-
-      expect(BrowserWindow).toHaveBeenCalled();
-    });
-
-    it('reuses existing settings window', async () => {
-      await windowService.createSettingsWindow();
-      await windowService.createSettingsWindow();
-
-      // Window should be reused, so BrowserWindow should only be called once
-      expect(BrowserWindow).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('getChatListWindow', () => {
-    it('creates a new chat list window', async () => {
-      const result = await windowService.getChatListWindow();
-
-      expect(BrowserWindow).toHaveBeenCalled();
-      expect(result.created).toBe(true);
-    });
-
-    it('reuses existing chat list window', async () => {
-      await windowService.getChatListWindow();
-      const secondResult = await windowService.getChatListWindow();
+      const secondResult = await windowService.getMainWindow();
 
       expect(secondResult.created).toBe(false);
+      expect(secondResult.window).toBe(mockWindow);
+    });
+
+    it('findExistingMainWindow correctly identifies mainWindow by URL', async () => {
+      const mockWindow1 = {
+        isDestroyed: jest.fn(() => false),
+        webContents: {
+          getURL: jest.fn(() => ''),
+        },
+        on: jest.fn(),
+        show: jest.fn(),
+        focus: jest.fn(),
+      } as unknown as Electron.BrowserWindow;
+
+      const mockWindow2 = {
+        isDestroyed: jest.fn(() => false),
+        webContents: {
+          getURL: jest.fn(() => 'file:///path/to/renderer/index.html?view=settings'),
+        },
+        on: jest.fn(),
+        show: jest.fn(),
+        focus: jest.fn(),
+      } as unknown as Electron.BrowserWindow;
+
+      const getAllWindowsMock = BrowserWindow.getAllWindows as jest.Mock;
+      getAllWindowsMock.mockReturnValue([mockWindow1, mockWindow2]);
+
+      // Clear internal reference first
+      (windowService as unknown as { chatListWindow: Electron.BrowserWindow | null }).chatListWindow = null;
+
+      // Now getMainWindow should find mockWindow1 (empty URL or no view parameter) but not mockWindow2 (has view parameter)
+      const result = await windowService.getMainWindow();
+
+      expect(result.created).toBe(false);
+      expect(result.window).toBe(mockWindow1);
     });
   });
 
   describe('getNativeWindowOptions', () => {
     it('returns platform-specific window options', async () => {
       // This is a private method, but we can test it indirectly through window creation
-      const result = await windowService.getChatWindow();
+      const result = await windowService.getMainWindow();
 
       expect(result).toBeDefined();
       expect(result.window).toBeDefined();

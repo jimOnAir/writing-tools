@@ -24,12 +24,10 @@ jest.mock('../../icons', () => ({
   getAppIcon: jest.fn(() => 'icon-path'),
 }));
 
-const MENU_ITEM_COUNT = 5;
-const CHAT_LIST_INDEX = 0;
-const SHOW_INDEX = 1;
-const SETTINGS_INDEX = 2;
-const SEPARATOR_INDEX = 3;
-const QUIT_INDEX = 4;
+const MENU_ITEM_COUNT = 3;
+const SHOW_INDEX = 0;
+const SEPARATOR_INDEX = 1;
+const QUIT_INDEX = 2;
 
 describe('TrayService', () => {
   let mockLogger: jest.Mocked<ILogger>;
@@ -59,11 +57,7 @@ describe('TrayService', () => {
     trayMock.mockImplementation(() => mockTray);
 
     mockWindowService = {
-      createSettingsWindow: jest.fn().mockResolvedValue(undefined),
-      getChatListWindow: jest.fn().mockResolvedValue({ created: false, window: {} as Electron.BrowserWindow }),
-      getChatWindow: jest.fn().mockResolvedValue({ created: false, window: {} as Electron.BrowserWindow }),
-      getPromptSelectorWindow: jest.fn().mockResolvedValue({ created: false, window: {} as Electron.BrowserWindow }),
-      getSettingsWindow: jest.fn().mockResolvedValue({ created: false, window: {} as Electron.BrowserWindow }),
+      getMainWindow: jest.fn().mockResolvedValue({ created: false, window: {} as Electron.BrowserWindow }),
     } as unknown as jest.Mocked<IWindowService>;
 
     trayService = new TrayService(mockWindowService, mockLogger);
@@ -110,29 +104,9 @@ describe('TrayService', () => {
       const menuTemplate = firstCall[0];
 
       expect(menuTemplate).toHaveLength(MENU_ITEM_COUNT);
-      expect(menuTemplate[CHAT_LIST_INDEX]?.label).toBe('Chat List');
       expect(menuTemplate[SHOW_INDEX]?.label).toBe('Show');
-      expect(menuTemplate[SETTINGS_INDEX]?.label).toBe('Settings');
       expect(menuTemplate[SEPARATOR_INDEX]?.type).toBe('separator');
       expect(menuTemplate[QUIT_INDEX]?.label).toBe('Quit');
-    });
-
-    it('handles Chat List menu item click', () => {
-      trayService.createTray();
-
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      const buildFromTemplateMock = Menu.buildFromTemplate as jest.Mock<Electron.Menu, [MenuItemConstructorOptions[]]>;
-      const calls = buildFromTemplateMock.mock.calls;
-      expect(calls.length).toBeGreaterThan(0);
-      const firstCall = calls[0];
-      expect(firstCall).toBeDefined();
-      const menuTemplate = firstCall[0];
-      const chatListItem = menuTemplate[CHAT_LIST_INDEX];
-      const getChatListWindowMock = mockWindowService.getChatListWindow as jest.Mock;
-
-      (chatListItem.click as (() => void) | undefined)?.();
-
-      expect(getChatListWindowMock).toHaveBeenCalled();
     });
 
     it('handles Show menu item click', () => {
@@ -146,29 +120,11 @@ describe('TrayService', () => {
       expect(firstCall).toBeDefined();
       const menuTemplate = firstCall[0];
       const showItem = menuTemplate[SHOW_INDEX];
-      const getChatWindowMock = mockWindowService.getChatWindow as jest.Mock;
+      const getMainWindowMock = mockWindowService.getMainWindow as jest.Mock;
 
       (showItem.click as (() => void) | undefined)?.();
 
-      expect(getChatWindowMock).toHaveBeenCalled();
-    });
-
-    it('handles Settings menu item click', () => {
-      trayService.createTray();
-
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      const buildFromTemplateMock = Menu.buildFromTemplate as jest.Mock<Electron.Menu, [MenuItemConstructorOptions[]]>;
-      const calls = buildFromTemplateMock.mock.calls;
-      expect(calls.length).toBeGreaterThan(0);
-      const firstCall = calls[0];
-      expect(firstCall).toBeDefined();
-      const menuTemplate = firstCall[0];
-      const settingsItem = menuTemplate[SETTINGS_INDEX];
-      const createSettingsWindowMock = mockWindowService.createSettingsWindow as jest.Mock;
-
-      (settingsItem.click as (() => void) | undefined)?.();
-
-      expect(createSettingsWindowMock).toHaveBeenCalled();
+      expect(getMainWindowMock).toHaveBeenCalled();
     });
 
     it('handles Quit menu item click', () => {

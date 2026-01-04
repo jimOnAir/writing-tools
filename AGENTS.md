@@ -1914,7 +1914,7 @@ When designing React components, follow these essential principles to ensure com
 // ✅ Good: Generic tab component
 export const Tab: React.FC<TabProps> = ({ tab, isActive, onSelect, onClose, platform }) => {
   const displayTitle = tab.title && tab.title.trim().length > 0 ? tab.title : 'New Tab';
-  
+
   return (
     <button
       onClick={onSelect}
@@ -1928,7 +1928,7 @@ export const Tab: React.FC<TabProps> = ({ tab, isActive, onSelect, onClose, plat
 // ❌ Bad: Domain-specific tab component
 export const Tab: React.FC<TabProps> = ({ tab, isActive, onSelect, onClose, platform }) => {
   const displayTitle = tab.title && tab.title.trim().length > 0 ? tab.title : 'New Chat';
-  
+
   return (
     <button
       onClick={onSelect}
@@ -2837,10 +2837,10 @@ describe('Settings', () => {
 // ✅ Good: E2E test for bug fix
 /**
  * E2E test for duplicate LLM request bug fix
- * 
+ *
  * Bug: When switching from preconfigured prompts to chat tab,
  * the LLM request was being sent twice.
- * 
+ *
  * Fix: MultiChatService no longer calls sendMessage when receiving CHAT_WINDOW_DATA
  * from prompt select. Instead, it loads messages and lets the OLLAMA_RESPONSE
  * listener handle the response.

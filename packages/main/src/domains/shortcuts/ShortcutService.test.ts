@@ -9,7 +9,7 @@ import type { IGlobalShortcut } from './IGlobalShortcut';
 import { ShortcutService } from './ShortcutService';
 
 describe('ShortcutService', () => {
-  let mockChatWindow: {
+  let mockMainWindow: {
     webContents: {
       send: jest.Mock,
     },
@@ -39,7 +39,7 @@ describe('ShortcutService', () => {
       unregisterAll: jest.fn(),
     } as unknown as jest.Mocked<IGlobalShortcut>;
 
-    mockChatWindow = {
+    mockMainWindow = {
       webContents: {
         send: jest.fn(),
       },
@@ -55,15 +55,12 @@ describe('ShortcutService', () => {
     } as unknown as jest.Mocked<ITextSelectionService>;
 
     mockWindowService = {
-      createSettingsWindow: jest.fn(),
-      getChatListWindow: jest.fn(),
-      getChatWindow: jest.fn(),
-      getPromptSelectorWindow: jest.fn(),
-      getSettingsWindow: jest.fn(),
+      getMainWindow: jest.fn(),
     } as unknown as jest.Mocked<IWindowService>;
 
-    (mockWindowService.getChatWindow as jest.Mock).mockResolvedValue({
-      window: mockChatWindow,
+    (mockWindowService.getMainWindow as jest.Mock).mockResolvedValue({
+      window: mockMainWindow,
+      created: false,
     });
 
     shortcutService = new ShortcutService(
@@ -142,7 +139,7 @@ describe('ShortcutService', () => {
 
       await shortcutService.processGlobalShortcut();
 
-      expect(mockChatWindow.webContents.send).toHaveBeenCalledWith(
+      expect(mockMainWindow.webContents.send).toHaveBeenCalledWith(
         EIpcRendererEvent.PROMPT_SELECTOR_DATA,
         {
           selectedText: 'Selected text',
@@ -156,7 +153,7 @@ describe('ShortcutService', () => {
 
       await shortcutService.processGlobalShortcut();
 
-      expect(mockChatWindow.webContents.send).not.toHaveBeenCalled();
+      expect(mockMainWindow.webContents.send).not.toHaveBeenCalled();
     });
 
     it('does nothing when selected text is empty', async () => {
@@ -164,7 +161,7 @@ describe('ShortcutService', () => {
 
       await shortcutService.processGlobalShortcut();
 
-      expect(mockChatWindow.webContents.send).not.toHaveBeenCalled();
+      expect(mockMainWindow.webContents.send).not.toHaveBeenCalled();
     });
 
     it('handles errors when processing shortcut', async () => {
@@ -175,7 +172,7 @@ describe('ShortcutService', () => {
       await shortcutService.processGlobalShortcut();
 
       // Should not throw, just log error
-      expect(mockChatWindow.webContents.send).not.toHaveBeenCalled();
+      expect(mockMainWindow.webContents.send).not.toHaveBeenCalled();
     });
   });
 });
