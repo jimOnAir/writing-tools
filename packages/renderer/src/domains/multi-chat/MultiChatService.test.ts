@@ -13,7 +13,7 @@ jest.mock('../chat', () => {
   const actual = jest.requireActual('../chat');
 
   return {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return
+
     ...actual,
     ChatService: jest.fn(),
   };

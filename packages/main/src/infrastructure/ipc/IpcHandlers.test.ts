@@ -472,7 +472,6 @@ describe('IpcHandlers', () => {
       };
 
       mockChatService.getChat.mockReturnValue(mockChat);
-      (BrowserWindow.getAllWindows as jest.Mock).mockReturnValue([mockChatWindow]);
 
       ipcHandlers.register();
 
@@ -485,10 +484,6 @@ describe('IpcHandlers', () => {
       });
 
       expect(mockChatService.deleteChat).toHaveBeenCalledWith(1);
-      expect(mockChatWindow.webContents.send).toHaveBeenCalledWith(
-        EIpcRendererEvent.CHAT_DELETED,
-        { chatId: 1 },
-      );
       expect(result).toEqual({ success: true });
     });
 

@@ -1,7 +1,6 @@
 import './App.css';
-import { useMemo } from 'react';
-
 import { Logger } from '@writing-tools/shared';
+import { useMemo } from 'react';
 
 import { MainLayout } from './components/MainLayout';
 import { ChatListService } from './domains/chat-list';

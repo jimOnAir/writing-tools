@@ -35,6 +35,16 @@ html, body {
   padding: 0;
 }
 
+/* Native app cursor styling - override for specific elements if needed */
+button {
+  cursor: default;
+  user-select: none;
+}
+
+a[href] {
+  cursor: pointer;
+}
+
 #root {
   height: 100%;
 }

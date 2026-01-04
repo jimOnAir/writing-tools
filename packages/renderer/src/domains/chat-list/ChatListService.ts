@@ -16,6 +16,7 @@ export class ChatListService {
   private error: string | null = null;
   private deletingChatId: number | null = null;
   private chatCreatedListener: TIpcRenderListener | null = null;
+  private chatTitleUpdatedListener: TIpcRenderListener | null = null;
 
   // Callbacks for component state updates
   private onChatsChange?: (chats: IChatInfo[]) => void;
@@ -35,7 +36,12 @@ export class ChatListService {
       void this.loadChats();
     };
 
+    const handleChatTitleUpdated = (_data: { chatId: number, title: string }) => {
+      void this.loadChats();
+    };
+
     this.chatCreatedListener = this.ipcAdapter.onChatCreated(handleChatCreated);
+    this.chatTitleUpdatedListener = this.ipcAdapter.onChatTitleUpdated(handleChatTitleUpdated);
   }
 
   /**
@@ -45,6 +51,11 @@ export class ChatListService {
     if (this.chatCreatedListener) {
       this.ipcAdapter.offChatCreated(this.chatCreatedListener);
       this.chatCreatedListener = null;
+    }
+
+    if (this.chatTitleUpdatedListener) {
+      this.ipcAdapter.offChatTitleUpdated(this.chatTitleUpdatedListener);
+      this.chatTitleUpdatedListener = null;
     }
   }
 

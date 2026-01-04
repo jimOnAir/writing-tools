@@ -61,7 +61,7 @@ export class AppBootstrap {
       ollamaModelService,
       lmStudioModelService,
     );
-    this.chatService = new ChatService(chatRepository, modelService, this.logger);
+    this.chatService = new ChatService(chatRepository, modelService, this.windowService, this.logger);
     this.ipcHandlers = new IpcHandlers(
       this.settingsService,
       modelService,

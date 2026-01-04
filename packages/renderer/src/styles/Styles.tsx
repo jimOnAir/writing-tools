@@ -57,7 +57,7 @@ export const BackgroundStyles = {
 
 // Button styles
 export const ButtonStyles = {
-  base: `px-4 py-2 rounded font-medium transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-900`,
+  base: `px-4 py-2 rounded font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-900`,
   primary: `${ColorPalette.button.primary} ${ColorPalette.button.primaryHover} ${ColorPalette.text.primary} border ${ColorPalette.button.primaryBorder} hover:border-gray-500 hover:shadow-lg hover:shadow-gray-700/50 active:scale-[0.98]`,
   secondary: `${ColorPalette.button.secondary} ${ColorPalette.button.secondaryHover} ${ColorPalette.text.primary} border ${ColorPalette.border.lightMedium} hover:border-gray-500 hover:shadow-lg hover:shadow-gray-700/50 active:scale-[0.98]`,
   success: `${ColorPalette.button.success} ${ColorPalette.button.successHover} ${ColorPalette.text.primary} border ${ColorPalette.button.successBorder} hover:border-gray-400 hover:shadow-lg hover:shadow-gray-600/50 active:scale-[0.98]`,
@@ -82,7 +82,7 @@ export const FileInputStyles: {
   wrapper: 'relative inline-block',
   input: 'hidden',
   label:
-    `px-4 py-2 rounded font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-900 border ${ColorPalette.border.lightMedium} bg-transparent ${ColorPalette.text.tertiary} ${ColorPalette.background.cardHover} cursor-pointer inline-block hover:border-gray-500 hover:shadow-md hover:shadow-gray-700/30 active:scale-[0.98]`,
+    `px-4 py-2 rounded font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-900 border ${ColorPalette.border.lightMedium} bg-transparent ${ColorPalette.text.tertiary} ${ColorPalette.background.cardHover} inline-block hover:border-gray-500 hover:shadow-md hover:shadow-gray-700/30 active:scale-[0.98]`,
 } as const;
 
 // Message styles

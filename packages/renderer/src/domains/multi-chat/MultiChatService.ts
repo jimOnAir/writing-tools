@@ -1,4 +1,4 @@
-import type { IChatWindowData } from '@writing-tools/shared';
+import type { IChatWindowData, IPromptSelectorData } from '@writing-tools/shared';
 import { logger } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
@@ -83,7 +83,9 @@ export class MultiChatService {
    */
   public initializeListeners(): void {
     const handleChatWindowData = (data: IChatWindowData) => {
-      logger.info('MultiChatService received CHAT_WINDOW_DATA: prompt=%s, chatId=%s', data.prompt || 'none', data.chatId !== undefined ? String(data.chatId) : 'undefined');
+      const promptText = data.prompt === '' ? 'none' : data.prompt;
+      const chatIdText = data.chatId === undefined ? 'undefined' : String(data.chatId);
+      logger.info('MultiChatService received CHAT_WINDOW_DATA: prompt=%s, chatId=%s', promptText, chatIdText);
 
       // Check if there's a prompt selector tab that should be replaced
       // Prefer the active tab if it's a prompt selector, otherwise find any prompt selector tab
@@ -103,9 +105,9 @@ export class MultiChatService {
       }
 
       // Create a new chat tab (or replace existing prompt selector tab)
-      const tab = tabToReplace !== null
-        ? this.replacePromptSelectorTabWithChat(tabToReplace.tabId)
-        : this.createNewChatTab();
+      const tab = tabToReplace === null
+        ? this.createNewChatTab()
+        : this.replacePromptSelectorTabWithChat(tabToReplace.tabId);
 
       // Set up the chat service to handle the prompt
       // Note: The main process (handlePromptSelect) already sends the message to the LLM
@@ -133,8 +135,10 @@ export class MultiChatService {
       }
     };
 
-    const handlePromptSelectorData = (data: { selectedText: string, preconfiguredPrompts: any[] }) => {
-      logger.info('MultiChatService received PROMPT_SELECTOR_DATA: selectedText=%s, promptsCount=%s', data.selectedText ? 'present' : 'empty', String(data.preconfiguredPrompts?.length || 0));
+    const handlePromptSelectorData = (data: IPromptSelectorData) => {
+      const selectedTextStatus = data.selectedText === '' ? 'empty' : 'present';
+      const promptsCount = String(data.preconfiguredPrompts.length);
+      logger.info('MultiChatService received PROMPT_SELECTOR_DATA: selectedText=%s, promptsCount=%s', selectedTextStatus, promptsCount);
 
       // Find existing prompt selector tab
       let existingPromptSelectorTab = this.tabs.find(t => t.type === 'prompt-selector');
@@ -147,7 +151,7 @@ export class MultiChatService {
       // Manually forward the data to the service to ensure it receives it
       // This handles the case where the IPC event might have been missed due to timing
       // or if the listener wasn't set up yet
-      if (existingPromptSelectorTab && existingPromptSelectorTab.promptSelectorService) {
+      if (existingPromptSelectorTab?.promptSelectorService) {
         // Manually update the service state with the received data
         existingPromptSelectorTab.promptSelectorService.setPromptSelectorData(data);
         this.switchToTab(existingPromptSelectorTab.tabId);
@@ -207,72 +211,6 @@ export class MultiChatService {
   }
 
   /**
-   * Replace a prompt selector tab with a chat tab
-   */
-  private replacePromptSelectorTabWithChat(promptSelectorTabId: string): ITabInfo {
-    const tabIndex = this.tabs.findIndex(t => t.tabId === promptSelectorTabId);
-    if (tabIndex === -1) {
-      // Tab not found, just create a new chat tab
-      return this.createNewChatTab();
-    }
-
-    const oldTab = this.tabs[tabIndex];
-
-    // Cleanup the prompt selector service
-    if (oldTab.promptSelectorService) {
-      oldTab.promptSelectorService.cleanupListeners();
-    }
-
-    // Create new chat service
-    const chatService = new ChatService(this.ipcAdapter);
-    chatService.initializeListeners();
-
-    // Listen to title changes to update tab title
-    const handleTitleChange = (title: string) => {
-      const foundTab = this.tabs.find(t => t.tabId === promptSelectorTabId);
-      if (foundTab && foundTab.chatService) {
-        const serviceChatId = foundTab.chatService.getCurrentChatId();
-        // Only update title if tab's chatId matches service's currentChatId, or if both are null (new chat)
-        if (foundTab.chatId === serviceChatId || (foundTab.chatId === null && serviceChatId !== null)) {
-          // If tab.chatId is null but service has a chatId, update tab.chatId to sync them
-          if (foundTab.chatId === null && serviceChatId !== null) {
-            foundTab.chatId = serviceChatId;
-          }
-          foundTab.title = title;
-          this.notifyTabsChange();
-        }
-      }
-    };
-
-    // Add title change callback (using addTitleChangeCallback to support multiple callbacks)
-    // This allows ChatComponent to also receive title updates via setCallbacks
-    const removeTitleChangeCallback = chatService.addTitleChangeCallback(handleTitleChange);
-
-    // Replace the tab in place
-    const newTab: ITabInfo = {
-      tabId: promptSelectorTabId, // Keep the same tab ID
-      type: 'chat',
-      chatId: null,
-      chatService,
-      title: null,
-      removeTitleChangeCallback,
-    };
-
-    this.tabs[tabIndex] = newTab;
-
-    // Notify tabs change
-    this.notifyTabsChange();
-
-    // If this was the active tab, notify active tab change to trigger UI re-render
-    // The key change (including type in MainLayout) will cause React to remount the component
-    if (this.activeTabId === promptSelectorTabId) {
-      this.notifyActiveTabChange();
-    }
-
-    return newTab;
-  }
-
-  /**
    * Create a new chat tab
    * Note: This does NOT remove empty tabs - call removeEmptyTabs() separately if needed
    */
@@ -286,7 +224,7 @@ export class MultiChatService {
     // Listen to title changes to update tab title
     const handleTitleChange = (title: string) => {
       const foundTab = this.tabs.find(t => t.tabId === tabId);
-      if (foundTab && foundTab.chatService) {
+      if (foundTab?.chatService) {
         const serviceChatId = foundTab.chatService.getCurrentChatId();
         // Only update title if tab's chatId matches service's currentChatId, or if both are null (new chat)
         // This prevents updating title for wrong chat when tab.chatId and service.currentChatId are out of sync
@@ -326,56 +264,6 @@ export class MultiChatService {
   }
 
   /**
-   * Check if a tab is empty (new chat with no messages)
-   */
-  private isTabEmpty(tab: ITabInfo): boolean {
-    if (tab.type !== 'chat' || !tab.chatService) {
-      return false; // Prompt selector tabs are never considered empty
-    }
-
-    return tab.chatId === null && tab.chatService.getMessages().length === 0;
-  }
-
-  /**
-   * Remove all empty chat tabs
-   * @param allowRemovingLastTab - If true, allows removing the last tab (useful when we're about to create a new tab)
-   */
-  private removeEmptyTabs(allowRemovingLastTab = false): void {
-    const emptyTabs = this.tabs.filter(emptyTab => this.isTabEmpty(emptyTab));
-
-    for (const emptyTab of emptyTabs) {
-      // Don't remove if it's the only tab (unless explicitly allowed)
-      if (!allowRemovingLastTab && this.tabs.length <= 1) {
-        break;
-      }
-
-      const tabIndex = this.tabs.findIndex(t => t.tabId === emptyTab.tabId);
-      if (tabIndex !== -1 && emptyTab.chatService) {
-        emptyTab.chatService.cleanupListeners();
-        if (emptyTab.removeTitleChangeCallback) {
-          emptyTab.removeTitleChangeCallback();
-        }
-        this.tabs.splice(tabIndex, 1);
-
-        // If the removed tab was active, switch to another tab (if available)
-        if (this.activeTabId === emptyTab.tabId) {
-          if (this.tabs.length > 0) {
-            const newIndex = Math.max(0, tabIndex - 1);
-            this.switchToTab(this.tabs[newIndex].tabId);
-          } else {
-            this.activeTabId = null;
-            this.notifyActiveTabChange();
-          }
-        }
-      }
-    }
-
-    if (emptyTabs.length > 0) {
-      this.notifyTabsChange();
-    }
-  }
-
-  /**
    * Open an existing chat in a new tab (or switch to existing tab if already open)
    */
   public openChatTab(chatId: number): ITabInfo {
@@ -396,10 +284,11 @@ export class MultiChatService {
     tab.chatId = chatId;
 
     // Load messages for this chat
-    if (tab.chatService) {
-      void tab.chatService.loadChatMessages(chatId).then(() => {
+    const tabChatService = tab.chatService;
+    if (tabChatService) {
+      void tabChatService.loadChatMessages(chatId).then(() => {
         // Fetch title after loading messages
-        void tab.chatService!.getChatInfo(chatId).then(chatInfo => {
+        void tabChatService.getChatInfo(chatId).then(chatInfo => {
           if (chatInfo) {
             tab.title = chatInfo.title || null;
             this.notifyTabsChange();
@@ -460,6 +349,8 @@ export class MultiChatService {
       const newIndex = Math.max(0, tabIndex - 1);
       logger.info('Switching to tab at index: %s', String(newIndex));
       this.switchToTab(this.tabs[newIndex].tabId);
+    } else {
+      // Tab was not active and not the last tab - no tab switching needed
     }
 
     // Always notify of tabs change
@@ -505,10 +396,132 @@ export class MultiChatService {
   }
 
   /**
+   * Replace a prompt selector tab with a chat tab
+   */
+  private replacePromptSelectorTabWithChat(promptSelectorTabId: string): ITabInfo {
+    const tabIndex = this.tabs.findIndex(t => t.tabId === promptSelectorTabId);
+    if (tabIndex === -1) {
+      // Tab not found, just create a new chat tab
+      return this.createNewChatTab();
+    }
+
+    const oldTab = this.tabs[tabIndex];
+
+    // Cleanup the prompt selector service
+    if (oldTab.promptSelectorService) {
+      oldTab.promptSelectorService.cleanupListeners();
+    }
+
+    // Create new chat service
+    const chatService = new ChatService(this.ipcAdapter);
+    chatService.initializeListeners();
+
+    // Listen to title changes to update tab title
+    const handleTitleChange = (title: string) => {
+      const foundTab = this.tabs.find(t => t.tabId === promptSelectorTabId);
+      if (foundTab?.chatService) {
+        const serviceChatId = foundTab.chatService.getCurrentChatId();
+        // Only update title if tab's chatId matches service's currentChatId, or if both are null (new chat)
+        if (foundTab.chatId === serviceChatId || (foundTab.chatId === null && serviceChatId !== null)) {
+          // If tab.chatId is null but service has a chatId, update tab.chatId to sync them
+          if (foundTab.chatId === null && serviceChatId !== null) {
+            foundTab.chatId = serviceChatId;
+          }
+          foundTab.title = title;
+          this.notifyTabsChange();
+        }
+      }
+    };
+
+    // Add title change callback (using addTitleChangeCallback to support multiple callbacks)
+    // This allows ChatComponent to also receive title updates via setCallbacks
+    const removeTitleChangeCallback = chatService.addTitleChangeCallback(handleTitleChange);
+
+    // Replace the tab in place
+    const newTab: ITabInfo = {
+      tabId: promptSelectorTabId, // Keep the same tab ID
+      type: 'chat',
+      chatId: null,
+      chatService,
+      title: null,
+      removeTitleChangeCallback,
+    };
+
+    this.tabs[tabIndex] = newTab;
+
+    // Notify tabs change
+    this.notifyTabsChange();
+
+    // If this was the active tab, notify active tab change to trigger UI re-render
+    // The key change (including type in MainLayout) will cause React to remount the component
+    if (this.activeTabId === promptSelectorTabId) {
+      this.notifyActiveTabChange();
+    }
+
+    return newTab;
+  }
+
+  /**
+   * Check if a tab is empty (new chat with no messages)
+   */
+  private isTabEmpty(tab: ITabInfo): boolean {
+    if (tab.type !== 'chat' || !tab.chatService) {
+      return false; // Prompt selector tabs are never considered empty
+    }
+
+    return tab.chatId === null && tab.chatService.getMessages().length === 0;
+  }
+
+  /**
+   * Remove all empty chat tabs
+   * @param allowRemovingLastTab - If true, allows removing the last tab (useful when we're about to create a new tab)
+   */
+  private removeEmptyTabs(allowRemovingLastTab = false): void {
+    const emptyTabs = this.tabs.filter(emptyTab => this.isTabEmpty(emptyTab));
+
+    for (const emptyTab of emptyTabs) {
+      // Don't remove if it's the only tab (unless explicitly allowed)
+      if (!allowRemovingLastTab && this.tabs.length <= 1) {
+        break;
+      }
+
+      const tabIndex = this.tabs.findIndex(t => t.tabId === emptyTab.tabId);
+      if (tabIndex !== -1 && emptyTab.chatService) {
+        emptyTab.chatService.cleanupListeners();
+        if (emptyTab.removeTitleChangeCallback) {
+          emptyTab.removeTitleChangeCallback();
+        }
+        this.tabs.splice(tabIndex, 1);
+
+        // If the removed tab was active, switch to another tab (if available)
+        if (this.activeTabId === emptyTab.tabId) {
+          if (this.tabs.length > 0) {
+            const newIndex = Math.max(0, tabIndex - 1);
+            this.switchToTab(this.tabs[newIndex].tabId);
+          } else {
+            this.activeTabId = null;
+            this.notifyActiveTabChange();
+          }
+        }
+      }
+    }
+
+    if (emptyTabs.length > 0) {
+      this.notifyTabsChange();
+    }
+  }
+
+  /**
    * Generate a unique tab ID
    */
   private generateTabId(): string {
-    return `tab-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const RADIX = 36;
+    const START_INDEX = 2;
+    const END_INDEX = 9;
+    const timestamp = String(Date.now());
+    const randomPart = Math.random().toString(RADIX).substring(START_INDEX, END_INDEX);
+
+    return `tab-${timestamp}-${randomPart}`;
   }
 
   /**
@@ -516,17 +529,17 @@ export class MultiChatService {
    */
   private notifyTabsChange(): void {
     const tabsSnapshot = [...this.tabs];
-    this.onTabsChangeCallbacks.forEach(callback => {
+    for (const callback of this.onTabsChangeCallbacks) {
       callback(tabsSnapshot);
-    });
+    }
   }
 
   /**
    * Notify all subscribers of active tab change
    */
   private notifyActiveTabChange(): void {
-    this.onActiveTabChangeCallbacks.forEach(callback => {
+    for (const callback of this.onActiveTabChangeCallbacks) {
       callback(this.activeTabId);
-    });
+    }
   }
 }

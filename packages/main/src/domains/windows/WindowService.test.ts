@@ -5,7 +5,7 @@ import { WindowService } from './WindowService';
 // Mock electron modules
 
 jest.mock('electron', () => {
-  const windows: Array<Electron.BrowserWindow> = [];
+  const windows: Electron.BrowserWindow[] = [];
 
   const createMockWindow = (): Electron.BrowserWindow => {
     const mockWindow = {
@@ -31,6 +31,7 @@ jest.mock('electron', () => {
     } as unknown as Electron.BrowserWindow;
 
     windows.push(mockWindow);
+
     return mockWindow;
   };
 
@@ -41,10 +42,13 @@ jest.mock('electron', () => {
   (BrowserWindowConstructor as unknown as { getAllWindows: jest.Mock }).getAllWindows = jest.fn(() => windows);
 
   // Store reference to windows array for clearing in tests
-  (globalThis as unknown as { __mockWindows__: Array<Electron.BrowserWindow> }).__mockWindows__ = windows;
+  (globalThis as unknown as { __mockWindows__: Electron.BrowserWindow[] }).__mockWindows__ = windows;
 
   return {
     BrowserWindow: BrowserWindowConstructor,
+    nativeTheme: {
+      shouldUseDarkColors: true,
+    },
   };
 });
 
@@ -60,7 +64,7 @@ describe('WindowService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Clear mock windows array
-    const windows = (globalThis as unknown as { __mockWindows__?: Array<Electron.BrowserWindow> }).__mockWindows__;
+    const windows = (globalThis as unknown as { __mockWindows__?: Electron.BrowserWindow[] }).__mockWindows__;
     if (windows) {
       windows.length = 0;
     }

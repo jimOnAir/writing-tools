@@ -1179,6 +1179,126 @@ const Sidebar: React.FC = () => {
 - **Windows**: Solid backgrounds, flat design, sharp corners, clear borders
 - **Linux**: GTK-inspired design, moderate transparency, balanced border radius, system fonts
 
+## Electron Native Styling Guidelines
+
+When building Electron apps, follow these guidelines to make the app feel native and polished. These recommendations are based on best practices for making Electron apps feel native on macOS and other platforms.
+
+### Desktop-Optimized Font Size
+
+- **Use 14px base font size for desktop apps** - Desktop apps typically use smaller font sizes than web apps
+  - Set `html { font-size: 14px; }` in your CSS to override the default 16px
+  - This makes text feel more native and consistent with other desktop applications
+  - Tailwind's rem-based sizing will automatically scale with this base size
+
+```css
+/* ✅ Good: Desktop-optimized font size */
+html {
+  font-size: 14px; /* Desktop app optimized (default is 16px for web) */
+}
+
+/* ❌ Bad: Using web default font size */
+/* html { font-size: 16px; } */ /* Too large for desktop apps */
+```
+
+### System Font Stack
+
+- **Always use system font stack** - Prioritize system fonts for native feel
+  - Use `ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont` as the first fonts in the stack
+  - This ensures the app uses the platform's native system fonts (SF Pro on macOS, Segoe UI on Windows, etc.)
+  - Fall back to common web fonts for compatibility
+
+```css
+/* ✅ Good: System font stack prioritized */
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* ❌ Bad: Web fonts prioritized */
+body {
+  font-family: 'Roboto', 'Segoe UI', sans-serif; /* Doesn't use system fonts first */
+}
+```
+
+### Cursor Styling
+
+- **Use `cursor: default` for buttons and interactive elements** - Native apps use default cursor for buttons
+  - Set `cursor: default` globally, then override only for actual links with `cursor: pointer`
+  - Use `user-select: none` to prevent text selection on interactive elements
+  - This matches native app behavior where buttons don't show pointer cursor
+
+```css
+/* ✅ Good: Default cursor for buttons, pointer only for links */
+*, a, button {
+  cursor: default;
+  user-select: none;
+}
+
+a[href] {
+  cursor: pointer; /* Only actual links get pointer cursor */
+}
+
+/* ❌ Bad: Pointer cursor for all buttons */
+button {
+  cursor: pointer; /* Not native - native apps use default cursor */
+}
+```
+
+### Window Background Color
+
+- **Match window background color to page background** - Prevents white flashes when resizing
+  - Set `backgroundColor` in BrowserWindow options based on dark/light mode
+  - Use `nativeTheme.shouldUseDarkColors` to detect system theme
+  - Match the background color to your page's background (e.g., `#1f2937` for dark mode, `#ffffff` for light mode)
+
+```typescript
+// ✅ Good: Window background matches page background
+import { BrowserWindow, nativeTheme } from 'electron';
+
+const window = new BrowserWindow({
+  backgroundColor: nativeTheme.shouldUseDarkColors ? '#1f2937' : '#ffffff',
+  // ... other options
+});
+
+// ❌ Bad: Default white background causes flashes
+const window = new BrowserWindow({
+  // No backgroundColor set - defaults to white, causes flashes in dark mode
+});
+```
+
+### Window Ready-to-Show Pattern
+
+- **Use `ready-to-show` event to prevent white flash** - Show window only after content is loaded
+  - Set `show: false` in BrowserWindow options
+  - Listen for `ready-to-show` event before calling `window.show()`
+  - This prevents the white flash that occurs when Electron windows are shown before content loads
+
+```typescript
+// ✅ Good: Wait for ready-to-show before showing window
+const window = new BrowserWindow({
+  show: false, // Don't show until ready
+});
+
+window.once('ready-to-show', () => {
+  window.show();
+});
+
+// ❌ Bad: Showing window immediately causes white flash
+const window = new BrowserWindow({
+  show: true, // Shows before content loads - causes white flash
+});
+```
+
+### Additional Recommendations
+
+- **Draggable areas**: Use `-webkit-app-region: drag` for custom titlebars (not needed if using native frames)
+- **Window focus/blur**: Handle focus events if you need unfocused UI variants (not needed if using native frames)
+- **System integration**: Use platform-specific styling through NativeStyles system
+- **Accessibility**: Maintain proper contrast and readable font sizes for all platforms
+
+### References
+
+These guidelines are based on best practices from the article "Making Electron apps feel native on Mac" (https://dev.to/vadimdemedes/making-electron-apps-feel-native-on-mac-52e8) and general Electron desktop app best practices.
+
 ## IPC Response Handling
 
 When processing IPC responses, always use the centralized type guard functions from `utils/responseTypeGuards.ts`:

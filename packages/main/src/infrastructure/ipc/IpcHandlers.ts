@@ -1,8 +1,7 @@
 /* eslint-disable max-lines */
 import type { IChatMessage, ILogger, ISettings, TIpcEvent } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent, EIpcRendererEvent } from '@writing-tools/shared';
-import { BrowserWindow, ipcMain } from 'electron';
-import * as fs from 'node:fs';
+import { ipcMain } from 'electron';
 import * as os from 'node:os';
 
 import type { IChatService } from '../../domains/chat/IChatService';
@@ -101,7 +100,13 @@ export class IpcHandlers implements IIpcHandlers {
     });
 
     ipcMain.handle(EIpcChannel.PROMPT_SELECTOR, async (_, data: TPromptSelectEventPayload) => {
-      return this.handlePromptSelect(data.payload.prompt);
+      try {
+        await this.handlePromptSelect(data.payload.prompt);
+      } catch (error: unknown) {
+        const errorText = error instanceof Error ? error.message : String(error);
+        this.logger.error('Error occurred in handler for \'PROMPT_SELECTOR\': %s', errorText);
+        throw error;
+      }
     });
   }
 
@@ -172,10 +177,11 @@ export class IpcHandlers implements IIpcHandlers {
         } catch (error: unknown) {
           const errorText = error instanceof Error ? error.message : String(error);
           this.logger.error('Failed to save assistant response: %s', errorText);
-        // Continue even if save fails
+          // Continue even if save fails
         }
 
         // Generate title after first exchange (2 messages: user + assistant)
+        // ChatService.updateChatTitle will send CHAT_TITLE_UPDATED event
         this.logger.info('Triggering title generation for chatId=%s', String(chatId));
         void this.generateTitleIfNeeded(chatId);
       }
@@ -187,9 +193,6 @@ export class IpcHandlers implements IIpcHandlers {
   }
 
   private async handleChatCreateSession(payload: { title?: string, provider?: string, model?: string }) {
-    // #region agent log
-    try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:188',message:'handleChatCreateSession entry',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})+'\n');}catch(_){}
-    // #endregion
     try {
       // Get current provider and model from settings
       const settings = await this.settingsService.loadSettings();
@@ -208,48 +211,11 @@ export class IpcHandlers implements IIpcHandlers {
         providerValue,
         modelValue,
       );
-      // #region agent log
-      try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:207',message:'Chat created before window notification',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
-      // #endregion
+      // ChatService now handles CHAT_CREATED event notification
 
-      // Notify mainWindow if it already exists (don't create window just to notify)
-      try {
-        // #region agent log
-        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:212',message:'Before getMainWindow call',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
-        // #endregion
-        const { window: mainWindow, created: mainWindowCreated } = await this.windowService.getMainWindow();
-        // #region agent log
-        try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:215',message:'After getMainWindow call',data:{chatId,mainWindowCreated,isDestroyed:mainWindow.isDestroyed()},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
-        // #endregion
-        // Only send notification if window already existed (created === false)
-        // If window was just created (created === true), don't send notification and close it
-        if (mainWindowCreated === false && !mainWindow.isDestroyed()) {
-          // #region agent log
-          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:218',message:'Sending CHAT_CREATED notification to existing mainWindow',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
-          // #endregion
-          mainWindow.webContents.send(EIpcRendererEvent.CHAT_CREATED, {
-            chatId,
-          });
-        } else if (mainWindowCreated === true) {
-          // #region agent log
-          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:223',message:'MainWindow was created unnecessarily, closing it',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})+'\n');}catch(_){}
-          // #endregion
-          // Window was created unnecessarily - close it to prevent it from showing
-          mainWindow.close();
-        }
-      } catch {
-        // MainWindow might not exist, ignore
-      }
-
-      // #region agent log
-      try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:255',message:'handleChatCreateSession exit',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
-      // #endregion
       return { chatId };
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      // #region agent log
-      try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:234',message:'handleChatCreateSession error',data:{error:errorText},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})+'\n');}catch(_){}
-      // #endregion
       this.logger.error('Failed to create chat session: %s', errorText);
 
       return { error: errorText };
@@ -299,7 +265,7 @@ export class IpcHandlers implements IIpcHandlers {
     }
   }
 
-  private async handleChatDelete(chatId: number) {
+  private handleChatDelete(chatId: number) {
     try {
       // Check if chat exists before deleting
       const chat = this.chatService.getChat(chatId);
@@ -308,22 +274,8 @@ export class IpcHandlers implements IIpcHandlers {
       }
 
       // Delete the chat (messages cascade delete automatically)
+      // ChatService now handles CHAT_DELETED event notification
       this.chatService.deleteChat(chatId);
-
-      // Notify all existing windows (don't create windows just to notify)
-      // Each window's renderer will handle the notification if it has tabs that need closing
-      const allWindows = BrowserWindow.getAllWindows();
-      for (const win of allWindows) {
-        if (!win.isDestroyed()) {
-          try {
-            win.webContents.send(EIpcRendererEvent.CHAT_DELETED, {
-              chatId,
-            });
-          } catch {
-            // Window might be destroyed, ignore
-          }
-        }
-      }
 
       return { success: true };
     } catch (error: unknown) {
@@ -373,6 +325,7 @@ export class IpcHandlers implements IIpcHandlers {
       ? (settings.ollama.model || '')
       : (settings.lmstudio.model || '');
     const chatId = this.chatService.startNewChat('', provider, model);
+    // ChatService now handles CHAT_CREATED event notification
 
     // Save user message
     const userMessage: IChatMessage = {
@@ -501,47 +454,9 @@ export class IpcHandlers implements IIpcHandlers {
       const title = await this.generateChatTitle(userMessage.content, assistantMessage.content);
 
       if (title !== null && title.trim() !== '') {
+        // ChatService.updateChatTitle now handles CHAT_TITLE_UPDATED event notification
         this.chatService.updateChatTitle(chatId, title);
         this.logger.info('Title generated and saved: chatId=%s, title="%s"', String(chatId), title);
-
-        // Send title update event to mainWindow if it already exists (don't create window just to notify)
-        try {
-          // #region agent log
-          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:539',message:'Before getMainWindow call for title update',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
-          // #endregion
-          this.logger.info('Attempting to send title update event: chatId=%s', String(chatId));
-          const { window: mainWindow, created: mainWindowCreated } = await this.windowService.getMainWindow();
-          // #region agent log
-          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:542',message:'After getMainWindow call for title update',data:{chatId,mainWindowCreated,isDestroyed:mainWindow.isDestroyed()},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
-          // #endregion
-          // Only send notification if window already existed (created === false)
-          // If window was just created (created === true), don't send notification and close it
-          if (mainWindowCreated === false && !mainWindow.isDestroyed()) {
-            // #region agent log
-            try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:545',message:'Sending CHAT_TITLE_UPDATED notification to existing mainWindow',data:{chatId,title},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
-            // #endregion
-            mainWindow.webContents.send(EIpcRendererEvent.CHAT_TITLE_UPDATED, {
-              chatId,
-              title,
-            });
-            this.logger.info('Title update event sent: chatId=%s, title="%s"', String(chatId), title);
-          } else if (mainWindowCreated === true) {
-            // #region agent log
-            try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:554',message:'MainWindow was created unnecessarily for title update, closing it',data:{chatId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})+'\n');}catch(_){}
-            // #endregion
-            // Window was created unnecessarily - close it to prevent it from showing
-            mainWindow.close();
-          } else if (mainWindow.isDestroyed()) {
-            this.logger.warn('MainWindow is destroyed, cannot send title update event: chatId=%s', String(chatId));
-          }
-        } catch (error: unknown) {
-          const errorText = error instanceof Error ? error.message : String(error);
-          // #region agent log
-          try{fs.appendFileSync('/home/dmitry/github/writing-tools/.cursor/debug.log',JSON.stringify({location:'IpcHandlers.ts:561',message:'Error sending title update event',data:{chatId,error:errorText},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'B'})+'\n');}catch(_){}
-          // #endregion
-          this.logger.error('Failed to send title update event: %s', errorText);
-          // Don't throw - title update event failure shouldn't break chat functionality
-        }
       } else {
         this.logger.error('Title generation returned empty result for chatId=%s', String(chatId));
       }

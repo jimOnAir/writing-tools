@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, nativeTheme } from 'electron';
 import isDev from 'electron-is-dev';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -128,6 +128,7 @@ export class WindowService implements IWindowService {
       },
       icon: getAppIcon(),
       show: false, // Don't show until ready to avoid flash
+      backgroundColor: nativeTheme.shouldUseDarkColors ? '#1f2937' : '#ffffff', // Match page background to prevent white flashes when resizing
     };
 
     if (platform === 'darwin') {

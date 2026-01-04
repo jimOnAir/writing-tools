@@ -10,7 +10,7 @@ let platformPromise: Promise<TPlatform> | null = null;
  * Caches the result after first detection
  * @returns Promise that resolves to the platform string
  */
-export const getPlatform = (): Promise<TPlatform> => {
+export const getPlatform = async (): Promise<TPlatform> => {
   if (cachedPlatform !== null) {
     return Promise.resolve(cachedPlatform);
   }

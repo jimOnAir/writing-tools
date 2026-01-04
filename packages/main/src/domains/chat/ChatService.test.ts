@@ -1,6 +1,7 @@
 import type { IChatInfo, IChatMessage, ILogger } from '@writing-tools/shared';
 
 import type { IModelService } from '../llm/IModelService';
+import type { IWindowService } from '../windows/IWindowService';
 
 import { ChatService } from './ChatService';
 import type { IChatRepository } from './IChatRepository';
@@ -9,6 +10,7 @@ describe('ChatService', () => {
   let mockLogger: jest.Mocked<ILogger>;
   let mockModelService: jest.Mocked<IModelService>;
   let mockRepository: jest.Mocked<IChatRepository>;
+  let mockWindowService: jest.Mocked<IWindowService>;
   let chatService: ChatService;
 
   beforeEach(() => {
@@ -40,7 +42,11 @@ describe('ChatService', () => {
       sendMessages: jest.fn(),
     } as unknown as jest.Mocked<IModelService>;
 
-    chatService = new ChatService(mockRepository, mockModelService, mockLogger);
+    mockWindowService = {
+      getMainWindow: jest.fn(),
+    } as unknown as jest.Mocked<IWindowService>;
+
+    chatService = new ChatService(mockRepository, mockModelService, mockWindowService, mockLogger);
   });
 
   describe('initialize', () => {

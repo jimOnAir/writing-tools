@@ -2,13 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  font-size: 14px; /* Desktop app optimized font size (default is 16px for web) */
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Native app cursor styling - default cursor for buttons, pointer only for links */
+*, a, button {
+  cursor: default;
+  user-select: none;
+}
+
+a[href] {
+  cursor: pointer; /* Only actual links get pointer cursor */
 }
 
 code {

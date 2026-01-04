@@ -81,7 +81,7 @@ export const NativeStyles = {
     },
     font: {
       base: 'font-sans',
-      system: '"Segoe UI", "Segoe UI Variable Display", system-ui, sans-serif',
+      system: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Variable Display", sans-serif',
     },
   },
   linux: {
@@ -122,7 +122,7 @@ export const NativeStyles = {
     },
     font: {
       base: 'font-sans',
-      system: 'system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, sans-serif',
+      system: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell, sans-serif',
     },
   },
 } as const;

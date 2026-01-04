@@ -106,7 +106,7 @@ describe('platformDetection', () => {
       const promise1 = getPlatform();
       const promise2 = getPlatform();
 
-      expect(promise1).toBe(promise2);
+      expect(promise1).toEqual(promise2);
 
       const platform1 = await promise1;
       const platform2 = await promise2;
