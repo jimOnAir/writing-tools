@@ -20,6 +20,12 @@ declare global {
       offChatCreated: (listener: TIpcRenderListener) => void,
       onChatDeleted: (callback: (data: { chatId: number }) => void) => TIpcRenderListener,
       offChatDeleted: (listener: TIpcRenderListener) => void,
+      onChatSaveTabsRequest: (callback: () => void) => TIpcRenderListener,
+      offChatSaveTabsRequest: (listener: TIpcRenderListener) => void,
+    };
+    // Exposed for before-quit handler to save tabs
+    __multiChatService?: {
+      saveTabs: () => Promise<void>,
     };
   }
 }

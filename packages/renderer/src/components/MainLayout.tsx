@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
 import type { ChatListService } from '../domains/chat-list';
-import type { MultiChatService } from '../domains/multi-chat';
+import type { ITabInfo, MultiChatService } from '../domains/multi-chat';
 import type { PromptSelectorService } from '../domains/prompt-selector';
 import type { SettingsService } from '../domains/settings';
 import { getNativeStyles } from '../styles/NativeStyles';
 import { BackgroundStyles } from '../styles/Styles';
 import { getPlatform } from '../utils/platformDetection';
+import { isErrorResponse } from '../utils/responseTypeGuards';
 
 import ChatComponent from './ChatComponent';
 import { SettingsIcon } from './icons';
@@ -42,7 +43,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       onActiveTabChange: (tabId: string | null) => {
         setActiveTabId(tabId);
       },
-      onTabsChange: () => {
+      onTabsChange: (tabs: readonly ITabInfo[]) => {
         // Force re-render when tabs change (e.g., when tab type changes)
         setTabsVersion(prev => prev + 1);
       },
@@ -53,21 +54,63 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     // Set prompt selector service for MultiChatService
     multiChatService.setPromptSelectorService(promptSelectorService);
 
-    // Initialize listeners (this will set up prompt selector data handling)
+    // Initialize listeners (this will set up prompt selector data handling and save tabs request)
     multiChatService.initializeListeners();
 
     // Initialize prompt selector service listener
     promptSelectorService.initializeListeners();
 
-    // Create initial tab if none exist
-    if (multiChatService.getAllTabs().length === 0) {
-      multiChatService.createNewChatTab();
-    }
+    // Load saved tabs on mount (before creating initial tab)
+    (async () => {
+      try {
+        const response = await multiChatService.loadTabs();
 
-    // Set initial active tab
-    setActiveTabId(multiChatService.getActiveTabId());
+        if (response !== undefined && response !== null) {
+          if (isErrorResponse(response)) {
+            // Error response - create initial tab if none exist
+            if (multiChatService.getAllTabs().length === 0) {
+              multiChatService.createNewChatTab();
+            }
+          } else if ('tabs' in response && Array.isArray(response.tabs) && response.tabs.length > 0) {
+            await multiChatService.restoreTabs(response.tabs);
+          } else {
+            // No saved tabs, create initial tab if none exist
+            if (multiChatService.getAllTabs().length === 0) {
+              multiChatService.createNewChatTab();
+            }
+          }
+        } else {
+          // Response is undefined/null - create initial tab if none exist
+          if (multiChatService.getAllTabs().length === 0) {
+            multiChatService.createNewChatTab();
+          }
+        }
+      } catch (error: unknown) {
+        const errorText = error instanceof Error ? error.message : String(error);
+        console.error('Failed to load tabs: %s', errorText);
+        // On error, create initial tab if none exist
+        const tabs = multiChatService.getAllTabs();
+        if (tabs === undefined || tabs.length === 0) {
+          multiChatService.createNewChatTab();
+        }
+      }
+
+      // Set initial active tab
+      setActiveTabId(multiChatService.getActiveTabId());
+    })().catch((error: unknown) => {
+      const errorText = error instanceof Error ? error.message : String(error);
+      console.error('Error loading tabs: %s', errorText);
+      // On error, create initial tab if none exist
+      const tabs = multiChatService.getAllTabs();
+      if (tabs === undefined || tabs.length === 0) {
+        multiChatService.createNewChatTab();
+      }
+      setActiveTabId(multiChatService.getActiveTabId());
+    });
 
     return () => {
+      // Don't save tabs on unmount - it causes race condition during app restart
+      // Tabs are saved via window close event handler instead
       multiChatService.removeCallbacks(callbacks);
       multiChatService.cleanupListeners();
       promptSelectorService.cleanupListeners();
@@ -84,7 +127,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Get active tab - recompute when activeTabId, tabsVersion, or multiChatService changes
   const activeTab = useMemo(() => {
-    return multiChatService.getActiveTab();
+    const tab = multiChatService.getActiveTab();
+
+    return tab;
   }, [multiChatService, activeTabId, tabsVersion]);
   const nativeStyles = getNativeStyles(platform);
 

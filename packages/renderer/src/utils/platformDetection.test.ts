@@ -12,7 +12,6 @@ describe('platformDetection', () => {
       invoke: jest.fn(),
     };
 
-    // eslint-disable-next-line sonarjs/prefer-global-this
     Object.defineProperty(window, 'electronAPI', {
       value: mockElectronAPI,
       writable: true,
@@ -21,7 +20,6 @@ describe('platformDetection', () => {
   });
 
   afterEach(() => {
-    // eslint-disable-next-line sonarjs/prefer-global-this
     delete (window as { electronAPI?: unknown }).electronAPI;
   });
 

@@ -20,6 +20,11 @@ function App() {
   const settingsService = useMemo(() => new SettingsService(ipcAdapter), [ipcAdapter]);
   const promptSelectorService = useMemo(() => new PromptSelectorService(ipcAdapter, logger), [ipcAdapter, logger]);
 
+  // Expose multiChatService to window for before-quit handler
+  useMemo(() => {
+    window.__multiChatService = multiChatService;
+  }, [multiChatService]);
+
   // Always show MainLayout (single window architecture)
   return (
     <MainLayout

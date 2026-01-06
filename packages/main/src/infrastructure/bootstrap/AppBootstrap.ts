@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import type { IChatService } from '../../domains/chat';
 import { ChatRepository, ChatService } from '../../domains/chat';
 import { LMStudioModelService, ModelService, OllamaModelService } from '../../domains/llm';
+import { OpenTabsRepository } from '../../domains/open-tabs';
 import { SettingsRepository, SettingsService } from '../../domains/settings';
 import type { ISettingsService } from '../../domains/settings/ISettingsService';
 import { ShortcutService } from '../../domains/shortcuts';
@@ -24,6 +25,7 @@ export class AppBootstrap {
   private readonly chatService: IChatService;
   private readonly ipcHandlers: IIpcHandlers;
   private readonly logger: ILogger;
+  private readonly openTabsRepository: OpenTabsRepository;
   private readonly settingsService: ISettingsService;
   private readonly shortcutService: IShortcutService;
   private readonly textSelectionService: ITextSelectionService;
@@ -43,6 +45,7 @@ export class AppBootstrap {
     const settingsRepository = new SettingsRepository(this.logger, appPath);
     const dbConnection = new DatabaseConnection(this.logger, appPath);
     const chatRepository = new ChatRepository(this.logger, dbConnection);
+    this.openTabsRepository = new OpenTabsRepository(this.logger, dbConnection);
 
     // Create services in dependency order
     this.settingsService = new SettingsService(settingsRepository);
@@ -63,13 +66,14 @@ export class AppBootstrap {
       ollamaModelService,
       lmStudioModelService,
     );
-    this.chatService = new ChatService(chatRepository, modelService, this.windowService, this.logger);
+    this.chatService = new ChatService(chatRepository, modelService, this.windowService, this.logger, this.openTabsRepository);
     this.ipcHandlers = new IpcHandlers(
       this.settingsService,
       modelService,
       this.windowService,
       this.chatService,
       this.logger,
+      this.openTabsRepository,
     );
   }
 

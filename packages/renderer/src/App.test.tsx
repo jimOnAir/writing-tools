@@ -42,6 +42,10 @@ const mockElectronAPI = {
   offChatCreated: jest.fn(),
   onChatDeleted: jest.fn(() => jest.fn()),
   offChatDeleted: jest.fn(),
+  onChatSaveTabsRequest: jest.fn(() => jest.fn()),
+  offChatSaveTabsRequest: jest.fn(),
+  saveTabs: jest.fn().mockResolvedValue({ success: true }),
+  loadTabs: jest.fn().mockResolvedValue({ tabs: [] }),
 };
 
 Object.defineProperty(globalThis, 'electronAPI', {

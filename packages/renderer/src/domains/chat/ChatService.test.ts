@@ -306,7 +306,7 @@ describe('ChatService', () => {
 
       // Get the callback that was registered
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      const responseCallback = (mockIpcAdapter.onOllamaResponse as jest.Mock).mock.calls[0]?.[0] as (response: TChatResponse) => void;
+      const responseCallback = (mockIpcAdapter.onOllamaResponse as jest.Mock).mock.calls[0]?.[0] as (response?: TChatResponse) => void;
 
       responseCallback({ result: 'Test response', chatId: 1 });
 
@@ -322,7 +322,7 @@ describe('ChatService', () => {
       chatService.setCallbacks({ onMessagesChange });
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      const responseCallback = (mockIpcAdapter.onOllamaResponse as jest.Mock).mock.calls[0]?.[0] as (response: TChatResponse) => void;
+      const responseCallback = (mockIpcAdapter.onOllamaResponse as jest.Mock).mock.calls[0]?.[0] as (response?: TChatResponse) => void;
 
       responseCallback({ error: 'Test error' });
 

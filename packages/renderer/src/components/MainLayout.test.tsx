@@ -89,19 +89,22 @@ describe('MainLayout', () => {
     promptSelectorCleanupListenersMock = jest.fn();
 
     mockMultiChatService = {
-      setCallbacks: jest.fn(),
-      removeCallbacks: removeCallbacksMock,
-      getAllTabs: jest.fn().mockReturnValue([mockTab]),
-      getActiveTabId: jest.fn().mockReturnValue('tab-1'),
+      cleanupListeners: cleanupListenersMock,
+      createNewChatTab: createNewChatTabMock,
+      createPromptSelectorTab: jest.fn(),
+      getAllTabs: jest.fn().mockReturnValue([]),
       getActiveTab: jest.fn().mockReturnValue(mockTab),
+      getActiveTabId: jest.fn().mockReturnValue('tab-1'),
+      initializeListeners: initializeListenersMock,
+      loadTabs: jest.fn(),
+      openChatTab: jest.fn(),
+      removeCallbacks: removeCallbacksMock,
+      restoreTabs: jest.fn(),
+      saveTabs: jest.fn(),
+      setCallbacks: jest.fn(),
+      setPromptSelectorService: setPromptSelectorServiceMock,
       switchToTab: jest.fn(),
       closeChatTab: jest.fn(),
-      createNewChatTab: createNewChatTabMock,
-      openChatTab: jest.fn(),
-      createPromptSelectorTab: jest.fn(),
-      setPromptSelectorService: setPromptSelectorServiceMock,
-      initializeListeners: initializeListenersMock,
-      cleanupListeners: cleanupListenersMock,
     } as unknown as jest.Mocked<MultiChatService>;
 
     mockChatListService = {
@@ -293,5 +296,152 @@ describe('MainLayout', () => {
     // Chat selection is handled through Sidebar component
     // The handler should call openChatTab
     expect(mockMultiChatService).toBeDefined();
+  });
+
+  describe('tab save/restore integration', () => {
+    it('calls loadTabs() on mount', async () => {
+      (mockMultiChatService.loadTabs as jest.Mock).mockResolvedValue({ tabs: [] });
+
+      render(
+        <MainLayout
+          multiChatService={mockMultiChatService}
+          chatListService={mockChatListService}
+          settingsService={mockSettingsService}
+          promptSelectorService={mockPromptSelectorService}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(mockMultiChatService.loadTabs).toHaveBeenCalled();
+      });
+    });
+
+    it('calls restoreTabs() when tabs are loaded', async () => {
+      const savedTabs = [
+        { chatId: 1, tabOrder: 0, isActive: true },
+        { chatId: 2, tabOrder: 1, isActive: false },
+      ];
+
+      (mockMultiChatService.loadTabs as jest.Mock).mockResolvedValue({ tabs: savedTabs });
+      (mockMultiChatService.restoreTabs as jest.Mock).mockResolvedValue(undefined);
+
+      render(
+        <MainLayout
+          multiChatService={mockMultiChatService}
+          chatListService={mockChatListService}
+          settingsService={mockSettingsService}
+          promptSelectorService={mockPromptSelectorService}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(mockMultiChatService.restoreTabs).toHaveBeenCalledWith(savedTabs);
+      });
+    });
+
+    it('does not call saveTabs() on unmount (saved via window close handler instead)', async () => {
+      (mockMultiChatService.loadTabs as jest.Mock).mockResolvedValue({ tabs: [] });
+      (mockMultiChatService.saveTabs as jest.Mock).mockResolvedValue(undefined);
+
+      const { unmount } = render(
+        <MainLayout
+          multiChatService={mockMultiChatService}
+          chatListService={mockChatListService}
+          settingsService={mockSettingsService}
+          promptSelectorService={mockPromptSelectorService}
+        />,
+      );
+
+      await waitFor(() => {
+        // Wait for initial async operations
+      });
+
+      unmount();
+
+      // Tabs are not saved on unmount to avoid race conditions during app restart
+      // They are saved via window close event handler instead
+      expect(mockMultiChatService.saveTabs).not.toHaveBeenCalled();
+    });
+
+    it('handles no saved tabs gracefully (uses defaults)', async () => {
+      (mockMultiChatService.loadTabs as jest.Mock).mockResolvedValue({ tabs: [] });
+      mockMultiChatService.getAllTabs.mockReturnValue([]);
+
+      render(
+        <MainLayout
+          multiChatService={mockMultiChatService}
+          chatListService={mockChatListService}
+          settingsService={mockSettingsService}
+          promptSelectorService={mockPromptSelectorService}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(mockMultiChatService.loadTabs).toHaveBeenCalled();
+        expect(createNewChatTabMock).toHaveBeenCalled();
+      });
+    });
+
+    it('restores tabs before creating initial tab', async () => {
+      const savedTabs = [
+        { chatId: 1, tabOrder: 0, isActive: true },
+      ];
+
+      (mockMultiChatService.loadTabs as jest.Mock).mockResolvedValue({ tabs: savedTabs });
+      (mockMultiChatService.restoreTabs as jest.Mock).mockResolvedValue(undefined);
+      mockMultiChatService.getAllTabs.mockReturnValue([]);
+
+      render(
+        <MainLayout
+          multiChatService={mockMultiChatService}
+          chatListService={mockChatListService}
+          settingsService={mockSettingsService}
+          promptSelectorService={mockPromptSelectorService}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(mockMultiChatService.restoreTabs).toHaveBeenCalledWith(savedTabs);
+      });
+
+      // Should not create new tab if tabs were restored
+      expect(createNewChatTabMock).not.toHaveBeenCalled();
+    });
+
+    it('handles loadTabs error gracefully', async () => {
+      (mockMultiChatService.loadTabs as jest.Mock).mockRejectedValue(new Error('Load failed'));
+      mockMultiChatService.getAllTabs.mockReturnValue([]);
+
+      render(
+        <MainLayout
+          multiChatService={mockMultiChatService}
+          chatListService={mockChatListService}
+          settingsService={mockSettingsService}
+          promptSelectorService={mockPromptSelectorService}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(createNewChatTabMock).toHaveBeenCalled();
+      });
+    });
+
+    it('handles error response from loadTabs', async () => {
+      (mockMultiChatService.loadTabs as jest.Mock).mockResolvedValue({ error: 'Load failed' });
+      mockMultiChatService.getAllTabs.mockReturnValue([]);
+
+      render(
+        <MainLayout
+          multiChatService={mockMultiChatService}
+          chatListService={mockChatListService}
+          settingsService={mockSettingsService}
+          promptSelectorService={mockPromptSelectorService}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(createNewChatTabMock).toHaveBeenCalled();
+      });
+    });
   });
 });

@@ -1,8 +1,9 @@
-import type { IChatWindowData, IPromptSelectorData } from '@writing-tools/shared';
-import { logger } from '@writing-tools/shared';
+import type { IChatWindowData, IPromptSelectorData, TIpcEvent, TOpenTab } from '@writing-tools/shared';
+import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
+import { isErrorResponse } from '../../utils/responseTypeGuards';
 import { ChatService } from '../chat';
 import type { PromptSelectorService } from '../prompt-selector';
 
@@ -28,8 +29,11 @@ export class MultiChatService {
   private activeTabId: string | null = null;
   private chatWindowDataListener: TIpcRenderListener | null = null;
   private chatDeletedListener: TIpcRenderListener | null = null;
+  private chatSaveTabsRequestListener: TIpcRenderListener | null = null;
   private promptSelectorDataListener: TIpcRenderListener | null = null;
   private promptSelectorService: PromptSelectorService | null = null;
+  private isRestoringTabs = false;
+  private saveTabsTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   // Callbacks for component state updates (support multiple subscribers)
   private readonly onTabsChangeCallbacks = new Set<(tabs: ITabInfo[]) => void>();
@@ -49,9 +53,19 @@ export class MultiChatService {
   }): void {
     if (callbacks.onTabsChange !== undefined) {
       this.onTabsChangeCallbacks.add(callbacks.onTabsChange);
+      // Immediately notify the new callback with current tabs state
+      // Only notify if we're not currently restoring tabs AND we have tabs (to avoid sending 0 tabs during app startup)
+      if (!this.isRestoringTabs && this.tabs.length > 0) {
+        callbacks.onTabsChange([...this.tabs]);
+      }
     }
     if (callbacks.onActiveTabChange !== undefined) {
       this.onActiveTabChangeCallbacks.add(callbacks.onActiveTabChange);
+      // Immediately notify the new callback with current active tab
+      // Only notify if we're not currently restoring tabs AND we have an active tab (to avoid sending null during app startup)
+      if (!this.isRestoringTabs && this.activeTabId !== null) {
+        callbacks.onActiveTabChange(this.activeTabId);
+      }
     }
   }
 
@@ -117,6 +131,8 @@ export class MultiChatService {
         // Set chatId if provided
         if (data.chatId !== undefined) {
           tab.chatId = data.chatId;
+          // Save tabs when chatId is set
+          void this.saveTabsIfNotRestoring();
           // Load messages for this chat (the main process already saved them)
           void tab.chatService.loadChatMessages(data.chatId);
         }
@@ -161,6 +177,14 @@ export class MultiChatService {
     this.chatWindowDataListener = this.ipcAdapter.onChatWindowData(handleChatWindowData);
     this.chatDeletedListener = this.ipcAdapter.onChatDeleted(handleChatDeleted);
     this.promptSelectorDataListener = this.ipcAdapter.onPromptSelectorData(handlePromptSelectorData);
+
+    // Set up save tabs request listener
+    const handleChatSaveTabsRequest = () => {
+      logger.info('MultiChatService received CHAT_SAVE_TABS_REQUEST');
+      void this.saveTabs();
+    };
+
+    this.chatSaveTabsRequestListener = this.ipcAdapter.onChatSaveTabsRequest(handleChatSaveTabsRequest);
   }
 
   /**
@@ -175,9 +199,18 @@ export class MultiChatService {
       this.ipcAdapter.offChatDeleted(this.chatDeletedListener);
       this.chatDeletedListener = null;
     }
+    if (this.chatSaveTabsRequestListener !== null) {
+      this.ipcAdapter.offChatSaveTabsRequest(this.chatSaveTabsRequestListener);
+      this.chatSaveTabsRequestListener = null;
+    }
     if (this.promptSelectorDataListener !== null) {
       this.ipcAdapter.offPromptSelectorData(this.promptSelectorDataListener);
       this.promptSelectorDataListener = null;
+    }
+    // Clear any pending save operation
+    if (this.saveTabsTimeoutId !== null) {
+      clearTimeout(this.saveTabsTimeoutId);
+      this.saveTabsTimeoutId = null;
     }
   }
 
@@ -279,6 +312,9 @@ export class MultiChatService {
     const tab = this.createNewChatTab();
     tab.chatId = chatId;
 
+    // Save tabs to database (chatId is now set)
+    void this.saveTabsIfNotRestoring();
+
     // Load messages for this chat
     const tabChatService = tab.chatService;
     if (tabChatService) {
@@ -288,6 +324,8 @@ export class MultiChatService {
           if (chatInfo) {
             tab.title = chatInfo.title || null;
             this.notifyTabsChange();
+            // Save tabs after title is updated
+            void this.saveTabsIfNotRestoring();
           }
         });
       });
@@ -364,6 +402,9 @@ export class MultiChatService {
 
     this.activeTabId = tabId;
     this.notifyActiveTabChange();
+
+    // Save tabs to database after active tab change
+    void this.saveTabsIfNotRestoring();
   }
 
   /**
@@ -381,7 +422,9 @@ export class MultiChatService {
       return null;
     }
 
-    return this.tabs.find(t => t.tabId === this.activeTabId) || null;
+    const tab = this.tabs.find(t => t.tabId === this.activeTabId) || null;
+
+    return tab;
   }
 
   /**
@@ -389,6 +432,170 @@ export class MultiChatService {
    */
   public getAllTabs(): readonly ITabInfo[] {
     return this.tabs;
+  }
+
+  /**
+   * Load tabs from main process
+   */
+  public async loadTabs(): Promise<{ tabs: TOpenTab[] } | { error: string }> {
+    try {
+      const response = await this.ipcAdapter.loadTabs();
+
+      return response;
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      logger.error('Failed to load tabs: %s', errorText);
+
+      return { error: errorText };
+    }
+  }
+
+  /**
+   * Save current tabs to main process
+   * Only saves chat tabs (not prompt-selector tabs)
+   */
+  public async saveTabs(): Promise<void> {
+    try {
+      // Filter to only chat tabs and convert to TOpenTab format
+      const chatTabs = this.tabs
+        .filter(tab => tab.type === 'chat')
+        .map((tab, index) => ({
+          chatId: tab.chatId,
+          tabOrder: index,
+          isActive: tab.tabId === this.activeTabId,
+        }));
+
+      await this.ipcAdapter.saveTabs(chatTabs);
+      logger.info('Saved %d tabs', String(chatTabs.length));
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      logger.error('Failed to save tabs: %s', errorText);
+    }
+  }
+
+  /**
+   * Restore tabs from saved state
+   * Skips tabs with deleted chatIds
+   * Only restores chat tabs (not prompt-selector tabs)
+   * Restores tab order and active tab
+   */
+  public async restoreTabs(savedTabs: TOpenTab[]): Promise<void> {
+    // Prevent concurrent restore operations
+    if (this.isRestoringTabs) {
+      logger.info('Restore already in progress, skipping duplicate call');
+
+      return;
+    }
+
+    this.isRestoringTabs = true;
+
+    if (savedTabs.length === 0) {
+      logger.info('No saved tabs to restore, creating default empty tab');
+
+      try {
+        // Clear existing tabs
+        this.tabs.length = 0;
+
+        // Create default empty tab
+        const defaultTab = this.createNewChatTab();
+        this.switchToTab(defaultTab.tabId);
+        this.notifyTabsChange();
+
+        return;
+      } finally {
+        this.isRestoringTabs = false;
+      }
+    }
+
+    try {
+      logger.info('Restoring %d saved tabs', String(savedTabs.length));
+
+      // Sort by tabOrder to restore in correct order
+      const sortedTabs = [...savedTabs].sort((a, b) => a.tabOrder - b.tabOrder);
+
+      // Validate chatIds exist before restoring
+      // We'll check this by trying to load messages for each chatId
+      const validTabs: TOpenTab[] = [];
+
+      for (const savedTab of sortedTabs) {
+        if (savedTab.chatId === null) {
+        // Empty tab - always valid
+          validTabs.push(savedTab);
+        } else {
+        // Check if chat exists by trying to get chat info
+          try {
+            const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_GET> = {
+              channel: EIpcChannel.CHAT,
+              event: EIpcEvent.CHAT_GET,
+              payload: { chatId: savedTab.chatId },
+            };
+
+            const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+
+            if (isErrorResponse(response)) {
+              logger.info('Skipping tab with deleted chatId=%d', String(savedTab.chatId));
+              continue;
+            }
+
+            validTabs.push(savedTab);
+          } catch (error: unknown) {
+            const errorText = error instanceof Error ? error.message : String(error);
+            logger.warn('Error validating chatId=%d, skipping tab: %s', String(savedTab.chatId), errorText);
+            continue;
+          }
+        }
+      }
+
+      // Clear existing tabs (except prompt-selector tabs if any)
+      // Actually, we should keep existing tabs and just restore the saved ones
+      // But the plan says to restore tabs, so let's clear all and restore
+      // However, we need to ensure at least one tab exists
+      this.tabs.length = 0;
+
+      if (validTabs.length === 0) {
+        logger.info('No valid tabs to restore after filtering deleted chats');
+        // Continue to create default empty tab below
+      }
+
+      // Restore tabs in order
+      let activeTabId: string | null = null;
+
+      for (const savedTab of validTabs) {
+        if (savedTab.chatId === null) {
+          // Create empty chat tab
+          const tab = this.createNewChatTab();
+          if (savedTab.isActive) {
+            activeTabId = tab.tabId;
+          }
+        } else {
+          // Open existing chat in tab
+          const tab = this.openChatTab(savedTab.chatId);
+          if (savedTab.isActive) {
+            activeTabId = tab.tabId;
+          }
+        }
+      }
+
+      // If no tabs were restored, create a default empty tab
+      if (this.tabs.length === 0) {
+        logger.info('No tabs restored, creating default empty tab');
+        this.createNewChatTab();
+        activeTabId = this.tabs[0]?.tabId ?? null;
+      } else if (activeTabId !== null) {
+        // Switch to the active tab
+        this.switchToTab(activeTabId);
+      } else if (this.tabs.length > 0) {
+        // If no active tab was marked, switch to first tab
+        this.switchToTab(this.tabs[0].tabId);
+      }
+
+      logger.info('Restored %d tabs, active tab: %s', String(this.tabs.length), activeTabId ?? 'none');
+
+      // Notify UI that tabs have changed
+      this.notifyTabsChange();
+    } finally {
+      this.isRestoringTabs = false;
+    }
   }
 
   /**
@@ -413,6 +620,9 @@ export class MultiChatService {
     this.tabs.splice(toIndex, 0, movedTab);
 
     this.notifyTabsChange();
+
+    // Save tabs to database after reorder
+    void this.saveTabsIfNotRestoring();
   }
 
   /**
@@ -529,6 +739,28 @@ export class MultiChatService {
     if (emptyTabs.length > 0) {
       this.notifyTabsChange();
     }
+  }
+
+  /**
+   * Save tabs if not currently restoring (to avoid overwriting during restore)
+   * Debounced to prevent multiple rapid saves - only the last call in a batch will execute
+   */
+  private async saveTabsIfNotRestoring(): Promise<void> {
+    if (this.isRestoringTabs) {
+      return;
+    }
+
+    // Clear any pending save operation
+    if (this.saveTabsTimeoutId !== null) {
+      clearTimeout(this.saveTabsTimeoutId);
+      this.saveTabsTimeoutId = null;
+    }
+
+    // Schedule a new save operation (debounced by 100ms)
+    this.saveTabsTimeoutId = setTimeout(() => {
+      this.saveTabsTimeoutId = null;
+      void this.saveTabs();
+    }, 100);
   }
 
   /**

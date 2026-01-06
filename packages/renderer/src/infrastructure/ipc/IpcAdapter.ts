@@ -1,4 +1,5 @@
-import type { EIpcChannel, TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, EIpcEvent, IChatWindowData, IChatMessage } from '@writing-tools/shared';
+import type { TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, IChatWindowData, IChatMessage, TOpenTab, TChatResponse } from '@writing-tools/shared';
+import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
 
@@ -28,7 +29,7 @@ export interface IIpcAdapter {
   /**
    * Register a listener for Ollama response events
    */
-  onOllamaResponse: (callback: (data?: any) => void) => TIpcRenderListener;
+  onOllamaResponse: (callback: (data: TChatResponse) => void) => TIpcRenderListener;
 
   /**
    * Unregister an Ollama response listener
@@ -86,6 +87,26 @@ export interface IIpcAdapter {
    * Unregister a chat deleted listener
    */
   offChatDeleted: (listener: TIpcRenderListener) => void;
+
+  /**
+   * Register a listener for chat save tabs request events
+   */
+  onChatSaveTabsRequest: (callback: () => void) => TIpcRenderListener;
+
+  /**
+   * Unregister a chat save tabs request listener
+   */
+  offChatSaveTabsRequest: (listener: TIpcRenderListener) => void;
+
+  /**
+   * Save tabs to main process
+   */
+  saveTabs: (tabs: TOpenTab[]) => Promise<{ success: true } | { error: string, success: false }>;
+
+  /**
+   * Load tabs from main process
+   */
+  loadTabs: () => Promise<{ tabs: TOpenTab[] } | { error: string }>;
 }
 
 /**
@@ -96,124 +117,113 @@ export class ElectronIpcAdapter implements IIpcAdapter {
     channel: T,
     data: TIpcEvent<T, K>,
   ): Promise<TIpcResponsePayload<K>> {
-    if (typeof window.electronAPI === 'undefined') {
-      return Promise.reject(new Error('electronAPI is not available'));
-    }
-
-    return window.electronAPI.invoke(channel, data);
+    return this.getElectronAPI().invoke(channel, data);
   }
 
   public onChatWindowData(callback: (data: IChatWindowData) => void): TIpcRenderListener {
-    if (typeof window.electronAPI === 'undefined') {
-      throw new Error('electronAPI is not available');
-    }
-
-    return window.electronAPI.onChatWindowData(callback);
+    return this.getElectronAPI().onChatWindowData(callback);
   }
 
   public offChatWindowData(listener: TIpcRenderListener): void {
-    if (typeof window.electronAPI === 'undefined') {
-      return;
-    }
-
-    window.electronAPI.offChatWindowData(listener);
+    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatWindowData(listener);
   }
 
-  public onOllamaResponse(callback: (data?: any) => void): TIpcRenderListener {
-    if (typeof window.electronAPI === 'undefined') {
-      throw new Error('electronAPI is not available');
-    }
-
-    return window.electronAPI.onOllamaResponse(callback);
+  public onOllamaResponse(callback: (data: TChatResponse) => void): TIpcRenderListener {
+    return this.getElectronAPI().onOllamaResponse(callback);
   }
 
   public offOllamaResponse(listener: TIpcRenderListener): void {
-    if (typeof window.electronAPI === 'undefined') {
-      return;
-    }
-
-    window.electronAPI.offOllamaResponse(listener);
+    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offOllamaResponse(listener);
   }
 
   public onPromptSelectorData(
     callback: (data: { selectedText: string, preconfiguredPrompts: IPreconfiguredPrompt[] }) => void,
   ): TIpcRenderListener {
-    if (typeof window.electronAPI === 'undefined') {
-      throw new Error('electronAPI is not available');
-    }
-
-    return window.electronAPI.onPromptSelectorData(callback);
+    return this.getElectronAPI().onPromptSelectorData(callback);
   }
 
   public offPromptSelectorData(listener: TIpcRenderListener): void {
-    if (typeof window.electronAPI === 'undefined') {
-      return;
-    }
-
-    window.electronAPI.offPromptSelectorData(listener);
+    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offPromptSelectorData(listener);
   }
 
   public onChatTitleUpdated(callback: (data: { chatId: number, title: string }) => void): TIpcRenderListener {
-    if (typeof window.electronAPI === 'undefined') {
-      throw new Error('electronAPI is not available');
-    }
-
-    return window.electronAPI.onChatTitleUpdated(callback);
+    return this.getElectronAPI().onChatTitleUpdated(callback);
   }
 
   public offChatTitleUpdated(listener: TIpcRenderListener): void {
-    if (typeof window.electronAPI === 'undefined') {
-      return;
-    }
-
-    window.electronAPI.offChatTitleUpdated(listener);
+    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatTitleUpdated(listener);
   }
 
   public onChatLoadMessagesData(callback: (data: { chatId: number, messages: IChatMessage[] }) => void): TIpcRenderListener {
-    if (typeof window.electronAPI === 'undefined') {
-      throw new Error('electronAPI is not available');
-    }
-
-    return window.electronAPI.onChatLoadMessagesData(callback);
+    return this.getElectronAPI().onChatLoadMessagesData(callback);
   }
 
   public offChatLoadMessagesData(listener: TIpcRenderListener): void {
-    if (typeof window.electronAPI === 'undefined') {
-      return;
-    }
-
-    window.electronAPI.offChatLoadMessagesData(listener);
+    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatLoadMessagesData(listener);
   }
 
   public onChatCreated(callback: (data: { chatId: number }) => void): TIpcRenderListener {
-    if (typeof window.electronAPI === 'undefined') {
-      throw new Error('electronAPI is not available');
-    }
-
-    return window.electronAPI.onChatCreated(callback);
+    return this.getElectronAPI().onChatCreated(callback);
   }
 
   public offChatCreated(listener: TIpcRenderListener): void {
-    if (typeof window.electronAPI === 'undefined') {
-      return;
-    }
-
-    window.electronAPI.offChatCreated(listener);
+    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatCreated(listener);
   }
 
   public onChatDeleted(callback: (data: { chatId: number }) => void): TIpcRenderListener {
-    if (typeof window.electronAPI === 'undefined') {
-      throw new Error('electronAPI is not available');
-    }
-
-    return window.electronAPI.onChatDeleted(callback);
+    return this.getElectronAPI().onChatDeleted(callback);
   }
 
   public offChatDeleted(listener: TIpcRenderListener): void {
-    if (typeof window.electronAPI === 'undefined') {
-      return;
+    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatDeleted(listener);
+  }
+
+  public onChatSaveTabsRequest(callback: () => void): TIpcRenderListener {
+    return this.getElectronAPI().onChatSaveTabsRequest(callback);
+  }
+
+  public offChatSaveTabsRequest(listener: TIpcRenderListener): void {
+    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatSaveTabsRequest(listener);
+  }
+
+  public async saveTabs(tabs: TOpenTab[]): Promise<{ success: true } | { error: string, success: false }> {
+    const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SAVE_TABS> = {
+      channel: EIpcChannel.CHAT,
+      event: EIpcEvent.CHAT_SAVE_TABS,
+      payload: { tabs },
+    };
+
+    const response = await this.invoke(EIpcChannel.CHAT, payload);
+
+    if ('error' in response) {
+      return { error: response.error, success: false };
     }
 
-    window.electronAPI.offChatDeleted(listener);
+    return { success: true };
+  }
+
+  public async loadTabs(): Promise<{ tabs: TOpenTab[] } | { error: string }> {
+    const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LOAD_TABS> = {
+      channel: EIpcChannel.CHAT,
+      event: EIpcEvent.CHAT_LOAD_TABS,
+      payload: {},
+    };
+
+    const response = await this.invoke(EIpcChannel.CHAT, payload);
+
+    if ('error' in response) {
+      return { error: response.error };
+    }
+
+    return { tabs: response.tabs };
+  }
+
+  private getElectronAPI(): NonNullable<typeof window.electronAPI> {
+    // Runtime check for electronAPI availability (may not be available in test environments)
+    if (window.electronAPI === undefined) {
+      throw new TypeError('electronAPI is not available');
+    }
+
+    return window.electronAPI;
   }
 }

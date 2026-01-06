@@ -4,6 +4,7 @@ import type { IChatMessage } from '../interfaces/IChatMessage';
 import type { ISettings } from '../interfaces/ISettings';
 
 import type { TEnsureAllKeysMap } from './TEnsureAllKeysMap';
+import type { TOpenTab } from './TOpenTab';
 
 export type TSettingsSavePayload = ISettings;
 
@@ -23,7 +24,11 @@ export type TChatGetPayload = { chatId: number };
 
 export type TChatDeletePayload = { chatId: number };
 
+export type TChatLoadTabsPayload = Record<string, never>;
+
 export type TChatOpenPayload = { chatId: number };
+
+export type TChatSaveTabsPayload = { tabs: TOpenTab[] };
 
 export type TEnvGetPayload = Record<string, never>;
 
@@ -35,7 +40,9 @@ export type TIpcEventPayloadMap = {
   [EIpcEvent.CHAT_GET]: TChatGetPayload,
   [EIpcEvent.CHAT_LIST_CHATS]: TChatListChatsPayload,
   [EIpcEvent.CHAT_LOAD_MESSAGES]: TChatLoadMessagesPayload,
+  [EIpcEvent.CHAT_LOAD_TABS]: TChatLoadTabsPayload,
   [EIpcEvent.CHAT_OPEN]: TChatOpenPayload,
+  [EIpcEvent.CHAT_SAVE_TABS]: TChatSaveTabsPayload,
   [EIpcEvent.CHAT_SEND_MESSAGE]: TChatSendMessagePayload,
   [EIpcEvent.ENV_GET]: TEnvGetPayload,
   [EIpcEvent.MODEL_LIST]: TModelListPayload,

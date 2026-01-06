@@ -53,7 +53,7 @@ describe('ElectronIpcAdapter', () => {
   });
 
   afterEach(() => {
-    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+    delete (window as { electronAPI?: unknown }).electronAPI;
   });
 
   describe('invoke', () => {
@@ -74,7 +74,7 @@ describe('ElectronIpcAdapter', () => {
     });
 
     it('rejects when electronAPI is not available', async () => {
-      delete (globalThis as { electronAPI?: unknown }).electronAPI;
+      delete (window as { electronAPI?: unknown }).electronAPI;
       const freshAdapter = new ElectronIpcAdapter();
 
       const payload = {

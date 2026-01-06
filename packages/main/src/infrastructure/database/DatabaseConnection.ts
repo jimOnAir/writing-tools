@@ -24,7 +24,7 @@ export class DatabaseConnection {
       await this.ensureDatabaseDirectory();
       const dbPath = this.getDatabasePath();
       this.db = new Database(dbPath);
-      runInitialMigration(this.db, this.logger);
+      runInitialMigration(this.db);
       this.drizzleDb = drizzle(this.db, { schema });
       this.logger.info('Database connection initialized at: %s', dbPath);
     } catch (error: unknown) {

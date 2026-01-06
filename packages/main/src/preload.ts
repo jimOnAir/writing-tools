@@ -91,5 +91,17 @@ if (typeof window !== 'undefined') {
     offChatDeleted: (listener: TIpcRenderListener) => {
       return ipcRenderer.off(EIpcRendererEvent.CHAT_DELETED, listener);
     },
+    onChatSaveTabsRequest: (cb: () => void) => {
+      const chatSaveTabsRequestListener = () => {
+        cb();
+      };
+
+      ipcRenderer.on(EIpcRendererEvent.CHAT_SAVE_TABS_REQUEST, chatSaveTabsRequestListener);
+
+      return chatSaveTabsRequestListener;
+    },
+    offChatSaveTabsRequest: (listener: TIpcRenderListener) => {
+      return ipcRenderer.off(EIpcRendererEvent.CHAT_SAVE_TABS_REQUEST, listener);
+    },
   });
 }

@@ -6,6 +6,7 @@ import * as os from 'node:os';
 
 import type { IChatService } from '../../domains/chat/IChatService';
 import type { IModelService } from '../../domains/llm/IModelService';
+import type { IOpenTabsRepository } from '../../domains/open-tabs/IOpenTabsRepository';
 import type { ISettingsService } from '../../domains/settings/ISettingsService';
 import type { IWindowService } from '../../domains/windows/IWindowService';
 
@@ -22,9 +23,11 @@ type TChatChannelEventPayload = TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_CREATE_SESSION>
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LOAD_MESSAGES>
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS>
+  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LOAD_TABS>
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_GET>
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_DELETE>
-  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_OPEN>;
+  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_OPEN>
+  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SAVE_TABS>;
 
 type TPromptSelectEventPayload = TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT>;
 
@@ -32,6 +35,7 @@ export class IpcHandlers implements IIpcHandlers {
   private readonly chatService: IChatService;
   private readonly logger: ILogger;
   private readonly modelService: IModelService;
+  private readonly openTabsRepository: IOpenTabsRepository;
   private readonly settingsService: ISettingsService;
   private readonly windowService: IWindowService;
   private readonly processingChatIds = new Set<number>();
@@ -42,10 +46,12 @@ export class IpcHandlers implements IIpcHandlers {
     windowService: IWindowService,
     chatService: IChatService,
     logger: ILogger,
+    openTabsRepository: IOpenTabsRepository,
   ) {
     this.chatService = chatService;
     this.logger = logger;
     this.modelService = modelService;
+    this.openTabsRepository = openTabsRepository;
     this.settingsService = settingsService;
     this.windowService = windowService;
   }
@@ -91,8 +97,12 @@ export class IpcHandlers implements IIpcHandlers {
           return this.handleChatGet(data.payload.chatId);
         case EIpcEvent.CHAT_DELETE:
           return this.handleChatDelete(data.payload.chatId);
+        case EIpcEvent.CHAT_LOAD_TABS:
+          return this.handleChatLoadTabs();
         case EIpcEvent.CHAT_OPEN:
           return this.handleChatOpen(data.payload.chatId);
+        case EIpcEvent.CHAT_SAVE_TABS:
+          return this.handleChatSaveTabs(data.payload.tabs);
 
         default:
           throw new Error(`Unsupported event: ${eventType}`);
@@ -281,6 +291,32 @@ export class IpcHandlers implements IIpcHandlers {
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to delete chat: %s', errorText);
+
+      return { success: false, error: errorText };
+    }
+  }
+
+  private handleChatLoadTabs() {
+    try {
+      const tabs = this.openTabsRepository.loadOpenTabs();
+
+      return { tabs };
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to load tabs: %s', errorText);
+
+      return { error: errorText };
+    }
+  }
+
+  private handleChatSaveTabs(tabs: Array<{ chatId: number | null, tabOrder: number, isActive: boolean }>) {
+    try {
+      this.openTabsRepository.saveOpenTabs(tabs);
+
+      return { success: true };
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to save tabs: %s', errorText);
 
       return { success: false, error: errorText };
     }

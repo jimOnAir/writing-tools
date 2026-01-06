@@ -4,6 +4,7 @@ import type { IChatMessage } from '../interfaces/IChatMessage';
 import type { ISettings } from '../interfaces/ISettings';
 
 import type { TEnsureAllKeysMap } from './TEnsureAllKeysMap';
+import type { TOpenTab } from './TOpenTab';
 
 export type TEnvGetResponse = { arch: string, os: string, platform: NodeJS.Platform };
 
@@ -57,11 +58,23 @@ export type TChatDeleteFailedResponse = { error: string, success: false };
 
 export type TChatDeleteResponse = TChatDeleteSuccessResponse | TChatDeleteFailedResponse;
 
+export type TChatLoadTabsSuccessResponse = { tabs: TOpenTab[] };
+
+export type TChatLoadTabsFailedResponse = { error: string };
+
+export type TChatLoadTabsResponse = TChatLoadTabsSuccessResponse | TChatLoadTabsFailedResponse;
+
 export type TChatOpenSuccessResponse = { success: true };
 
 export type TChatOpenFailedResponse = { error: string, success: false };
 
 export type TChatOpenResponse = TChatOpenSuccessResponse | TChatOpenFailedResponse;
+
+export type TChatSaveTabsSuccessResponse = { success: true };
+
+export type TChatSaveTabsFailedResponse = { error: string, success: false };
+
+export type TChatSaveTabsResponse = TChatSaveTabsSuccessResponse | TChatSaveTabsFailedResponse;
 
 export type TPromptSelectResponse = Record<string, never>;
 
@@ -71,7 +84,9 @@ export type TIpcResponsePayloadMap = {
   [EIpcEvent.CHAT_GET]: TChatGetResponse,
   [EIpcEvent.CHAT_LIST_CHATS]: TChatListChatsResponse,
   [EIpcEvent.CHAT_LOAD_MESSAGES]: TChatLoadMessagesResponse,
+  [EIpcEvent.CHAT_LOAD_TABS]: TChatLoadTabsResponse,
   [EIpcEvent.CHAT_OPEN]: TChatOpenResponse,
+  [EIpcEvent.CHAT_SAVE_TABS]: TChatSaveTabsResponse,
   [EIpcEvent.CHAT_SEND_MESSAGE]: TChatSendMessageResponse,
   [EIpcEvent.ENV_GET]: TEnvGetResponse,
   [EIpcEvent.MODEL_LIST]: TModelListResponse,

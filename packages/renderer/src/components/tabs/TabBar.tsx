@@ -24,15 +24,26 @@ export const TabBar: React.FC<TabBarProps> = ({ multiChatService }) => {
     });
 
     const callbacks = {
-      onTabsChange: setTabs,
-      onActiveTabChange: setActiveTabId,
+      onTabsChange: (tabs: readonly ITabInfo[]) => {
+        setTabs(tabs);
+      },
+      onActiveTabChange: (tabId: string | null) => {
+        setActiveTabId(tabId);
+      },
     };
 
     multiChatService.setCallbacks(callbacks);
 
-    // Initialize tabs list
-    setTabs(multiChatService.getAllTabs());
-    setActiveTabId(multiChatService.getActiveTabId());
+    // Initialize tabs list from service (only if service has tabs)
+    // This ensures we get the current state, but callbacks will update us if tabs change
+    const initialTabs = multiChatService.getAllTabs();
+    const initialActiveTabId = multiChatService.getActiveTabId();
+    if (initialTabs.length > 0) {
+      setTabs(initialTabs);
+    }
+    if (initialActiveTabId !== null) {
+      setActiveTabId(initialActiveTabId);
+    }
 
     // Cleanup: remove callbacks on unmount
     return () => {

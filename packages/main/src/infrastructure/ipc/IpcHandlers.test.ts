@@ -2,10 +2,11 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { EIpcChannel, EIpcEvent, EIpcRendererEvent } from '@writing-tools/shared';
 import type { IChatInfo, IChatMessage, ISettings, ILogger } from '@writing-tools/shared';
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain } from 'electron';
 
 import type { IChatService } from '../../domains/chat/IChatService';
 import type { IModelService } from '../../domains/llm/IModelService';
+import type { IOpenTabsRepository } from '../../domains/open-tabs/IOpenTabsRepository';
 import type { ISettingsService } from '../../domains/settings/ISettingsService';
 import type { IWindowService } from '../../domains/windows/IWindowService';
 
@@ -74,6 +75,7 @@ describe('IpcHandlers', () => {
   let mockChatService: jest.Mocked<IChatService>;
   let mockLogger: jest.Mocked<ILogger>;
   let mockModelService: jest.Mocked<IModelService>;
+  let mockOpenTabsRepository: jest.Mocked<IOpenTabsRepository>;
   let mockSettingsService: jest.Mocked<ISettingsService>;
   let mockWindowService: jest.Mocked<IWindowService>;
   let ipcHandlers: IpcHandlers;
@@ -120,6 +122,13 @@ describe('IpcHandlers', () => {
       getMainWindow: jest.fn(),
     } as unknown as jest.Mocked<IWindowService>;
 
+    mockOpenTabsRepository = {
+      clearOpenTabs: jest.fn(),
+      deleteTabsByChatId: jest.fn(),
+      loadOpenTabs: jest.fn(),
+      saveOpenTabs: jest.fn(),
+    } as unknown as jest.Mocked<IOpenTabsRepository>;
+
     mockLogger = {
       debug: jest.fn(),
       error: jest.fn(),
@@ -135,6 +144,7 @@ describe('IpcHandlers', () => {
       mockWindowService,
       mockChatService,
       mockLogger,
+      mockOpenTabsRepository,
     );
 
     (mockWindowService.getMainWindow as jest.Mock).mockResolvedValue({
@@ -559,6 +569,128 @@ describe('IpcHandlers', () => {
       });
 
       expect(result).toEqual({ success: false, error: 'Chat with id 999 not found' });
+    });
+  });
+
+  describe('CHAT_SAVE_TABS handler', () => {
+    it('saves tabs via repository', async () => {
+      const tabs = [
+        { chatId: 1, tabOrder: 0, isActive: true },
+        { chatId: 2, tabOrder: 1, isActive: false },
+        { chatId: null, tabOrder: 2, isActive: false },
+      ];
+
+      ipcHandlers.register();
+
+      const handler = getHandler(EIpcChannel.CHAT);
+
+      const result = await handler?.(null, {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_SAVE_TABS,
+        payload: { tabs },
+      });
+
+      expect(mockOpenTabsRepository.saveOpenTabs).toHaveBeenCalledWith(tabs);
+      expect(result).toEqual({ success: true });
+    });
+
+    it('handles empty tabs array', async () => {
+      ipcHandlers.register();
+
+      const handler = getHandler(EIpcChannel.CHAT);
+
+      const result = await handler?.(null, {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_SAVE_TABS,
+        payload: { tabs: [] },
+      });
+
+      expect(mockOpenTabsRepository.saveOpenTabs).toHaveBeenCalledWith([]);
+      expect(result).toEqual({ success: true });
+    });
+
+    it('returns error on repository failure', async () => {
+      const error = new Error('Database error');
+      mockOpenTabsRepository.saveOpenTabs.mockImplementation(() => {
+        throw error;
+      });
+
+      ipcHandlers.register();
+
+      const handler = getHandler(EIpcChannel.CHAT);
+
+      const result = await handler?.(null, {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_SAVE_TABS,
+        payload: { tabs: [{ chatId: 1, tabOrder: 0, isActive: true }] },
+      });
+
+      expect(result).toMatchObject({
+        error: expect.stringContaining('Database error'),
+        success: false,
+      });
+    });
+  });
+
+  describe('CHAT_LOAD_TABS handler', () => {
+    it('returns saved tabs', async () => {
+      const tabs = [
+        { chatId: 1, tabOrder: 0, isActive: true },
+        { chatId: 2, tabOrder: 1, isActive: false },
+      ];
+
+      mockOpenTabsRepository.loadOpenTabs.mockReturnValue(tabs);
+
+      ipcHandlers.register();
+
+      const handler = getHandler(EIpcChannel.CHAT);
+
+      const result = await handler?.(null, {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_LOAD_TABS,
+        payload: {},
+      });
+
+      expect(mockOpenTabsRepository.loadOpenTabs).toHaveBeenCalled();
+      expect(result).toEqual({ tabs });
+    });
+
+    it('returns empty array when no tabs saved', async () => {
+      mockOpenTabsRepository.loadOpenTabs.mockReturnValue([]);
+
+      ipcHandlers.register();
+
+      const handler = getHandler(EIpcChannel.CHAT);
+
+      const result = await handler?.(null, {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_LOAD_TABS,
+        payload: {},
+      });
+
+      expect(mockOpenTabsRepository.loadOpenTabs).toHaveBeenCalled();
+      expect(result).toEqual({ tabs: [] });
+    });
+
+    it('returns error on repository failure', async () => {
+      const error = new Error('Database error');
+      mockOpenTabsRepository.loadOpenTabs.mockImplementation(() => {
+        throw error;
+      });
+
+      ipcHandlers.register();
+
+      const handler = getHandler(EIpcChannel.CHAT);
+
+      const result = await handler?.(null, {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_LOAD_TABS,
+        payload: {},
+      });
+
+      expect(result).toMatchObject({
+        error: expect.stringContaining('Database error'),
+      });
     });
   });
 });

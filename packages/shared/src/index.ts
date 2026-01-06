@@ -9,6 +9,7 @@ export type { TChatResponse } from './types/TChatResponse';
 export type { TFetchModelsOllamaResponse } from './types/TFetchModelsOllamaResponse';
 export type { TIpcEvent, TIpcEventPayload } from './types/TIpcChannelEventPayload';
 export type { TIpcResponsePayload } from './types/TIpcChannelEventResponse';
+export type { TOpenTab } from './types/TOpenTab';
 export { DefaultSettings } from './const/DefaultSettings';
 export { EIpcChannel } from './enum/EIpcChannel';
 export { EIpcEvent } from './enum/EIpcEvent';

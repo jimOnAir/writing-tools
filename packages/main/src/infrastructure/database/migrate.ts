@@ -1,11 +1,10 @@
-import type { ILogger } from '@writing-tools/shared';
 import type Database from 'better-sqlite3';
 
 /**
  * Runs initial schema migration for existing databases
  * This handles backward compatibility with existing databases
  */
-export function runInitialMigration(db: Database.Database, logger: ILogger): void {
+export function runInitialMigration(db: Database.Database): void {
   // Check if chats table exists
   const tableExists = db.prepare(`
     SELECT name FROM sqlite_master
@@ -59,5 +58,25 @@ export function runInitialMigration(db: Database.Database, logger: ILogger): voi
   `);
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)
+  `);
+
+  // Create open_tabs table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS open_tabs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id INTEGER,
+      tab_order INTEGER NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Create index for faster queries
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_open_tabs_chat_id ON open_tabs(chat_id)
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_open_tabs_tab_order ON open_tabs(tab_order)
   `);
 }

@@ -1,6 +1,7 @@
 import type { IChatInfo, IChatMessage, ILogger } from '@writing-tools/shared';
 
 import type { IModelService } from '../llm/IModelService';
+import type { IOpenTabsRepository } from '../open-tabs/IOpenTabsRepository';
 import type { IWindowService } from '../windows/IWindowService';
 
 import { ChatService } from './ChatService';
@@ -9,6 +10,7 @@ import type { IChatRepository } from './IChatRepository';
 describe('ChatService', () => {
   let mockLogger: jest.Mocked<ILogger>;
   let mockModelService: jest.Mocked<IModelService>;
+  let mockOpenTabsRepository: jest.Mocked<IOpenTabsRepository>;
   let mockRepository: jest.Mocked<IChatRepository>;
   let mockWindowService: jest.Mocked<IWindowService>;
   let chatService: ChatService;
@@ -46,7 +48,14 @@ describe('ChatService', () => {
       getMainWindow: jest.fn(),
     } as unknown as jest.Mocked<IWindowService>;
 
-    chatService = new ChatService(mockRepository, mockModelService, mockWindowService, mockLogger);
+    mockOpenTabsRepository = {
+      clearOpenTabs: jest.fn(),
+      deleteTabsByChatId: jest.fn(),
+      loadOpenTabs: jest.fn(),
+      saveOpenTabs: jest.fn(),
+    } as unknown as jest.Mocked<IOpenTabsRepository>;
+
+    chatService = new ChatService(mockRepository, mockModelService, mockWindowService, mockLogger, mockOpenTabsRepository);
   });
 
   describe('initialize', () => {
@@ -167,6 +176,27 @@ describe('ChatService', () => {
       chatService.deleteChat(1);
 
       expect(mockRepository.deleteChat).toHaveBeenCalledWith(1);
+    });
+
+    it('removes open_tabs entries for the deleted chat', () => {
+      chatService.deleteChat(1);
+
+      expect(mockOpenTabsRepository.deleteTabsByChatId).toHaveBeenCalledWith(1);
+    });
+
+    it('does not affect open_tabs entries for other chats', () => {
+      chatService.deleteChat(1);
+
+      expect(mockOpenTabsRepository.deleteTabsByChatId).toHaveBeenCalledWith(1);
+      expect(mockOpenTabsRepository.deleteTabsByChatId).not.toHaveBeenCalledWith(2);
+    });
+
+    it('does not affect open_tabs entries with null chatId', () => {
+      chatService.deleteChat(1);
+
+      // deleteTabsByChatId should only be called with the deleted chatId
+      expect(mockOpenTabsRepository.deleteTabsByChatId).toHaveBeenCalledTimes(1);
+      expect(mockOpenTabsRepository.deleteTabsByChatId).toHaveBeenCalledWith(1);
     });
   });
 

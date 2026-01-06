@@ -33,18 +33,22 @@ describe('MultiChatService', () => {
 
     mockIpcAdapter = {
       invoke: jest.fn(),
+      loadTabs: jest.fn(),
+      onChatDeleted: jest.fn(() => mockListener),
+      offChatDeleted: jest.fn(),
+      onChatLoadMessagesData: jest.fn(() => mockListener),
+      offChatLoadMessagesData: jest.fn(),
+      onChatSaveTabsRequest: jest.fn(() => mockListener),
+      offChatSaveTabsRequest: jest.fn(),
+      onChatTitleUpdated: jest.fn(() => mockListener),
+      offChatTitleUpdated: jest.fn(),
       onChatWindowData: jest.fn(() => mockListener),
       offChatWindowData: jest.fn(),
       onOllamaResponse: jest.fn(() => mockListener),
       offOllamaResponse: jest.fn(),
       onPromptSelectorData: jest.fn(() => mockListener),
       offPromptSelectorData: jest.fn(),
-      onChatTitleUpdated: jest.fn(() => mockListener),
-      offChatTitleUpdated: jest.fn(),
-      onChatLoadMessagesData: jest.fn(() => mockListener),
-      offChatLoadMessagesData: jest.fn(),
-      onChatDeleted: jest.fn(() => mockListener),
-      offChatDeleted: jest.fn(),
+      saveTabs: jest.fn(),
     } as unknown as jest.Mocked<IIpcAdapter>;
 
     mockChatService = {
@@ -529,6 +533,206 @@ describe('MultiChatService', () => {
       expect(replacedTab?.type).toBe('chat');
       expect(replacedTab?.chatService).toBeDefined();
       expect(onTabsChange).toHaveBeenCalled();
+    });
+  });
+
+  describe('saveTabs', () => {
+    it('sends correct tab data to IPC adapter', async () => {
+      const tab1 = multiChatService.createNewChatTab();
+      tab1.chatId = 1;
+      const tab2 = multiChatService.createNewChatTab();
+      tab2.chatId = 2;
+      multiChatService.switchToTab(tab1.tabId);
+
+      (mockIpcAdapter.saveTabs as jest.Mock).mockResolvedValue({ success: true });
+
+      await multiChatService.saveTabs();
+
+      expect(mockIpcAdapter.saveTabs).toHaveBeenCalledWith([
+        { chatId: 1, tabOrder: 0, isActive: true },
+        { chatId: 2, tabOrder: 1, isActive: false },
+      ]);
+    });
+
+    it('includes only chat tabs, not prompt-selector tabs', async () => {
+      const chatTab = multiChatService.createNewChatTab();
+      chatTab.chatId = 1;
+      const promptTab = multiChatService.createPromptSelectorTab(mockPromptSelectorService);
+      multiChatService.switchToTab(chatTab.tabId);
+
+      (mockIpcAdapter.saveTabs as jest.Mock).mockResolvedValue({ success: true });
+
+      await multiChatService.saveTabs();
+
+      expect(mockIpcAdapter.saveTabs).toHaveBeenCalledWith([
+        { chatId: 1, tabOrder: 0, isActive: true },
+      ]);
+    });
+
+    it('includes tab order and active tab', async () => {
+      const tab1 = multiChatService.createNewChatTab();
+      tab1.chatId = 1;
+      const tab2 = multiChatService.createNewChatTab();
+      tab2.chatId = 2;
+      multiChatService.switchToTab(tab2.tabId);
+
+      (mockIpcAdapter.saveTabs as jest.Mock).mockResolvedValue({ success: true });
+
+      await multiChatService.saveTabs();
+
+      const savedTabs = (mockIpcAdapter.saveTabs as jest.Mock).mock.calls[0][0];
+      expect(savedTabs[0].isActive).toBe(false);
+      expect(savedTabs[1].isActive).toBe(true);
+    });
+
+    it('handles errors gracefully', async () => {
+      multiChatService.createNewChatTab();
+
+      (mockIpcAdapter.saveTabs as jest.Mock).mockRejectedValue(new Error('Save failed'));
+
+      await multiChatService.saveTabs();
+
+      // Should not throw
+      expect(mockIpcAdapter.saveTabs).toHaveBeenCalled();
+    });
+  });
+
+  describe('restoreTabs', () => {
+    it('creates tabs from saved data', async () => {
+      const savedTabs = [
+        { chatId: 1, tabOrder: 0, isActive: true },
+        { chatId: 2, tabOrder: 1, isActive: false },
+      ];
+
+      (mockIpcAdapter.invoke as jest.Mock).mockResolvedValue({ chat: { id: 1, title: 'Chat 1', provider: 'ollama', model: 'test', created_at: '2024-01-01', updated_at: '2024-01-01' } });
+      (mockIpcAdapter.invoke as jest.Mock).mockResolvedValueOnce({ chat: { id: 1, title: 'Chat 1', provider: 'ollama', model: 'test', created_at: '2024-01-01', updated_at: '2024-01-01' } });
+      (mockIpcAdapter.invoke as jest.Mock).mockResolvedValueOnce({ chat: { id: 2, title: 'Chat 2', provider: 'ollama', model: 'test', created_at: '2024-01-01', updated_at: '2024-01-01' } });
+
+      mockChatService.loadChatMessages.mockResolvedValue(undefined);
+      mockChatService.getChatInfo.mockResolvedValueOnce({ id: 1, title: 'Chat 1', provider: 'ollama', model: 'test', created_at: '2024-01-01', updated_at: '2024-01-01' });
+      mockChatService.getChatInfo.mockResolvedValueOnce({ id: 2, title: 'Chat 2', provider: 'ollama', model: 'test', created_at: '2024-01-01', updated_at: '2024-01-01' });
+
+      await multiChatService.restoreTabs(savedTabs);
+
+      const tabs = multiChatService.getAllTabs();
+      expect(tabs.length).toBe(2);
+      expect(tabs[0].chatId).toBe(1);
+      expect(tabs[1].chatId).toBe(2);
+    });
+
+    it('skips tabs with deleted chatIds', async () => {
+      const savedTabs = [
+        { chatId: 1, tabOrder: 0, isActive: true },
+        { chatId: 999, tabOrder: 1, isActive: false }, // Deleted chat
+        { chatId: 2, tabOrder: 2, isActive: false },
+      ];
+
+      (mockIpcAdapter.invoke as jest.Mock).mockImplementation(async (channel, data) => {
+        if (data.event === 'CHAT_GET' && data.payload.chatId === 999) {
+          return Promise.resolve({ error: 'Chat not found' });
+        }
+        if (data.event === 'CHAT_GET') {
+          return Promise.resolve({
+            chat: {
+              id: data.payload.chatId,
+              created_at: '2024-01-01',
+              model: 'test',
+              provider: 'ollama',
+              title: 'Chat',
+              updated_at: '2024-01-01',
+            },
+          });
+        }
+
+        return Promise.resolve({});
+      });
+
+      mockChatService.loadChatMessages.mockResolvedValue(undefined);
+      mockChatService.getChatInfo.mockResolvedValue({ id: 1, title: 'Chat', provider: 'ollama', model: 'test', created_at: '2024-01-01', updated_at: '2024-01-01' });
+
+      await multiChatService.restoreTabs(savedTabs);
+
+      const tabs = multiChatService.getAllTabs();
+      expect(tabs.length).toBe(2);
+      expect(tabs[0].chatId).toBe(1);
+      expect(tabs[1].chatId).toBe(2);
+      // Tab with chatId 999 should be skipped
+    });
+
+    it('preserves tab order', async () => {
+      const savedTabs = [
+        { chatId: 3, tabOrder: 0, isActive: false },
+        { chatId: 1, tabOrder: 1, isActive: true },
+        { chatId: 2, tabOrder: 2, isActive: false },
+      ];
+
+      (mockIpcAdapter.invoke as jest.Mock).mockResolvedValue({ chat: { id: 1, title: 'Chat', provider: 'ollama', model: 'test', created_at: '2024-01-01', updated_at: '2024-01-01' } });
+
+      mockChatService.loadChatMessages.mockResolvedValue(undefined);
+      mockChatService.getChatInfo.mockResolvedValue({ id: 1, title: 'Chat', provider: 'ollama', model: 'test', created_at: '2024-01-01', updated_at: '2024-01-01' });
+
+      await multiChatService.restoreTabs(savedTabs);
+
+      const tabs = multiChatService.getAllTabs();
+      expect(tabs[0].chatId).toBe(3);
+      expect(tabs[1].chatId).toBe(1);
+      expect(tabs[2].chatId).toBe(2);
+    });
+
+    it('switches to active tab', async () => {
+      const savedTabs = [
+        { chatId: 1, tabOrder: 0, isActive: false },
+        { chatId: 2, tabOrder: 1, isActive: true },
+      ];
+
+      (mockIpcAdapter.invoke as jest.Mock).mockResolvedValue({ chat: { id: 1, title: 'Chat', provider: 'ollama', model: 'test', created_at: '2024-01-01', updated_at: '2024-01-01' } });
+
+      mockChatService.loadChatMessages.mockResolvedValue(undefined);
+      mockChatService.getChatInfo.mockResolvedValue({ id: 1, title: 'Chat', provider: 'ollama', model: 'test', created_at: '2024-01-01', updated_at: '2024-01-01' });
+
+      await multiChatService.restoreTabs(savedTabs);
+
+      const activeTabId = multiChatService.getActiveTabId();
+      const tabs = multiChatService.getAllTabs();
+      const activeTab = tabs.find(t => t.tabId === activeTabId);
+      expect(activeTab?.chatId).toBe(2);
+    });
+
+    it('handles empty tabs array by creating default empty tab', async () => {
+      await multiChatService.restoreTabs([]);
+
+      const tabs = multiChatService.getAllTabs();
+      expect(tabs.length).toBe(1);
+      expect(tabs[0].chatId).toBeNull();
+    });
+
+    it('handles tabs with null chatId (empty tabs)', async () => {
+      const savedTabs = [
+        { chatId: null, tabOrder: 0, isActive: true },
+        { chatId: 1, tabOrder: 1, isActive: false },
+      ];
+
+      (mockIpcAdapter.invoke as jest.Mock).mockResolvedValue({ chat: { id: 1, title: 'Chat', provider: 'ollama', model: 'test', created_at: '2024-01-01', updated_at: '2024-01-01' } });
+
+      mockChatService.loadChatMessages.mockResolvedValue(undefined);
+      mockChatService.getChatInfo.mockResolvedValue({ id: 1, title: 'Chat', provider: 'ollama', model: 'test', created_at: '2024-01-01', updated_at: '2024-01-01' });
+
+      await multiChatService.restoreTabs(savedTabs);
+
+      const tabs = multiChatService.getAllTabs();
+      expect(tabs.length).toBe(2);
+      expect(tabs[0].chatId).toBeNull();
+      expect(tabs[1].chatId).toBe(1);
+    });
+
+    it('creates default empty tab if no tabs restored', async () => {
+      const savedTabs: Array<{ chatId: number | null, tabOrder: number, isActive: boolean }> = [];
+
+      await multiChatService.restoreTabs(savedTabs);
+
+      const tabs = multiChatService.getAllTabs();
+      expect(tabs.length).toBe(1);
+      expect(tabs[0].chatId).toBeNull();
     });
   });
 });

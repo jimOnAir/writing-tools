@@ -3,6 +3,7 @@ import { EIpcRendererEvent } from '@writing-tools/shared';
 import { BrowserWindow } from 'electron';
 
 import type { IModelService } from '../llm/IModelService';
+import type { IOpenTabsRepository } from '../open-tabs/IOpenTabsRepository';
 import type { IWindowService } from '../windows/IWindowService';
 
 import type { IChatRepository } from './IChatRepository';
@@ -11,6 +12,7 @@ import type { IChatService } from './IChatService';
 export class ChatService implements IChatService {
   private readonly logger: ILogger;
   private readonly modelService: IModelService;
+  private readonly openTabsRepository: IOpenTabsRepository;
   private readonly repository: IChatRepository;
   private readonly windowService: IWindowService;
 
@@ -19,9 +21,11 @@ export class ChatService implements IChatService {
     modelService: IModelService,
     windowService: IWindowService,
     logger: ILogger,
+    openTabsRepository: IOpenTabsRepository,
   ) {
     this.logger = logger;
     this.modelService = modelService;
+    this.openTabsRepository = openTabsRepository;
     this.repository = repository;
     this.windowService = windowService;
   }
@@ -60,6 +64,7 @@ export class ChatService implements IChatService {
 
   public deleteChat(chatId: number): void {
     this.repository.deleteChat(chatId);
+    this.openTabsRepository.deleteTabsByChatId(chatId);
     this.notifyChatDeleted(chatId);
   }
 
