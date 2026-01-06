@@ -260,7 +260,7 @@ describe('ChatComponent', () => {
 
     render(<ChatComponent chatService={mockChatService} chatId={null} />);
 
-    const textarea = screen.getByPlaceholderText('Type your message...') as HTMLTextAreaElement;
+    const textarea = screen.getByPlaceholderText('Type your message...');
 
     // ArrowUp should call navigateHistoryUp and update the input when a value is returned
     fireEvent.keyDown(textarea, { key: 'ArrowUp' });
@@ -282,7 +282,7 @@ describe('ChatComponent', () => {
 
     render(<ChatComponent chatService={mockChatService} chatId={null} />);
 
-    const textarea = screen.getByPlaceholderText('Type your message...') as HTMLTextAreaElement;
+    const textarea = screen.getByPlaceholderText('Type your message...');
 
     fireEvent.change(textarea, { target: { value: 'Hello via Enter' } });
 
@@ -303,7 +303,7 @@ describe('ChatComponent', () => {
 
     render(<ChatComponent chatService={mockChatService} chatId={null} />);
 
-    const textarea = screen.getByPlaceholderText('Type your message...') as HTMLTextAreaElement;
+    const textarea = screen.getByPlaceholderText('Type your message...');
 
     fireEvent.change(textarea, { target: { value: 'Hello with newline' } });
 
@@ -324,7 +324,7 @@ describe('ChatComponent', () => {
 
     render(<ChatComponent chatService={mockChatService} chatId={null} />);
 
-    const textarea = screen.getByPlaceholderText('Type your message...') as HTMLTextAreaElement;
+    const textarea = screen.getByPlaceholderText('Type your message...');
 
     fireEvent.change(textarea, { target: { value: 'Hello via Ctrl+Enter' } });
 
@@ -369,7 +369,7 @@ describe('ChatComponent', () => {
     render(<ChatComponent chatService={mockChatService} chatId={null} />);
 
     const textarea = screen.getByPlaceholderText('Type your message...');
-    const sendButton = screen.getByText('Send') as HTMLButtonElement;
+    const sendButton = screen.getByText('Send');
 
     fireEvent.change(textarea, { target: { value: 'Message while loading' } });
 
@@ -395,7 +395,7 @@ describe('ChatComponent', () => {
 
     render(<ChatComponent chatService={mockChatService} chatId={null} />);
 
-    const textarea = screen.getByPlaceholderText('Type your message...') as HTMLTextAreaElement;
+    const textarea = screen.getByPlaceholderText('Type your message...');
     const sendButton = screen.getByText('Send');
 
     fireEvent.change(textarea, { target: { value: 'Message that fails' } });

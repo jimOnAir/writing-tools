@@ -1,5 +1,5 @@
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { createEvent } from '@testing-library/dom';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 
 import type { MultiChatService, ITabInfo } from '../../domains/multi-chat';

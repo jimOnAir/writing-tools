@@ -8,9 +8,8 @@ import { getNativeStyles } from '../styles/NativeStyles';
 import { BackgroundStyles } from '../styles/Styles';
 import { getPlatform } from '../utils/platformDetection';
 
-import { SettingsIcon } from './icons';
-
 import ChatComponent from './ChatComponent';
+import { SettingsIcon } from './icons';
 import PromptSelectorComponent from './PromptSelectorComponent';
 import { SettingsModal } from './SettingsModal';
 import { Sidebar } from './Sidebar';

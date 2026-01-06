@@ -2,7 +2,6 @@ import type { IPreconfiguredPrompt } from '@writing-tools/shared';
 import React from 'react';
 
 import { InputStyles, TypographyStyles, CardStyles, FileInputStyles, ColorPalette } from '../../styles/Styles';
-
 import { CloseIcon } from '../icons';
 
 export interface PreconfiguredPromptItemProps {

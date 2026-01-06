@@ -3,7 +3,6 @@ import React from 'react';
 import type { ITabInfo } from '../../domains/multi-chat';
 import { getNativeStyles } from '../../styles/NativeStyles';
 import { renderMarkdown } from '../../utils/markdownRenderer';
-
 import { CloseIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
 

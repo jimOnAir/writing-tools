@@ -1,7 +1,6 @@
 import React from 'react';
 
 import { ButtonStyles, InputStyles, BackgroundStyles, TypographyStyles, LayoutStyles, ColorPalette } from '../../styles/Styles';
-
 import { CloseIcon } from '../icons';
 
 export interface GlobalShortcutsSectionProps {
