@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 import type { MultiChatService, ITabInfo } from '../../domains/multi-chat';
 import { getNativeStyles } from '../../styles/NativeStyles';
@@ -16,6 +16,7 @@ export const TabBar: React.FC<TabBarProps> = ({ multiChatService }) => {
   const [platform, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
   const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
+  const tabBarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     void getPlatform().then(p => {
@@ -104,8 +105,86 @@ export const TabBar: React.FC<TabBarProps> = ({ multiChatService }) => {
 
   const nativeStyles = getNativeStyles(platform);
 
+  const findTabAtPosition = (clientX: number, clientY: number): string | null => {
+    if (!tabBarRef.current) {
+      return null;
+    }
+
+    const tabElements = tabBarRef.current.querySelectorAll('[data-tab-id]');
+    let targetTabId: string | null = null;
+    let minDistance = Infinity;
+
+    tabElements.forEach((tabElement) => {
+      const rect = tabElement.getBoundingClientRect();
+      const tabId = tabElement.getAttribute('data-tab-id');
+
+      if (!tabId) {
+        return;
+      }
+
+      // Check if mouse is within tab bounds
+      if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+        const centerX = rect.left + rect.width / 2;
+        const distance = Math.abs(clientX - centerX);
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          targetTabId = tabId;
+        }
+      } else {
+        // Check distance to tab center for nearby tabs
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const distance = Math.sqrt(Math.pow(clientX - centerX, 2) + Math.pow(clientY - centerY, 2));
+
+        if (distance < minDistance && distance < 100) {
+          minDistance = distance;
+          targetTabId = tabId;
+        }
+      }
+    });
+
+    return targetTabId;
+  };
+
+  const handleTabBarDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
+    event.preventDefault();
+
+    if (draggedTabId === null) {
+      return;
+    }
+
+    const targetTabId = findTabAtPosition(event.clientX, event.clientY);
+
+    if (targetTabId !== null && targetTabId !== draggedTabId && targetTabId !== dragOverTabId) {
+      setDragOverTabId(targetTabId);
+    }
+  };
+
+  const handleTabBarDrop = (event: React.DragEvent<HTMLDivElement>): void => {
+    event.preventDefault();
+
+    if (draggedTabId === null) {
+      return;
+    }
+
+    // If dragOverTabId is not set or is the same as dragged tab, try to find target tab
+    let targetTabId = dragOverTabId;
+    if (targetTabId === null || targetTabId === draggedTabId) {
+      targetTabId = findTabAtPosition(event.clientX, event.clientY);
+      if (targetTabId !== null && targetTabId !== draggedTabId) {
+        setDragOverTabId(targetTabId);
+      }
+    }
+  };
+
   return (
-    <div className={`${nativeStyles.tabs.container} flex items-center gap-1 overflow-x-auto transition-all duration-300`}>
+    <div
+      ref={tabBarRef}
+      className={`${nativeStyles.tabs.container} flex items-center gap-1 overflow-x-auto transition-all duration-300`}
+      onDragOver={handleTabBarDragOver}
+      onDrop={handleTabBarDrop}
+    >
       <div className="flex items-center gap-1 overflow-x-auto flex-1">
         {tabs.map((tab) => (
           <Tab

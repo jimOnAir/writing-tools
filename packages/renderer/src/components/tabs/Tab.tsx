@@ -55,6 +55,7 @@ export const Tab: React.FC<TabProps> = ({
 
   return (
     <div
+      data-tab-id={tab.tabId}
       onClick={handleOuterDivClick}
       className={`
         ${nativeStyles.tabs.tab.base}
