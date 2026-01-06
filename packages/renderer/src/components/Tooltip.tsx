@@ -7,16 +7,19 @@ interface TooltipProps {
   readonly content: string;
   readonly children: React.ReactElement;
   readonly className?: string;
+  readonly disabled?: boolean;
 }
 
-export const Tooltip: React.FC<TooltipProps> = ({ content, children, className = '' }) => {
+export const Tooltip: React.FC<TooltipProps> = ({ content, children, className = '', disabled = false }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   const handleMouseEnter = (): void => {
-    setIsVisible(true);
+    if (!disabled) {
+      setIsVisible(true);
+    }
   };
 
   const handleMouseLeave = (): void => {
@@ -26,6 +29,16 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, className =
   const handleDragStart = (): void => {
     setIsVisible(false);
   };
+
+  const handleDragEnd = (): void => {
+    setIsVisible(false);
+  };
+
+  useEffect(() => {
+    if (disabled) {
+      setIsVisible(false);
+    }
+  }, [disabled]);
 
   useEffect(() => {
     if (isVisible && triggerRef.current) {
@@ -89,6 +102,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, className =
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onDragStartCapture={handleDragStart}
+        onDragEndCapture={handleDragEnd}
         className="inline-flex w-full min-w-0"
         role="tooltip"
       >

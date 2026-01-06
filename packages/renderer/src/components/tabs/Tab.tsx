@@ -66,7 +66,7 @@ export const Tab: React.FC<TabProps> = ({
       `}
     >
       <div className="flex-1 min-w-0 overflow-hidden">
-        <Tooltip content={displayTitle}>
+        <Tooltip content={displayTitle} disabled={isDragging}>
           <button
             type="button"
             onClick={onSelect}
