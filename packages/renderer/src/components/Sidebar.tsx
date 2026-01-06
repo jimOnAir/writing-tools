@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 import type { ChatListService } from '../domains/chat-list';
+import type { MultiChatService } from '../domains/multi-chat';
 import { getNativeStyles } from '../styles/NativeStyles';
 import { getPlatform } from '../utils/platformDetection';
 
@@ -9,11 +10,12 @@ import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from './icons';
 
 interface SidebarProps {
   readonly chatListService: ChatListService;
+  readonly multiChatService: MultiChatService;
   readonly onChatSelect: (chatId: number) => void;
   readonly onCreateNewTab: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ chatListService, onChatSelect, onCreateNewTab }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ chatListService, multiChatService, onChatSelect, onCreateNewTab }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [platform, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
 
@@ -67,7 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ chatListService, onChatSelect,
       </div>
       {isExpanded && (
         <div className="flex-1 overflow-hidden">
-          <ChatListComponent chatListService={chatListService} onChatSelect={onChatSelect} />
+          <ChatListComponent chatListService={chatListService} multiChatService={multiChatService} onChatSelect={onChatSelect} />
         </div>
       )}
     </div>

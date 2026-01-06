@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 
 import type { ChatListService } from '../domains/chat-list';
+import type { MultiChatService } from '../domains/multi-chat';
 
 import { Sidebar } from './Sidebar';
 
@@ -34,6 +35,7 @@ jest.mock('./ChatListComponent', () => ({
 
 describe('Sidebar', () => {
   let mockChatListService: jest.Mocked<ChatListService>;
+  let mockMultiChatService: jest.Mocked<MultiChatService>;
   let onChatSelect: jest.Mock;
   let onCreateNewTab: jest.Mock;
 
@@ -47,6 +49,12 @@ describe('Sidebar', () => {
       deleteChat: jest.fn(),
     } as unknown as jest.Mocked<ChatListService>;
 
+    mockMultiChatService = {
+      setCallbacks: jest.fn(),
+      removeCallbacks: jest.fn(),
+      getAllTabs: jest.fn().mockReturnValue([]),
+    } as unknown as jest.Mocked<MultiChatService>;
+
     onChatSelect = jest.fn();
     onCreateNewTab = jest.fn();
   });
@@ -55,6 +63,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
       />,
@@ -71,6 +80,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
       />,
@@ -91,6 +101,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
       />,
@@ -110,6 +121,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
       />,
@@ -129,6 +141,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
       />,
@@ -143,6 +156,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
       />,

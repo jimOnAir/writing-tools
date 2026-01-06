@@ -135,7 +135,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   return (
     <div className={`flex h-screen w-screen overflow-hidden ${BackgroundStyles.main}`}>
-      <Sidebar chatListService={chatListService} onChatSelect={handleChatSelect} onCreateNewTab={handleCreateNewTab} />
+      <Sidebar chatListService={chatListService} multiChatService={multiChatService} onChatSelect={handleChatSelect} onCreateNewTab={handleCreateNewTab} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className={`${nativeStyles.header.background} ${nativeStyles.header.border} flex items-center justify-between px-6 py-3`}>
           <div className="flex-1" />

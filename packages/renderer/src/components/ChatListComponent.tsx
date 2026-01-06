@@ -1,7 +1,8 @@
 import type { IChatInfo } from '@writing-tools/shared';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 
 import type { ChatListService } from '../domains/chat-list';
+import type { ITabInfo, MultiChatService } from '../domains/multi-chat';
 import { BackgroundStyles, TypographyStyles, ColorPalette } from '../styles/Styles';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
@@ -10,17 +11,35 @@ import { Tooltip } from './Tooltip';
 
 interface ChatListComponentProps {
   readonly chatListService: ChatListService;
+  readonly multiChatService?: MultiChatService;
   readonly onChatSelect: (chatId: number) => void;
 }
 
 const SCROLL_TIMEOUT_MS = 500;
 
-const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, onChatSelect }) => {
+const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, multiChatService, onChatSelect }) => {
   const [chats, setChats] = useState<IChatInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingChatId, setDeletingChatId] = useState<number | null>(null);
+  const [tabs, setTabs] = useState<readonly ITabInfo[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Extract opened chat IDs from tabs
+  const openedChatIds = useMemo(() => {
+    if (!multiChatService) {
+      return new Set<number>();
+    }
+
+    const chatIds = new Set<number>();
+    for (const tab of tabs) {
+      if (tab.type === 'chat' && tab.chatId !== null) {
+        chatIds.add(tab.chatId);
+      }
+    }
+
+    return chatIds;
+  }, [multiChatService, tabs]);
 
   // Register callbacks
   useEffect(() => {
@@ -45,6 +64,30 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
   useEffect(() => {
     void chatListService.loadChats();
   }, [chatListService]);
+
+  // Subscribe to tab changes from MultiChatService
+  useEffect(() => {
+    if (!multiChatService) {
+      return;
+    }
+
+    const handleTabsChange = (updatedTabs: readonly ITabInfo[]): void => {
+      setTabs(updatedTabs);
+    };
+
+    multiChatService.setCallbacks({
+      onTabsChange: handleTabsChange,
+    });
+
+    // Initialize with current tabs
+    setTabs(multiChatService.getAllTabs());
+
+    return () => {
+      multiChatService.removeCallbacks({
+        onTabsChange: handleTabsChange,
+      });
+    };
+  }, [multiChatService]);
 
   // Add scroll detection for scrollbar visibility
   useEffect(() => {
@@ -138,11 +181,14 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
               const hasTitle = chat.title.trim().length > 0;
               const displayTitle = hasTitle ? chat.title : 'New Chat';
               const isDeleting = deletingChatId === chat.id;
+              const isOpened = openedChatIds.has(chat.id);
 
               return (
                 <div
                   key={chat.id}
-                  className={`${BackgroundStyles.cardHover} p-3 rounded-xl cursor-pointer flex items-center justify-between w-full transition-all duration-300`}
+                  className={`${BackgroundStyles.cardHover} p-3 rounded-xl cursor-pointer flex items-center justify-between w-full transition-all duration-300 ${
+                    isOpened ? `border-l-4 ${ColorPalette.border.accent}` : ''
+                  }`}
                 >
                   <Tooltip content={displayTitle}>
                     <button
