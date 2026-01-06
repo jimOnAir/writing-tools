@@ -17,6 +17,10 @@ export const ColorPalette = {
     lightSubtle: 'border-gray-600/30',
     lightMedium: 'border-gray-600/50',
     lightStrong: 'border-gray-600/60',
+    accent: 'border-purple-600/50',
+    accentHover: 'border-purple-600',
+    error: 'border-red-500',
+    success: 'border-green-500',
   },
   text: {
     primary: 'text-white',
@@ -26,52 +30,56 @@ export const ColorPalette = {
     disabled: 'text-gray-500',
   },
   button: {
-    primary: 'bg-gray-700',
-    primaryHover: 'hover:bg-gray-600',
-    primaryBorder: 'border-gray-600',
+    primary: 'bg-purple-700',
+    primaryHover: 'hover:bg-purple-800',
+    primaryBorder: 'border-purple-600',
+    primaryFocus: 'focus:ring-purple-600',
     secondary: 'bg-gray-700/80',
     secondaryHover: 'hover:bg-gray-600/80',
-    success: 'bg-gray-600',
-    successHover: 'hover:bg-gray-500',
-    successBorder: 'border-gray-500',
-    error: 'bg-gray-700/90',
-    errorHover: 'hover:bg-gray-600/90',
+    success: 'bg-green-600',
+    successHover: 'hover:bg-green-700',
+    successBorder: 'border-green-500',
+    successFocus: 'focus:ring-green-500',
+    error: 'bg-red-600',
+    errorHover: 'hover:bg-red-700',
+    errorBorder: 'border-red-500',
+    errorFocus: 'focus:ring-red-500',
     cancel: 'bg-gray-800/60',
     cancelHover: 'hover:bg-gray-800/80',
     disabled: 'bg-gray-800/40',
   },
   loading: {
-    dot: 'bg-gray-500',
+    dot: 'bg-purple-600',
   },
 };
 
 // Background styles
 export const BackgroundStyles = {
   main: ColorPalette.background.main,
-  card: `${ColorPalette.background.card} rounded ${ColorPalette.border.defaultSubtle}`,
-  cardHover: `${ColorPalette.background.card} rounded ${ColorPalette.border.defaultSubtle} ${ColorPalette.background.cardHover} transition-colors`,
-  cardDense: `${ColorPalette.background.card} rounded ${ColorPalette.border.defaultSubtle}`,
-  chatContainer: `${ColorPalette.background.card} rounded ${ColorPalette.border.defaultSubtle}`,
-  loadingBubble: `${ColorPalette.background.loading} rounded ${ColorPalette.border.defaultSubtle}`,
+  card: `${ColorPalette.background.card} rounded-xl ${ColorPalette.border.defaultSubtle} shadow-sm`,
+  cardHover: `${ColorPalette.background.card} rounded-xl ${ColorPalette.border.defaultSubtle} ${ColorPalette.background.cardHover} transition-all duration-300 shadow-md hover:shadow-lg`,
+  cardDense: `${ColorPalette.background.card} rounded-xl ${ColorPalette.border.defaultSubtle} shadow-sm`,
+  chatContainer: `${ColorPalette.background.card} rounded-xl ${ColorPalette.border.defaultSubtle} shadow-sm`,
+  loadingBubble: `${ColorPalette.background.loading} rounded-xl ${ColorPalette.border.defaultSubtle} shadow-sm`,
 };
 
 // Button styles
 export const ButtonStyles = {
-  base: `px-4 py-2 rounded font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-900`,
-  primary: `${ColorPalette.button.primary} ${ColorPalette.button.primaryHover} ${ColorPalette.text.primary} border ${ColorPalette.button.primaryBorder} hover:border-gray-500 hover:shadow-lg hover:shadow-gray-700/50 active:scale-[0.98]`,
-  secondary: `${ColorPalette.button.secondary} ${ColorPalette.button.secondaryHover} ${ColorPalette.text.primary} border ${ColorPalette.border.lightMedium} hover:border-gray-500 hover:shadow-lg hover:shadow-gray-700/50 active:scale-[0.98]`,
-  success: `${ColorPalette.button.success} ${ColorPalette.button.successHover} ${ColorPalette.text.primary} border ${ColorPalette.button.successBorder} hover:border-gray-400 hover:shadow-lg hover:shadow-gray-600/50 active:scale-[0.98]`,
-  error: `${ColorPalette.button.error} ${ColorPalette.button.errorHover} ${ColorPalette.text.secondary} border ${ColorPalette.border.light} hover:border-gray-500 hover:shadow-lg hover:shadow-gray-700/50 active:scale-[0.98]`,
-  warning: `${ColorPalette.button.secondary} ${ColorPalette.button.secondaryHover} ${ColorPalette.text.primary} border ${ColorPalette.border.lightMedium} hover:border-gray-500 hover:shadow-lg hover:shadow-gray-700/50 active:scale-[0.98]`,
+  base: `px-5 py-2.5 rounded-lg font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900`,
+  primary: `${ColorPalette.button.primary} ${ColorPalette.button.primaryHover} ${ColorPalette.text.primary} border ${ColorPalette.button.primaryBorder} ${ColorPalette.button.primaryFocus} hover:border-purple-500 hover:shadow-lg hover:shadow-purple-600/30 active:scale-[0.98]`,
+  secondary: `${ColorPalette.button.secondary} ${ColorPalette.button.secondaryHover} ${ColorPalette.text.primary} border ${ColorPalette.border.lightMedium} focus:ring-gray-500 hover:border-gray-500 hover:shadow-lg hover:shadow-gray-700/50 active:scale-[0.98]`,
+  success: `${ColorPalette.button.success} ${ColorPalette.button.successHover} ${ColorPalette.text.primary} border ${ColorPalette.button.successBorder} ${ColorPalette.button.successFocus} hover:border-green-400 hover:shadow-lg hover:shadow-green-500/30 active:scale-[0.98]`,
+  error: `${ColorPalette.button.error} ${ColorPalette.button.errorHover} ${ColorPalette.text.primary} border ${ColorPalette.button.errorBorder} ${ColorPalette.button.errorFocus} hover:border-red-400 hover:shadow-lg hover:shadow-red-500/30 active:scale-[0.98]`,
+  warning: `${ColorPalette.button.secondary} ${ColorPalette.button.secondaryHover} ${ColorPalette.text.primary} border ${ColorPalette.border.lightMedium} focus:ring-yellow-500 hover:border-yellow-500/50 hover:shadow-lg hover:shadow-yellow-500/30 active:scale-[0.98]`,
   disabled: `${ColorPalette.button.disabled} ${ColorPalette.text.disabled} cursor-not-allowed border ${ColorPalette.border.defaultSubtle}`,
-  outline: `border ${ColorPalette.border.lightMedium} bg-transparent ${ColorPalette.text.tertiary} ${ColorPalette.background.cardHover} hover:border-gray-500 hover:shadow-md hover:shadow-gray-700/30 active:scale-[0.98]`,
-  ghost: `bg-transparent ${ColorPalette.text.tertiary} ${ColorPalette.background.cardHover} border border-transparent hover:border-gray-600/50 hover:shadow-sm hover:shadow-gray-700/20 active:scale-[0.98]`,
-  cancel: `border ${ColorPalette.border.lightStrong} ${ColorPalette.button.cancel} ${ColorPalette.button.cancelHover} ${ColorPalette.text.tertiary} hover:border-gray-500 hover:shadow-md hover:shadow-gray-700/30 active:scale-[0.98]`,
+  outline: `border ${ColorPalette.border.lightMedium} bg-transparent ${ColorPalette.text.tertiary} ${ColorPalette.background.cardHover} focus:ring-purple-600 hover:border-purple-600/50 hover:shadow-md hover:shadow-purple-600/20 active:scale-[0.98]`,
+  ghost: `bg-transparent ${ColorPalette.text.tertiary} ${ColorPalette.background.cardHover} border border-transparent focus:ring-purple-600 hover:border-gray-600/50 hover:shadow-sm hover:shadow-gray-700/20 active:scale-[0.98]`,
+  cancel: `border ${ColorPalette.border.lightStrong} ${ColorPalette.button.cancel} ${ColorPalette.button.cancelHover} ${ColorPalette.text.tertiary} focus:ring-gray-500 hover:border-gray-500 hover:shadow-md hover:shadow-gray-700/30 active:scale-[0.98]`,
 };
 
 // Input styles
 export const InputStyles
-  = `w-full px-3 py-2 border rounded ${ColorPalette.background.card} ${ColorPalette.text.primary} ${ColorPalette.border.defaultLight} focus:ring-1 focus:ring-gray-500 focus:border-gray-600 transition-colors placeholder:${ColorPalette.text.disabled}`;
+  = `w-full px-3 py-2 border rounded-lg ${ColorPalette.background.card} ${ColorPalette.text.primary} ${ColorPalette.border.defaultLight} focus:ring-2 focus:ring-purple-600/50 focus:border-purple-600 transition-all duration-300 placeholder:${ColorPalette.text.disabled}`;
 
 // File input styles
 export const FileInputStyles: {
@@ -82,14 +90,14 @@ export const FileInputStyles: {
   wrapper: 'relative inline-block',
   input: 'hidden',
   label:
-    `px-4 py-2 rounded font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-900 border ${ColorPalette.border.lightMedium} bg-transparent ${ColorPalette.text.tertiary} ${ColorPalette.background.cardHover} inline-block hover:border-gray-500 hover:shadow-md hover:shadow-gray-700/30 active:scale-[0.98]`,
+    `px-5 py-2.5 rounded-lg font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 focus:ring-offset-gray-900 border ${ColorPalette.border.lightMedium} bg-transparent ${ColorPalette.text.tertiary} ${ColorPalette.background.cardHover} inline-block hover:border-purple-600/50 hover:shadow-md hover:shadow-purple-600/20 active:scale-[0.98]`,
 } as const;
 
 // Message styles
 export const MessageStyles = {
-  user: `${ColorPalette.button.primary} ${ColorPalette.text.primary} rounded rounded-r-sm ${ColorPalette.border.lightSubtle}`,
-  assistant: `${ColorPalette.background.card} ${ColorPalette.text.secondary} rounded rounded-l-sm ${ColorPalette.border.defaultLight}`,
-  error: `bg-gray-800/80 ${ColorPalette.text.tertiary} rounded ${ColorPalette.border.defaultMedium}`,
+  user: `${ColorPalette.button.primary} ${ColorPalette.text.primary} rounded-xl rounded-r-sm ${ColorPalette.border.lightSubtle} shadow-md`,
+  assistant: `${ColorPalette.background.card} ${ColorPalette.text.secondary} rounded-xl rounded-l-sm ${ColorPalette.border.defaultLight} shadow-sm`,
+  error: `bg-red-900/30 ${ColorPalette.text.tertiary} rounded-xl ${ColorPalette.border.error} shadow-sm`,
 };
 
 // Loading styles
@@ -97,37 +105,37 @@ export const LoadingStyles = 'flex space-x-2 items-center';
 
 // Notification styles
 export const NotificationStyles = {
-  error: `p-3 ${ColorPalette.background.card} ${ColorPalette.border.defaultMedium} ${ColorPalette.text.tertiary} rounded mb-4`,
-  success: `p-3 ${ColorPalette.background.card} ${ColorPalette.border.defaultMedium} ${ColorPalette.text.tertiary} rounded mb-4`,
-  errorInline: `p-3 ${ColorPalette.background.card} ${ColorPalette.text.tertiary} rounded ${ColorPalette.border.defaultMedium}`,
+  error: `p-4 ${ColorPalette.background.card} ${ColorPalette.border.error} ${ColorPalette.text.tertiary} rounded-xl mb-4 shadow-md border-l-4 border-l-red-500`,
+  success: `p-4 ${ColorPalette.background.card} ${ColorPalette.border.success} ${ColorPalette.text.tertiary} rounded-xl mb-4 shadow-md border-l-4 border-l-green-500`,
+  errorInline: `p-4 ${ColorPalette.background.card} ${ColorPalette.text.tertiary} rounded-xl ${ColorPalette.border.error} shadow-sm border-l-4 border-l-red-500`,
 };
 
 // Typography styles
 export const TypographyStyles = {
-  h1: `text-xl font-medium mb-4 ${ColorPalette.text.primary}`,
-  h2: `text-lg font-medium mb-3 ${ColorPalette.text.primary}`,
-  h3: `text-base font-medium mb-2 ${ColorPalette.text.tertiary}`,
-  h4: `font-medium mb-2 ${ColorPalette.text.tertiary}`,
-  label: `block mb-1.5 text-sm ${ColorPalette.text.tertiary}`,
-  emptyState: ColorPalette.text.disabled,
-  description: `${ColorPalette.text.muted} mb-4 text-sm`,
-  subtitle: `${ColorPalette.text.muted} mb-6 text-sm`,
+  h1: `text-2xl font-semibold mb-6 ${ColorPalette.text.primary} leading-tight`,
+  h2: `text-xl font-semibold mb-4 ${ColorPalette.text.primary} leading-tight`,
+  h3: `text-base font-medium mb-2.5 ${ColorPalette.text.tertiary} leading-relaxed`,
+  h4: `text-sm font-medium mb-2 ${ColorPalette.text.tertiary} leading-relaxed`,
+  label: `block mb-2 text-sm font-medium ${ColorPalette.text.tertiary} leading-normal`,
+  emptyState: `${ColorPalette.text.disabled} text-sm leading-relaxed`,
+  description: `${ColorPalette.text.muted} mb-4 text-sm leading-relaxed`,
+  subtitle: `${ColorPalette.text.muted} mb-6 text-sm leading-relaxed`,
 };
 
 // Layout styles
 export const LayoutStyles = {
   container: 'max-w-4xl mx-auto',
-  inputGroup: 'flex items-start space-x-2',
-  section: 'mb-6',
-  sectionCard: 'mb-6 p-4',
+  inputGroup: 'flex items-start space-x-3',
+  section: 'mb-8',
+  sectionCard: 'mb-8 p-6',
   divider: `border-t ${ColorPalette.border.defaultLight}`,
 };
 
 // Card styles
 export const CardStyles = {
-  promptCard: `${BackgroundStyles.cardHover} p-3 text-left cursor-pointer border ${ColorPalette.border.defaultSubtle} hover:border-gray-600/50 hover:shadow-lg hover:shadow-gray-700/30 transition-all duration-200 active:scale-[0.98]`,
-  promptItemCard: `${BackgroundStyles.cardDense} p-4`,
-  settingsCard: `${BackgroundStyles.card} p-4`,
+  promptCard: `${BackgroundStyles.cardHover} p-4 text-left cursor-pointer border ${ColorPalette.border.defaultSubtle} hover:border-purple-600/50 hover:shadow-lg hover:shadow-purple-600/20 transition-all duration-300 active:scale-[0.98]`,
+  promptItemCard: `${BackgroundStyles.cardDense} p-5`,
+  settingsCard: `${BackgroundStyles.card} p-6`,
 };
 
 // Scrollbar styles

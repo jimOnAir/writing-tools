@@ -64,7 +64,7 @@ describe('Sidebar', () => {
       expect(screen.getByText('Chats')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('+ New Chat')).toBeInTheDocument();
+    expect(screen.getByText('New Chat')).toBeInTheDocument();
   });
 
   it('toggles sidebar when toggle button is clicked', async () => {

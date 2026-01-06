@@ -1,20 +1,26 @@
 import type { IChatInfo } from '@writing-tools/shared';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 import type { ChatListService } from '../domains/chat-list';
-import { ButtonStyles, BackgroundStyles, TypographyStyles, ColorPalette } from '../styles/Styles';
+import { BackgroundStyles, TypographyStyles, ColorPalette } from '../styles/Styles';
 import { renderMarkdown } from '../utils/markdownRenderer';
+
+import { CloseIcon, LoadingIcon } from './icons';
+import { Tooltip } from './Tooltip';
 
 interface ChatListComponentProps {
   readonly chatListService: ChatListService;
   readonly onChatSelect: (chatId: number) => void;
 }
 
+const SCROLL_TIMEOUT_MS = 500;
+
 const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, onChatSelect }) => {
   const [chats, setChats] = useState<IChatInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingChatId, setDeletingChatId] = useState<number | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Register callbacks
   useEffect(() => {
@@ -39,6 +45,35 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
   useEffect(() => {
     void chatListService.loadChats();
   }, [chatListService]);
+
+  // Add scroll detection for scrollbar visibility
+  useEffect(() => {
+    const element = scrollContainerRef.current;
+    if (!element) {
+      return;
+    }
+
+    let scrollTimeout: NodeJS.Timeout | null = null;
+
+    const handleScroll = (): void => {
+      element.classList.add('scrolling');
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+      scrollTimeout = setTimeout(() => {
+        element.classList.remove('scrolling');
+      }, SCROLL_TIMEOUT_MS);
+    };
+
+    element.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      element.removeEventListener('scroll', handleScroll);
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+    };
+  }, []);
 
   const handleOpenChat = (chatId: number): void => {
     onChatSelect(chatId);
@@ -78,9 +113,9 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
   };
 
   return (
-    <div className="flex flex-col h-full p-2 overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       {error && (
-        <div className={`mb-2 p-2 ${BackgroundStyles.card} ${ColorPalette.text.secondary} rounded text-sm`}>
+        <div className={`m-4 mb-3 p-3 ${BackgroundStyles.card} ${ColorPalette.text.secondary} rounded-xl text-sm`}>
           Error: {error}
         </div>
       )}
@@ -91,51 +126,61 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
         </div>
       )}
       {!isLoading && chats.length === 0 && (
-        <div className={`flex-1 flex items-center justify-center ${ColorPalette.text.muted} px-2`}>
-          <p className="text-sm text-center">No chats yet. Start a new conversation to see it here.</p>
+        <div className={`flex-1 flex flex-col items-center justify-center ${ColorPalette.text.muted} px-4`}>
+          <p className="text-sm text-center mb-2">No chats yet</p>
+          <p className="text-xs text-center opacity-75">Start a new conversation to see it here</p>
         </div>
       )}
       {!isLoading && chats.length > 0 && (
-        <div className="flex-1 overflow-y-auto space-y-2">
-          {chats.map((chat) => {
-            const hasTitle = chat.title.trim().length > 0;
-            const displayTitle = hasTitle ? chat.title : 'New Chat';
-            const isDeleting = deletingChatId === chat.id;
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0">
+          <div className="p-4 space-y-3">
+            {chats.map((chat) => {
+              const hasTitle = chat.title.trim().length > 0;
+              const displayTitle = hasTitle ? chat.title : 'New Chat';
+              const isDeleting = deletingChatId === chat.id;
 
-            return (
-              <div
-                key={chat.id}
-                className={`${BackgroundStyles.cardHover} p-3 rounded cursor-pointer flex items-center justify-between w-full`}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleOpenChat(chat.id);
-                  }}
-                  className="flex-1 min-w-0 text-left"
-                  aria-label={`Open chat: ${displayTitle}`}
+              return (
+                <div
+                  key={chat.id}
+                  className={`${BackgroundStyles.cardHover} p-3 rounded-xl cursor-pointer flex items-center justify-between w-full transition-all duration-300`}
                 >
-                  <div
-                    className={`${TypographyStyles.h3} ${ColorPalette.text.primary} truncate markdown-content`}
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(displayTitle) }}
-                  />
-                  <div className={`text-xs ${ColorPalette.text.muted} mt-1`}>
-                    {formatDate(chat.updated_at)}
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    void handleDeleteChat(chat.id, e);
-                  }}
-                  disabled={isDeleting}
-                  className={`ml-3 ${ButtonStyles.base} ${isDeleting ? ButtonStyles.disabled : ButtonStyles.ghost} whitespace-nowrap`}
-                >
-                  {isDeleting ? 'Removing...' : 'Remove'}
-                </button>
-              </div>
-            );
-          })}
+                  <Tooltip content={displayTitle}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleOpenChat(chat.id);
+                      }}
+                      className="flex-1 min-w-0 text-left overflow-hidden"
+                      aria-label={`Open chat: ${displayTitle}`}
+                    >
+                      <div
+                        className={`${TypographyStyles.h3} ${ColorPalette.text.primary} truncate markdown-content chat-title mb-1 min-w-0 overflow-hidden`}
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(displayTitle) }}
+                      />
+                      <div className={`text-xs ${ColorPalette.text.muted} mt-0.5`}>
+                        {formatDate(chat.updated_at)}
+                      </div>
+                    </button>
+                  </Tooltip>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      void handleDeleteChat(chat.id, e);
+                    }}
+                    disabled={isDeleting}
+                    className="ml-3 p-1.5 rounded hover:bg-gray-700/50 text-gray-400 hover:text-red-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    aria-label="Delete chat"
+                  >
+                    {isDeleting ? (
+                      <LoadingIcon size={14} className="text-gray-400" />
+                    ) : (
+                      <CloseIcon size={16} />
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

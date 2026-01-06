@@ -2,6 +2,8 @@ import React from 'react';
 
 import { ButtonStyles, InputStyles, BackgroundStyles, TypographyStyles, LayoutStyles, ColorPalette } from '../../styles/Styles';
 
+import { CloseIcon } from '../icons';
+
 export interface GlobalShortcutsSectionProps {
   readonly currentShortcut: string | undefined;
   readonly newShortcut: string;
@@ -51,9 +53,10 @@ export const GlobalShortcutsSection: React.FC<GlobalShortcutsSectionProps> = ({
           </span>
           <button
             onClick={onRemoveShortcut}
-            className={`${ButtonStyles.base} ${ButtonStyles.ghost} whitespace-nowrap`}
+            className="p-1.5 rounded hover:bg-gray-700/50 text-gray-400 hover:text-red-400 transition-all duration-200 flex items-center justify-center"
+            aria-label="Remove shortcut"
           >
-            Remove
+            <CloseIcon size={16} />
           </button>
         </div>
       ) : null}

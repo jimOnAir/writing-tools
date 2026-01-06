@@ -48,7 +48,7 @@ export const TabBar: React.FC<TabBarProps> = ({ multiChatService }) => {
   const nativeStyles = getNativeStyles(platform);
 
   return (
-    <div className={`${nativeStyles.tabs.container} flex items-center gap-1 overflow-x-auto`}>
+    <div className={`${nativeStyles.tabs.container} flex items-center gap-1 overflow-x-auto transition-all duration-300`}>
       <div className="flex items-center gap-1 overflow-x-auto flex-1">
         {tabs.map((tab) => (
           <Tab

@@ -478,8 +478,8 @@ Title:`;
 
       const response = await this.modelService.sendMessages([
         {
-          role: 'user',
           content: prompt,
+          role: 'user',
         },
       ]);
 
@@ -489,20 +489,13 @@ Title:`;
         return null;
       }
 
-      // Clean up the title: remove quotes, trim whitespace
+      // Clean up the title: remove quotes, trim whitespace (no backend truncation)
       let title = response.response.trim();
       // Remove surrounding quotes if present
       if ((title.startsWith('"') && title.endsWith('"')) || (title.startsWith("'") && title.endsWith("'"))) {
         title = title.slice(1, -1);
       }
       title = title.trim();
-
-      // Limit to reasonable length (e.g., 100 characters)
-      const maxTitleLength = 100;
-      const ellipsisLength = 3;
-      if (title.length > maxTitleLength) {
-        title = `${title.slice(0, maxTitleLength - ellipsisLength)}...`;
-      }
 
       return title || null;
     } catch (error: unknown) {

@@ -1,4 +1,5 @@
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import type { IChatMessage } from '@writing-tools/shared';
 import React from 'react';
 
 import type { ChatService } from '../domains/chat';
@@ -90,10 +91,15 @@ describe('ChatComponent', () => {
     });
   });
 
-  test('shows error when service returns error', async () => {
-    // Mock error response
+  test('shows error in UI when service returns error', async () => {
+    // Mock error response from service
     mockChatService.sendMessage.mockResolvedValue('Connection refused');
-    mockChatService.getError.mockReturnValue('Connection refused');
+
+    let onErrorChange: ((error: string | null) => void) | undefined;
+
+    mockChatService.setCallbacks.mockImplementation((callbacks) => {
+      onErrorChange = callbacks.onErrorChange;
+    });
 
     render(<ChatComponent chatService={mockChatService} chatId={null} />);
 
@@ -104,11 +110,22 @@ describe('ChatComponent', () => {
     fireEvent.change(textarea, { target: { value: 'Test message' } });
     fireEvent.click(sendButton);
 
-    // Verify sendMessage was called
+    // Verify sendMessage was called with the correct text
     await waitFor(() => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockChatService.sendMessage).toHaveBeenCalledWith('Test message');
     });
+
+    // Simulate service notifying the component about the error
+    if (onErrorChange) {
+      const callback = onErrorChange;
+      act(() => {
+        callback('Connection refused');
+      });
+    }
+
+    // Error message should be rendered in the DOM
+    expect(screen.getByText('Connection refused')).toBeInTheDocument();
   });
 
   test('displays messages from service', () => {
@@ -194,7 +211,7 @@ describe('ChatComponent', () => {
     expect(loadingDots.length).toBeGreaterThan(0);
   });
 
-  test('displays error message', () => {
+  test('displays error message from onErrorChange callback', () => {
     let onErrorChange: ((error: string | null) => void) | undefined;
 
     mockChatService.setCallbacks.mockImplementation((callbacks) => {
@@ -210,9 +227,7 @@ describe('ChatComponent', () => {
       });
     }
 
-    mockChatService.getError.mockReturnValue('Test error');
-
-    expect(mockChatService.getError()).toBe('Test error');
+    expect(screen.getByText('Test error')).toBeInTheDocument();
   });
 
   test('loads messages when chatId is provided', async () => {
@@ -240,19 +255,235 @@ describe('ChatComponent', () => {
       },
     ];
 
-    mockChatService.getMessages.mockReturnValue(mockMessages);
     mockChatService.navigateHistoryUp.mockReturnValue('Message 1');
+    mockChatService.navigateHistoryDown.mockReturnValue('Message 2');
 
     render(<ChatComponent chatService={mockChatService} chatId={null} />);
 
-    const textarea = screen.getByPlaceholderText('Type your message...');
+    const textarea = screen.getByPlaceholderText('Type your message...') as HTMLTextAreaElement;
+
+    // ArrowUp should call navigateHistoryUp and update the input when a value is returned
     fireEvent.keyDown(textarea, { key: 'ArrowUp' });
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockChatService.navigateHistoryUp).toHaveBeenCalled();
+    expect(textarea.value).toBe('Message 1');
+
+    // ArrowDown should call navigateHistoryDown and update the input when a value is returned
+    fireEvent.keyDown(textarea, { key: 'ArrowDown' });
+
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(mockChatService.navigateHistoryDown).toHaveBeenCalled();
+    expect(textarea.value).toBe('Message 2');
   });
 
-  test('displays chat title', async () => {
+  test('pressing Enter without Shift sends the message and clears input on success', async () => {
+    mockChatService.sendMessage.mockResolvedValue(null);
+
+    render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+    const textarea = screen.getByPlaceholderText('Type your message...') as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: 'Hello via Enter' } });
+
+    fireEvent.keyDown(textarea, {
+      key: 'Enter',
+      shiftKey: false,
+    });
+
+    await waitFor(() => {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(mockChatService.sendMessage).toHaveBeenCalledWith('Hello via Enter');
+      expect(textarea.value).toBe('');
+    });
+  });
+
+  test('pressing Shift+Enter does not send the message', async () => {
+    mockChatService.sendMessage.mockResolvedValue(null);
+
+    render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+    const textarea = screen.getByPlaceholderText('Type your message...') as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: 'Hello with newline' } });
+
+    fireEvent.keyDown(textarea, {
+      key: 'Enter',
+      shiftKey: true,
+    });
+
+    // sendMessage should not be called when Shift+Enter is pressed
+    await waitFor(() => {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(mockChatService.sendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  test('pressing Ctrl+Enter sends the message', async () => {
+    mockChatService.sendMessage.mockResolvedValue(null);
+
+    render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+    const textarea = screen.getByPlaceholderText('Type your message...') as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: 'Hello via Ctrl+Enter' } });
+
+    fireEvent.keyDown(textarea, {
+      key: 'Enter',
+      ctrlKey: true,
+    });
+
+    await waitFor(() => {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(mockChatService.sendMessage).toHaveBeenCalledWith('Hello via Ctrl+Enter');
+    });
+  });
+
+  test('does not send message when input is empty or whitespace', async () => {
+    render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+    const textarea = screen.getByPlaceholderText('Type your message...');
+    const sendButton = screen.getByText('Send');
+
+    // Empty input
+    fireEvent.change(textarea, { target: { value: '' } });
+    fireEvent.click(sendButton);
+
+    // Whitespace-only input
+    fireEvent.change(textarea, { target: { value: '   ' } });
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(mockChatService.sendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  test('does not send message and disables button when loading', async () => {
+    let onLoadingChange: ((loading: boolean) => void) | undefined;
+
+    mockChatService.setCallbacks.mockImplementation((callbacks) => {
+      onLoadingChange = callbacks.onLoadingChange;
+    });
+
+    render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+    const textarea = screen.getByPlaceholderText('Type your message...');
+    const sendButton = screen.getByText('Send') as HTMLButtonElement;
+
+    fireEvent.change(textarea, { target: { value: 'Message while loading' } });
+
+    if (onLoadingChange) {
+      const callback = onLoadingChange;
+      act(() => {
+        callback(true);
+      });
+    }
+
+    expect(sendButton.disabled).toBe(true);
+
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(mockChatService.sendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  test('keeps input value when service returns error string', async () => {
+    mockChatService.sendMessage.mockResolvedValue('Service error');
+
+    render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+    const textarea = screen.getByPlaceholderText('Type your message...') as HTMLTextAreaElement;
+    const sendButton = screen.getByText('Send');
+
+    fireEvent.change(textarea, { target: { value: 'Message that fails' } });
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(mockChatService.sendMessage).toHaveBeenCalledWith('Message that fails');
+    });
+
+    // Input should not be cleared when an error string is returned
+    expect(textarea.value).toBe('Message that fails');
+  });
+
+  test('scrolls to bottom on new messages when not handling response', () => {
+    const mockMessages: IChatMessage[] = [
+      {
+        id: '1',
+        role: 'user' as const,
+        content: 'First',
+        timestamp: new Date(),
+      },
+    ];
+
+    let onMessagesChange: ((messages: IChatMessage[]) => void) | undefined;
+    let onHandlingResponseChange: ((isHandlingResponse: boolean) => void) | undefined;
+
+    mockChatService.setCallbacks.mockImplementation((callbacks) => {
+      onMessagesChange = callbacks.onMessagesChange;
+      onHandlingResponseChange = callbacks.onHandlingResponseChange;
+    });
+
+    const scrollSpy = jest.spyOn(Element.prototype, 'scrollIntoView');
+
+    render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+    // When not handling response, new messages should trigger scrollIntoView
+    if (onMessagesChange) {
+      const callback = onMessagesChange;
+      act(() => {
+        callback(mockMessages);
+      });
+    }
+
+    expect(scrollSpy).toHaveBeenCalled();
+
+    scrollSpy.mockClear();
+
+    // When handling response, new messages should not trigger scrollIntoView
+    if (onHandlingResponseChange) {
+      const callback = onHandlingResponseChange;
+      act(() => {
+        callback(true);
+      });
+    }
+
+    if (onMessagesChange) {
+      const callback = onMessagesChange;
+      act(() => {
+        callback([
+          ...mockMessages,
+          {
+            id: '2',
+            role: 'assistant' as const,
+            content: 'Second',
+            timestamp: new Date(),
+          },
+        ]);
+      });
+    }
+
+    expect(scrollSpy).not.toHaveBeenCalled();
+  });
+
+  test('shows \"New Chat\" header when there is an active chat without a title', async () => {
+    mockChatService.getChatInfo.mockResolvedValue(null);
+
+    render(<ChatComponent chatService={mockChatService} chatId={1} />);
+
+    await waitFor(() => {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(mockChatService.getChatInfo).toHaveBeenCalled();
+    });
+
+    expect(screen.getByText('New Chat')).toBeInTheDocument();
+  });
+
+  test('displays chat title when onTitleChange is called', async () => {
     let onTitleChange: ((title: string) => void) | undefined;
 
     mockChatService.setCallbacks.mockImplementation((callbacks) => {
@@ -274,7 +505,7 @@ describe('ChatComponent', () => {
       });
     }
 
-    // Title should be displayed (check implementation for exact location)
-    expect(mockChatService).toBeDefined();
+    // Title should be rendered in the header
+    expect(screen.getByText('Test Chat Title')).toBeInTheDocument();
   });
 });

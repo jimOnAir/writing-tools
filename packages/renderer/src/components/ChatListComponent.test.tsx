@@ -199,8 +199,8 @@ describe('ChatListComponent', () => {
       });
     }
 
-    const removeButton = screen.getByText('Remove');
-    fireEvent.click(removeButton);
+    const deleteButton = screen.getByLabelText('Delete chat');
+    fireEvent.click(deleteButton);
 
     await waitFor(() => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -245,8 +245,8 @@ describe('ChatListComponent', () => {
       });
     }
 
-    const removeButton = screen.getByText('Remove');
-    fireEvent.click(removeButton);
+    const deleteButton = screen.getByLabelText('Delete chat');
+    fireEvent.click(deleteButton);
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockChatListService.deleteChat).not.toHaveBeenCalled();
@@ -295,7 +295,9 @@ describe('ChatListComponent', () => {
       });
     }
 
-    expect(screen.getByText('Removing...')).toBeInTheDocument();
+    // When deleting, the delete button should be disabled
+    const deleteButton = screen.getByLabelText('Delete chat') as HTMLButtonElement;
+    expect(deleteButton.disabled).toBe(true);
   });
 
   it('displays error message', () => {

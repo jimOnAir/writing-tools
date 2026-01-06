@@ -166,7 +166,7 @@ describe('PreconfiguredPromptItem', () => {
       />,
     );
 
-    const removeButton = screen.getByText('Remove');
+    const removeButton = screen.getByLabelText('Remove prompt');
     fireEvent.click(removeButton);
 
     expect(onRemove).toHaveBeenCalledWith(0);

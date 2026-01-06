@@ -202,7 +202,7 @@ describe('ChatService', () => {
       expect(title).toBe('Quoted Title');
     });
 
-    it('truncates long titles', async () => {
+    it('does not truncate long titles', async () => {
       const longTitleLength = 150;
       const longTitle = 'A'.repeat(longTitleLength);
       mockModelService.sendMessages.mockResolvedValue({
@@ -212,8 +212,8 @@ describe('ChatService', () => {
 
       const title = await chatService.generateChatTitle('User', 'Assistant');
 
-      expect(title?.length).toBeLessThanOrEqual(100);
-      expect(title).toContain('...');
+      expect(title?.length).toBe(longTitleLength);
+      expect(title).not.toContain('...');
     });
 
     it('returns null on error', async () => {

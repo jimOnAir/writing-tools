@@ -46,13 +46,13 @@ describe('GlobalShortcutsSection', () => {
     render(<GlobalShortcutsSection {...defaultProps} currentShortcut="Command+Shift+I" />);
 
     expect(screen.getByText('Command+Shift+I')).toBeInTheDocument();
-    expect(screen.getByText('Remove')).toBeInTheDocument();
+    expect(screen.getByLabelText('Remove shortcut')).toBeInTheDocument();
   });
 
   it('calls onRemoveShortcut when remove button is clicked', () => {
     render(<GlobalShortcutsSection {...defaultProps} currentShortcut="Command+Shift+I" />);
 
-    const removeButton = screen.getByText('Remove');
+    const removeButton = screen.getByLabelText('Remove shortcut');
     fireEvent.click(removeButton);
 
     expect(defaultProps.onRemoveShortcut).toHaveBeenCalled();
@@ -61,6 +61,6 @@ describe('GlobalShortcutsSection', () => {
   it('does not display current shortcut section when no shortcut is set', () => {
     render(<GlobalShortcutsSection {...defaultProps} />);
 
-    expect(screen.queryByText('Remove')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Remove shortcut')).not.toBeInTheDocument();
   });
 });

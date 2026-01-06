@@ -20,6 +20,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isSendingRef = useRef<boolean>(false);
+  const isComposingRef = useRef<boolean>(false);
 
   // Register callbacks
   useEffect(() => {
@@ -100,11 +101,26 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
     }
   };
 
-  // Handle Enter key press
+  // Handle keyboard interactions in the input (sending, history navigation)
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      e.stopPropagation();
+    // Do not attempt to send while IME composition is active
+    // This ensures Enter during composition doesn't accidentally send
+    if (isComposingRef.current) {
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      // Shift+Enter: allow newline for multi-line input
+      if (e.shiftKey) {
+        return;
+      }
+
+      // Enter (or Ctrl/Cmd+Enter) sends the message
+      if (!e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
       void handleSendMessage();
       if (inputRef.current) {
         inputRef.current.focus();
@@ -199,6 +215,12 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
           ref={inputRef}
           onChange={(e) => {
             setInputValue(e.target.value);
+          }}
+          onCompositionStart={() => {
+            isComposingRef.current = true;
+          }}
+          onCompositionEnd={() => {
+            isComposingRef.current = false;
           }}
           onKeyDown={handleKeyPress}
           placeholder="Type your message..."

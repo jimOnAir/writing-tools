@@ -8,6 +8,8 @@ import { getNativeStyles } from '../styles/NativeStyles';
 import { BackgroundStyles } from '../styles/Styles';
 import { getPlatform } from '../utils/platformDetection';
 
+import { SettingsIcon } from './icons';
+
 import ChatComponent from './ChatComponent';
 import PromptSelectorComponent from './PromptSelectorComponent';
 import { SettingsModal } from './SettingsModal';
@@ -91,26 +93,28 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     <div className={`flex h-screen w-screen overflow-hidden ${BackgroundStyles.main}`}>
       <Sidebar chatListService={chatListService} onChatSelect={handleChatSelect} onCreateNewTab={handleCreateNewTab} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className={`${nativeStyles.header.background} ${nativeStyles.header.border} flex items-center justify-between px-4 py-2`}>
+        <div className={`${nativeStyles.header.background} ${nativeStyles.header.border} flex items-center justify-between px-6 py-3`}>
           <div className="flex-1" />
           <button
             type="button"
             onClick={() => {
               setIsSettingsOpen(true);
             }}
-            className={nativeStyles.button.settings}
+            className={`${nativeStyles.button.settings} flex items-center gap-2`}
             aria-label="Open settings"
           >
-            ⚙️ Settings
+            <SettingsIcon size={18} />
+            <span>Settings</span>
           </button>
         </div>
         <TabBar multiChatService={multiChatService} />
-        <div className={`flex-1 overflow-hidden p-4 ${BackgroundStyles.main}`}>
+        <div className={`flex-1 overflow-hidden p-6 ${BackgroundStyles.main}`}>
           {(() => {
             if (!activeTab) {
               return (
-                <div className="flex items-center justify-center h-full text-gray-400">
-                  <p>No active chat. Create a new chat to get started.</p>
+                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <p className="text-base mb-2">No active chat</p>
+                  <p className="text-sm">Create a new chat to get started</p>
                 </div>
               );
             }
@@ -124,8 +128,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             }
 
             return (
-              <div className="flex items-center justify-center h-full text-gray-400">
-                <p>Invalid tab type</p>
+              <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                <p className="text-base">Invalid tab type</p>
               </div>
             );
           })()}
