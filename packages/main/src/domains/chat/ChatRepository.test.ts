@@ -3,24 +3,28 @@
 import type { IChatInfo, IChatMessage, ILogger } from '@writing-tools/shared';
 import * as fs from 'node:fs/promises';
 
+import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+
 import { ChatRepository } from './ChatRepository';
 
-// Mock better-sqlite3-multiple-ciphers
-const mockStmt = {
-  run: jest.fn().mockReturnValue({ lastInsertRowid: 1 }),
-  get: jest.fn(),
-  all: jest.fn().mockReturnValue([]),
+// Mock DatabaseConnection
+const mockDrizzleDb = {
+  insert: jest.fn(),
+  select: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
 };
 
-const mockDatabase = {
-  prepare: jest.fn().mockReturnValue(mockStmt),
-  exec: jest.fn(),
+const mockDatabaseConnection = {
+  initialize: jest.fn().mockResolvedValue(undefined),
+  getDatabase: jest.fn().mockReturnValue(mockDrizzleDb),
+  getRawDatabase: jest.fn(),
   close: jest.fn(),
 };
 
-jest.mock('better-sqlite3-multiple-ciphers', () => {
-  return jest.fn().mockImplementation(() => mockDatabase);
-});
+jest.mock('../../infrastructure/database/DatabaseConnection', () => ({
+  DatabaseConnection: jest.fn().mockImplementation(() => mockDatabaseConnection),
+}));
 
 // Mock fs/promises
 jest.mock('node:fs/promises', () => ({
@@ -32,6 +36,7 @@ describe('ChatRepository', () => {
   let chatIdCounter: number;
   let mockLogger: jest.Mocked<ILogger>;
   let repository: ChatRepository;
+  let dbConnection: DatabaseConnection;
   const testAppPath = '/tmp/test-app-data';
 
   beforeEach(() => {
@@ -47,31 +52,62 @@ describe('ChatRepository', () => {
       warn: jest.fn(),
     } as unknown as jest.Mocked<ILogger>;
 
+    // Reset DatabaseConnection mock
+    mockDatabaseConnection.initialize.mockReset();
+    mockDatabaseConnection.initialize.mockResolvedValue(undefined);
+    mockDatabaseConnection.getDatabase.mockReset();
+    mockDatabaseConnection.getDatabase.mockReturnValue(mockDrizzleDb);
+    mockDatabaseConnection.close.mockReset();
+
     // Mock fs operations
     (fs.access as jest.MockedFunction<typeof fs.access>).mockResolvedValue(undefined);
     (fs.mkdir as jest.MockedFunction<typeof fs.mkdir>).mockResolvedValue(undefined);
 
-    // Setup database mocks
-    mockDatabase.prepare.mockImplementation((query: string) => {
-      if (query.includes('sqlite_master')) {
-        return {
-          get: jest.fn().mockReturnValue(undefined), // Table doesn't exist
-        };
-      }
-
-      return mockStmt;
+    // Reset Drizzle mocks
+    mockDrizzleDb.insert.mockReturnValue({
+      values: jest.fn().mockReturnValue({
+        returning: jest.fn().mockReturnValue({
+          get: jest.fn().mockReturnValue({ id: chatIdCounter++ }),
+        }),
+        onConflictDoNothing: jest.fn().mockReturnValue({
+          run: jest.fn(),
+        }),
+      }),
     });
-    mockDatabase.exec.mockReturnValue(undefined);
-    mockStmt.run.mockImplementation(() => {
-      const result = { lastInsertRowid: chatIdCounter++ };
 
-      return result;
+    mockDrizzleDb.select.mockReturnValue({
+      from: jest.fn().mockReturnValue({
+        where: jest.fn().mockReturnValue({
+          orderBy: jest.fn().mockReturnValue({
+            all: jest.fn().mockReturnValue([]),
+          }),
+          limit: jest.fn().mockReturnValue({
+            get: jest.fn().mockReturnValue(undefined),
+          }),
+        }),
+        orderBy: jest.fn().mockReturnValue({
+          all: jest.fn().mockReturnValue([]),
+        }),
+      }),
     });
-    mockStmt.get.mockReturnValue(undefined);
-    mockStmt.all.mockReturnValue([]);
 
-    // Create new repository (this will use the mocked Database)
-    repository = new ChatRepository(mockLogger, testAppPath);
+    mockDrizzleDb.update.mockReturnValue({
+      set: jest.fn().mockReturnValue({
+        where: jest.fn().mockReturnValue({
+          run: jest.fn(),
+        }),
+      }),
+    });
+
+    mockDrizzleDb.delete.mockReturnValue({
+      where: jest.fn().mockReturnValue({
+        run: jest.fn(),
+      }),
+    });
+
+    // Create new repository with mocked DatabaseConnection
+    dbConnection = new DatabaseConnection(mockLogger, testAppPath);
+    repository = new ChatRepository(mockLogger, dbConnection);
   });
 
   afterEach(() => {
@@ -79,26 +115,16 @@ describe('ChatRepository', () => {
   });
 
   describe('initialize', () => {
-    it('creates database and tables', async () => {
+    it('initializes database connection', async () => {
       await repository.initialize();
 
-      expect(mockDatabase.exec).toHaveBeenCalled();
-    });
-
-    it('creates directory if it does not exist', async () => {
-      (fs.access as jest.MockedFunction<typeof fs.access>).mockRejectedValue(new Error('Directory does not exist'));
-      (fs.mkdir as jest.MockedFunction<typeof fs.mkdir>).mockResolvedValue(undefined);
-
-      await repository.initialize();
-
-      expect(fs.mkdir).toHaveBeenCalled();
+      expect(mockDatabaseConnection.initialize).toHaveBeenCalled();
     });
 
     it('handles initialization errors', async () => {
-      (fs.access as jest.MockedFunction<typeof fs.access>).mockRejectedValue(new Error('Directory does not exist'));
-      (fs.mkdir as jest.MockedFunction<typeof fs.mkdir>).mockRejectedValue(new Error('Permission denied'));
+      mockDatabaseConnection.initialize.mockRejectedValue(new Error('Init failed'));
 
-      await expect(repository.initialize()).rejects.toThrow();
+      await expect(repository.initialize()).rejects.toThrow('Init failed');
     });
   });
 
@@ -111,17 +137,14 @@ describe('ChatRepository', () => {
       const chatId = repository.createChat('Test Chat', 'ollama', 'test-model');
 
       expect(chatId).toBeGreaterThan(0);
-      const prepareCalls = mockDatabase.prepare.mock.calls as unknown[][];
-      const insertCall: unknown[] | undefined = prepareCalls.find((call: unknown[]) => {
-        const query = call[0] as string;
-
-        return typeof query === 'string' && query.includes('INSERT INTO chats');
-      });
-      expect(insertCall).toBeDefined();
+      expect(mockDrizzleDb.insert).toHaveBeenCalled();
     });
 
     it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, testAppPath);
+      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
+      mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
+        throw new Error('Database not initialized');
+      });
 
       expect(() => {
         uninitializedRepo.createChat('Test', 'ollama', 'model');
@@ -151,13 +174,8 @@ describe('ChatRepository', () => {
 
       repository.saveMessage(chatId, message);
 
-      const prepareCalls = mockDatabase.prepare.mock.calls as unknown[][];
-      const insertCall: unknown[] | undefined = prepareCalls.find((call: unknown[]) => {
-        const query = call[0] as string;
-
-        return typeof query === 'string' && query.includes('INSERT OR IGNORE INTO messages');
-      });
-      expect(insertCall).toBeDefined();
+      expect(mockDrizzleDb.insert).toHaveBeenCalled();
+      expect(mockDrizzleDb.update).toHaveBeenCalled();
     });
 
     it('updates chat updated_at timestamp when saving message', () => {
@@ -171,13 +189,7 @@ describe('ChatRepository', () => {
 
       repository.saveMessage(chatId, message);
 
-      const prepareCalls = mockDatabase.prepare.mock.calls as unknown[][];
-      const updateCall: unknown[] | undefined = prepareCalls.find((call: unknown[]) => {
-        const query = call[0] as string;
-
-        return typeof query === 'string' && query.includes('UPDATE chats SET updated_at');
-      });
-      expect(updateCall).toBeDefined();
+      expect(mockDrizzleDb.update).toHaveBeenCalled();
     });
 
     it('handles duplicate messages gracefully', () => {
@@ -192,17 +204,14 @@ describe('ChatRepository', () => {
       repository.saveMessage(chatId, message);
       repository.saveMessage(chatId, message); // Save again
 
-      const prepareCalls = mockDatabase.prepare.mock.calls as unknown[][];
-      const insertCall: unknown[] | undefined = prepareCalls.find((call: unknown[]) => {
-        const query = call[0] as string;
-
-        return typeof query === 'string' && query.includes('INSERT OR IGNORE');
-      });
-      expect(insertCall).toBeDefined();
+      expect(mockDrizzleDb.insert).toHaveBeenCalledTimes(2);
     });
 
     it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, testAppPath);
+      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
+      mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
+        throw new Error('Database not initialized');
+      });
 
       const message: IChatMessage = {
         id: 'msg-1',
@@ -227,21 +236,27 @@ describe('ChatRepository', () => {
       const mockMessages = [
         {
           id: 'msg-1',
-          role: 'user',
+          role: 'user' as const,
           content: 'First',
           timestamp: '2024-01-01T00:00:00.000Z',
         },
         {
           id: 'msg-2',
-          role: 'assistant',
+          role: 'assistant' as const,
           content: 'Second',
           timestamp: '2024-01-01T00:01:00.000Z',
         },
       ];
 
-      mockDatabase.prepare.mockImplementation(() => ({
-        all: jest.fn().mockReturnValue(mockMessages),
-      }));
+      mockDrizzleDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            orderBy: jest.fn().mockReturnValue({
+              all: jest.fn().mockReturnValue(mockMessages),
+            }),
+          }),
+        }),
+      });
 
       const messages = repository.getChatMessages(chatId);
       expect(messages).toHaveLength(2);
@@ -251,16 +266,16 @@ describe('ChatRepository', () => {
 
     it('returns empty array for chat with no messages', () => {
       const chatId = 1;
-      mockDatabase.prepare.mockImplementation(() => ({
-        all: jest.fn().mockReturnValue([]),
-      }));
 
       const messages = repository.getChatMessages(chatId);
       expect(messages).toEqual([]);
     });
 
     it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, testAppPath);
+      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
+      mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
+        throw new Error('Database not initialized');
+      });
 
       expect(() => {
         uninitializedRepo.getChatMessages(1);
@@ -293,16 +308,12 @@ describe('ChatRepository', () => {
         },
       ];
 
-      mockDatabase.prepare.mockImplementation((query: string) => {
-        if (query.includes('ORDER BY updated_at DESC')) {
-          return {
+      mockDrizzleDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          orderBy: jest.fn().mockReturnValue({
             all: jest.fn().mockReturnValue(mockChats),
-          };
-        }
-
-        return {
-          all: jest.fn().mockReturnValue([]),
-        };
+          }),
+        }),
       });
 
       const chats = repository.getAllChats();
@@ -310,16 +321,15 @@ describe('ChatRepository', () => {
     });
 
     it('returns empty array when no chats exist', () => {
-      mockDatabase.prepare.mockImplementation(() => ({
-        all: jest.fn().mockReturnValue([]),
-      }));
-
       const chats = repository.getAllChats();
       expect(chats).toEqual([]);
     });
 
     it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, testAppPath);
+      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
+      mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
+        throw new Error('Database not initialized');
+      });
 
       expect(() => {
         uninitializedRepo.getAllChats();
@@ -343,9 +353,15 @@ describe('ChatRepository', () => {
         updated_at: '2024-01-01T00:00:00.000Z',
       };
 
-      mockDatabase.prepare.mockImplementation(() => ({
-        get: jest.fn().mockReturnValue(mockChat),
-      }));
+      mockDrizzleDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue({
+              get: jest.fn().mockReturnValue(mockChat),
+            }),
+          }),
+        }),
+      });
 
       const chat = repository.getChat(chatId);
 
@@ -355,10 +371,6 @@ describe('ChatRepository', () => {
     });
 
     it('returns null when chat not found', () => {
-      mockDatabase.prepare.mockImplementation(() => ({
-        get: jest.fn().mockReturnValue(undefined),
-      }));
-
       const nonExistentChatId = 99999;
       const chat = repository.getChat(nonExistentChatId);
 
@@ -366,7 +378,10 @@ describe('ChatRepository', () => {
     });
 
     it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, testAppPath);
+      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
+      mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
+        throw new Error('Database not initialized');
+      });
 
       expect(() => {
         uninitializedRepo.getChat(1);
@@ -384,13 +399,7 @@ describe('ChatRepository', () => {
 
       repository.updateChatTitle(chatId, 'New Title');
 
-      const prepareCalls = mockDatabase.prepare.mock.calls as unknown[][];
-      const updateCall: unknown[] | undefined = prepareCalls.find((call: unknown[]) => {
-        const query = call[0] as string;
-
-        return typeof query === 'string' && query.includes('UPDATE chats');
-      });
-      expect(updateCall).toBeDefined();
+      expect(mockDrizzleDb.update).toHaveBeenCalled();
     });
 
     it('updates updated_at timestamp', () => {
@@ -398,17 +407,14 @@ describe('ChatRepository', () => {
 
       repository.updateChatTitle(chatId, 'Updated Title');
 
-      const prepareCalls = mockDatabase.prepare.mock.calls as unknown[][];
-      const updateCall: unknown[] | undefined = prepareCalls.find((call: unknown[]) => {
-        const query = call[0] as string;
-
-        return typeof query === 'string' && query.includes('UPDATE chats');
-      });
-      expect(updateCall).toBeDefined();
+      expect(mockDrizzleDb.update).toHaveBeenCalled();
     });
 
     it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, testAppPath);
+      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
+      mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
+        throw new Error('Database not initialized');
+      });
 
       expect(() => {
         uninitializedRepo.updateChatTitle(1, 'New Title');
@@ -426,17 +432,14 @@ describe('ChatRepository', () => {
 
       repository.deleteChat(chatId);
 
-      const prepareCalls = mockDatabase.prepare.mock.calls as unknown[][];
-      const deleteCall: unknown[] | undefined = prepareCalls.find((call: unknown[]) => {
-        const query = call[0] as string;
-
-        return typeof query === 'string' && query.includes('DELETE FROM chats');
-      });
-      expect(deleteCall).toBeDefined();
+      expect(mockDrizzleDb.delete).toHaveBeenCalled();
     });
 
     it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, testAppPath);
+      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
+      mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
+        throw new Error('Database not initialized');
+      });
 
       expect(() => {
         uninitializedRepo.deleteChat(1);
@@ -452,7 +455,7 @@ describe('ChatRepository', () => {
     it('closes database connection', () => {
       repository.close();
 
-      expect(mockDatabase.close).toHaveBeenCalled();
+      expect(mockDatabaseConnection.close).toHaveBeenCalled();
 
       // After closing, operations should fail
       expect(() => {
@@ -462,10 +465,10 @@ describe('ChatRepository', () => {
 
     it('can be called multiple times safely', () => {
       repository.close();
-      expect(mockDatabase.close).toHaveBeenCalledTimes(1);
+      expect(mockDatabaseConnection.close).toHaveBeenCalledTimes(1);
 
       repository.close(); // Should not throw
-      expect(mockDatabase.close).toHaveBeenCalledTimes(1); // Should not call close again
+      expect(mockDatabaseConnection.close).toHaveBeenCalledTimes(1); // Should not call close again
     });
   });
 });

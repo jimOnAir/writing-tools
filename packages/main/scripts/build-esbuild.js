@@ -16,7 +16,7 @@ const fs = require('fs-extra');
     platform: 'node',
     format: 'cjs',
     sourcemap: true,
-    external: ['electron', 'better-sqlite3-multiple-ciphers'],
+    external: ['electron', 'better-sqlite3'],
     logLevel: 'info',
     define: { 'process.env.NODE_ENV': '"production"' },
     alias: { '@writing-tools/shared': path.resolve(root, 'packages/shared/src') }

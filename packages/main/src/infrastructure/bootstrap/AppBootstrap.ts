@@ -16,6 +16,7 @@ import { TrayService } from '../../domains/tray';
 import type { ITrayService } from '../../domains/tray/ITrayService';
 import { WindowService } from '../../domains/windows';
 import type { IWindowService } from '../../domains/windows/IWindowService';
+import { DatabaseConnection } from '../database/DatabaseConnection';
 import { IpcHandlers } from '../ipc';
 import type { IIpcHandlers } from '../ipc/IIpcHandlers';
 
@@ -40,7 +41,8 @@ export class AppBootstrap {
       ? path.resolve(process.cwd(), 'app-data')
       : path.join(app.getPath('appData'), app.getName());
     const settingsRepository = new SettingsRepository(this.logger, appPath);
-    const chatRepository = new ChatRepository(this.logger, appPath);
+    const dbConnection = new DatabaseConnection(this.logger, appPath);
+    const chatRepository = new ChatRepository(this.logger, dbConnection);
 
     // Create services in dependency order
     this.settingsService = new SettingsService(settingsRepository);

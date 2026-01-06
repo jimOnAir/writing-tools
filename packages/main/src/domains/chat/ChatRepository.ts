@@ -1,27 +1,28 @@
 import type { IChatMessage, IChatInfo, ILogger } from '@writing-tools/shared';
-import Database from 'better-sqlite3-multiple-ciphers';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
+import { asc, desc, eq } from 'drizzle-orm';
+
+import type { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { chats, messages } from '../../infrastructure/database/schema';
 
 import type { IChatRepository } from './IChatRepository';
 
 export class ChatRepository implements IChatRepository {
-  private db: Database.Database | null = null;
-  private readonly appPath: string;
+  private dbConnection: DatabaseConnection | null = null;
   private readonly logger: ILogger;
 
-  public constructor(logger: ILogger, appPath: string) {
+  public constructor(logger: ILogger, dbConnection: DatabaseConnection) {
     this.logger = logger;
-    this.appPath = appPath;
+    this.dbConnection = dbConnection;
   }
 
   public async initialize(): Promise<void> {
+    if (this.dbConnection === null) {
+      throw new Error('Database connection not provided');
+    }
+
     try {
-      await this.ensureDatabaseDirectory();
-      const dbPath = this.getDatabasePath();
-      this.db = new Database(dbPath);
-      this.createTables();
-      this.logger.info('Chat database initialized at: %s', dbPath);
+      await this.dbConnection.initialize();
+      this.logger.info('Chat database initialized');
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
 
@@ -31,218 +32,134 @@ export class ChatRepository implements IChatRepository {
   }
 
   public createChat(title: string, provider: string, model: string): number {
-    if (this.db === null) {
+    if (this.dbConnection === null) {
       throw new Error('Database not initialized');
     }
 
     const now = new Date().toISOString();
-    const stmt = this.db.prepare(`
-      INSERT INTO chats (title, provider, model, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?)
-    `);
+    const db = this.dbConnection.getDatabase();
 
-    const result = stmt.run(
+    const result = db.insert(chats).values({
       title,
       provider,
       model,
-      now,
-      now,
-    );
+      created_at: now,
+      updated_at: now,
+    }).returning({ id: chats.id }).get();
 
-    return result.lastInsertRowid as number;
+    return result.id;
   }
 
   public saveMessage(chatId: number, message: IChatMessage): void {
-    if (this.db === null) {
+    if (this.dbConnection === null) {
       throw new Error('Database not initialized');
     }
 
-    // Use INSERT OR IGNORE to handle duplicate messages gracefully
-    const stmt = this.db.prepare(`
-      INSERT OR IGNORE INTO messages (id, chat_id, role, content, timestamp, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
+    const db = this.dbConnection.getDatabase();
 
-    stmt.run(
-      message.id,
-      chatId,
-      message.role,
-      message.content,
-      message.timestamp.toISOString(),
-      new Date().toISOString(),
-    );
+    // Use onConflictDoNothing to handle duplicate messages gracefully
+    db.insert(messages).values({
+      id: message.id,
+      chat_id: chatId,
+      role: message.role,
+      content: message.content,
+      timestamp: message.timestamp.toISOString(),
+      created_at: new Date().toISOString(),
+    }).onConflictDoNothing().run();
 
     // Update chat's updated_at timestamp
-    const updateChatStmt = this.db.prepare(`
-      UPDATE chats SET updated_at = ? WHERE id = ?
-    `);
-    updateChatStmt.run(new Date().toISOString(), chatId);
+    db.update(chats).set({
+      updated_at: new Date().toISOString(),
+    }).where(eq(chats.id, chatId)).run();
   }
 
   public getChatMessages(chatId: number): IChatMessage[] {
-    if (this.db === null) {
+    if (this.dbConnection === null) {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.db.prepare(`
-      SELECT id, role, content, timestamp
-      FROM messages
-      WHERE chat_id = ?
-      ORDER BY timestamp ASC
-    `);
+    const db = this.dbConnection.getDatabase();
 
-    const rows = stmt.all(chatId) as Array<{
-      id: string,
-      role: 'user' | 'assistant',
-      content: string,
-      timestamp: string,
-    }>;
+    const rows = db.select({
+      id: messages.id,
+      role: messages.role,
+      content: messages.content,
+      timestamp: messages.timestamp,
+    }).from(messages).where(eq(messages.chat_id, chatId)).orderBy(asc(messages.timestamp)).all();
 
     return rows.map(row => ({
       id: row.id,
-      role: row.role,
+      role: row.role as 'user' | 'assistant',
       content: row.content,
       timestamp: new Date(row.timestamp),
     }));
   }
 
   public getAllChats(): IChatInfo[] {
-    if (this.db === null) {
+    if (this.dbConnection === null) {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.db.prepare(`
-      SELECT id, title, provider, model, created_at, updated_at
-      FROM chats
-      ORDER BY updated_at DESC
-    `);
+    const db = this.dbConnection.getDatabase();
 
-    return stmt.all() as IChatInfo[];
+    return db.select({
+      id: chats.id,
+      title: chats.title,
+      provider: chats.provider,
+      model: chats.model,
+      created_at: chats.created_at,
+      updated_at: chats.updated_at,
+    }).from(chats).orderBy(desc(chats.updated_at)).all();
   }
 
   public getChat(chatId: number): IChatInfo | null {
-    if (this.db === null) {
+    if (this.dbConnection === null) {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.db.prepare(`
-      SELECT id, title, provider, model, created_at, updated_at
-      FROM chats
-      WHERE id = ?
-    `);
+    const db = this.dbConnection.getDatabase();
 
-    const result = stmt.get(chatId) as IChatInfo | undefined;
+    const result = db.select({
+      id: chats.id,
+      title: chats.title,
+      provider: chats.provider,
+      model: chats.model,
+      created_at: chats.created_at,
+      updated_at: chats.updated_at,
+    }).from(chats).where(eq(chats.id, chatId)).limit(1).get();
 
     return result ?? null;
   }
 
   public updateChatTitle(chatId: number, title: string): void {
-    if (this.db === null) {
+    if (this.dbConnection === null) {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.db.prepare(`
-      UPDATE chats
-      SET title = ?, updated_at = ?
-      WHERE id = ?
-    `);
+    const db = this.dbConnection.getDatabase();
 
-    stmt.run(title, new Date().toISOString(), chatId);
+    db.update(chats).set({
+      title,
+      updated_at: new Date().toISOString(),
+    }).where(eq(chats.id, chatId)).run();
   }
 
   public deleteChat(chatId: number): void {
-    if (this.db === null) {
+    if (this.dbConnection === null) {
       throw new Error('Database not initialized');
     }
 
-    // Permanent hard delete - messages are automatically deleted via CASCADE foreign key constraint
-    const stmt = this.db.prepare(`
-      DELETE FROM chats
-      WHERE id = ?
-    `);
+    const db = this.dbConnection.getDatabase();
 
-    stmt.run(chatId);
+    // Permanent hard delete - messages are automatically deleted via CASCADE foreign key constraint
+    db.delete(chats).where(eq(chats.id, chatId)).run();
   }
 
   public close(): void {
-    if (this.db !== null) {
-      this.db.close();
-      this.db = null;
+    if (this.dbConnection !== null) {
+      this.dbConnection.close();
+      this.dbConnection = null;
       this.logger.info('Chat database connection closed');
-    }
-  }
-
-  private createTables(): void {
-    if (this.db === null) {
-      throw new Error('Database not initialized');
-    }
-
-    // Check if chats table exists
-    const tableExists = this.db.prepare(`
-      SELECT name FROM sqlite_master
-      WHERE type='table' AND name='chats'
-    `).get() !== undefined;
-
-    if (tableExists) {
-      // Migrate existing data: set default values for NULL fields
-      try {
-        this.db.exec(`
-          UPDATE chats
-          SET title = COALESCE(title, ''),
-              provider = COALESCE(provider, 'ollama'),
-              model = COALESCE(model, '')
-          WHERE title IS NULL OR provider IS NULL OR model IS NULL
-        `);
-      } catch {
-        // Migration failed, but continue
-      }
-    }
-
-    // Create chats table with NOT NULL constraints
-    // If table exists, this won't recreate it, but new tables will have constraints
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS chats (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL DEFAULT '',
-        provider TEXT NOT NULL DEFAULT 'ollama',
-        model TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )
-    `);
-
-    // Create messages table
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS messages (
-        id TEXT PRIMARY KEY,
-        chat_id INTEGER NOT NULL,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        timestamp TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE
-      )
-    `);
-
-    // Create index for faster queries
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id)
-    `);
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)
-    `);
-  }
-
-  private getDatabasePath(): string {
-    return path.join(this.appPath, 'chats.db');
-  }
-
-  private async ensureDatabaseDirectory(): Promise<void> {
-    try {
-      await fs.access(this.appPath);
-    } catch {
-      // Directory doesn't exist, create it
-      await fs.mkdir(this.appPath, { recursive: true });
     }
   }
 }
