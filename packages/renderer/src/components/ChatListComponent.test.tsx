@@ -297,7 +297,7 @@ describe('ChatListComponent', () => {
 
     // When deleting, the delete button should be disabled
     const deleteButton = screen.getByLabelText('Delete chat');
-    expect(deleteButton.disabled).toBe(true);
+    expect((deleteButton as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('displays error message', () => {

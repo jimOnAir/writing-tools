@@ -267,14 +267,14 @@ describe('ChatComponent', () => {
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockChatService.navigateHistoryUp).toHaveBeenCalled();
-    expect(textarea.value).toBe('Message 1');
+    expect((textarea as HTMLTextAreaElement).value).toBe('Message 1');
 
     // ArrowDown should call navigateHistoryDown and update the input when a value is returned
     fireEvent.keyDown(textarea, { key: 'ArrowDown' });
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockChatService.navigateHistoryDown).toHaveBeenCalled();
-    expect(textarea.value).toBe('Message 2');
+    expect((textarea as HTMLTextAreaElement).value).toBe('Message 2');
   });
 
   test('pressing Enter without Shift sends the message and clears input on success', async () => {
@@ -294,7 +294,7 @@ describe('ChatComponent', () => {
     await waitFor(() => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockChatService.sendMessage).toHaveBeenCalledWith('Hello via Enter');
-      expect(textarea.value).toBe('');
+      expect((textarea as HTMLTextAreaElement).value).toBe('');
     });
   });
 
@@ -380,7 +380,7 @@ describe('ChatComponent', () => {
       });
     }
 
-    expect(sendButton.disabled).toBe(true);
+    expect((sendButton as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.click(sendButton);
 
@@ -407,7 +407,7 @@ describe('ChatComponent', () => {
     });
 
     // Input should not be cleared when an error string is returned
-    expect(textarea.value).toBe('Message that fails');
+    expect((textarea as HTMLTextAreaElement).value).toBe('Message that fails');
   });
 
   test('scrolls to bottom on new messages when not handling response', () => {

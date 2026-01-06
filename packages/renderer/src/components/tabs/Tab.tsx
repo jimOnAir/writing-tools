@@ -36,8 +36,26 @@ export const Tab: React.FC<TabProps> = ({
   const nativeStyles = getNativeStyles(platform);
   const displayTitle = tab.title && tab.title.trim().length > 0 ? tab.title : 'New Tab';
 
+  const handleOuterDivClick = (e: React.MouseEvent<HTMLDivElement>): void => {
+    // Don't trigger selection if clicking on the close button (it stops propagation)
+    // or if clicking on the inner button (it has its own handler)
+    const target = e.target as HTMLElement;
+    if (target.closest('button[aria-label="Close tab"]')) {
+      return;
+    }
+
+    // If clicking on the inner button, let it handle the click
+    if (target.closest('button[aria-label*="Switch to tab"]')) {
+      return;
+    }
+
+    // Otherwise, clicking anywhere else on the tab should select it
+    onSelect();
+  };
+
   return (
     <div
+      onClick={handleOuterDivClick}
       className={`
         ${nativeStyles.tabs.tab.base}
         ${isActive ? nativeStyles.tabs.tab.active : nativeStyles.tabs.tab.inactive}
