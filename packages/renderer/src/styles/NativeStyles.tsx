@@ -15,10 +15,12 @@ export const NativeStyles = {
     tabs: {
       container: 'bg-gray-800/40 backdrop-blur-md border-b border-gray-700/30 shadow-sm',
       tab: {
-        base: 'px-4 py-2 rounded-t-xl transition-all duration-300 border-t-2 h-[37px] flex items-center overflow-hidden',
         active: 'bg-gray-900/80 text-white border-l border-r border-t-purple-600/50 shadow-md',
-        inactive: 'bg-transparent text-gray-400 border-t-transparent hover:text-gray-300 hover:bg-gray-800/40 hover:border-t-gray-600/30',
+        base: 'px-4 py-2 rounded-t-xl transition-all duration-300 border-t-2 h-[37px] flex items-center overflow-hidden',
         closeButton: 'ml-2 opacity-70 hover:opacity-100 transition-opacity duration-200',
+        dragging: 'opacity-75 cursor-grabbing',
+        dragOver: 'ring-1 ring-purple-500/60',
+        inactive: 'bg-transparent text-gray-400 border-t-transparent hover:text-gray-300 hover:bg-gray-800/40 hover:border-t-gray-600/30',
       },
       newChatButton: 'px-5 py-2.5 rounded-xl bg-purple-700/80 hover:bg-purple-700 text-white transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-purple-600/30',
     },
@@ -56,10 +58,12 @@ export const NativeStyles = {
     tabs: {
       container: 'bg-gray-900 border-b border-gray-800 shadow-sm',
       tab: {
-        base: 'px-4 py-2 transition-all duration-300',
         active: 'bg-gray-900 text-white border-t-2 border-t-purple-600 shadow-sm',
-        inactive: 'bg-gray-950 text-gray-400 hover:text-gray-300 hover:bg-gray-900/80',
+        base: 'px-4 py-2 transition-all duration-300',
         closeButton: 'ml-2 opacity-70 hover:opacity-100 transition-opacity duration-200',
+        dragging: 'opacity-75 cursor-grabbing',
+        dragOver: 'ring-1 ring-purple-500/60',
+        inactive: 'bg-gray-950 text-gray-400 hover:text-gray-300 hover:bg-gray-900/80',
       },
       newChatButton: 'px-5 py-2.5 bg-purple-700 hover:bg-purple-800 text-white transition-all duration-300 border border-purple-600 shadow-sm hover:shadow-md',
     },
@@ -97,10 +101,12 @@ export const NativeStyles = {
     tabs: {
       container: 'bg-gray-900/95 backdrop-blur-sm border-b border-gray-800/50 shadow-sm',
       tab: {
-        base: 'px-4 py-2 rounded-t-xl transition-all duration-300 border-t-2 h-[37px] flex items-center overflow-hidden',
         active: 'bg-gray-800/80 text-white border-t-purple-600 shadow-md',
-        inactive: 'bg-transparent text-gray-400 border-t-transparent hover:text-gray-300 hover:bg-gray-800/50 hover:border-t-gray-600/30',
+        base: 'px-4 py-2 rounded-t-xl transition-all duration-300 border-t-2 h-[37px] flex items-center overflow-hidden',
         closeButton: 'ml-2 opacity-70 hover:opacity-100 transition-opacity duration-200',
+        dragging: 'opacity-75 cursor-grabbing',
+        dragOver: 'ring-1 ring-purple-500/60',
+        inactive: 'bg-transparent text-gray-400 border-t-transparent hover:text-gray-300 hover:bg-gray-800/50 hover:border-t-gray-600/30',
       },
       newChatButton: 'px-5 py-2.5 rounded-xl bg-purple-700/90 hover:bg-purple-700 text-white transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-purple-600/30',
     },

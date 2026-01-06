@@ -1,4 +1,5 @@
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { createEvent } from '@testing-library/dom';
 import React from 'react';
 
 import type { MultiChatService, ITabInfo } from '../../domains/multi-chat';
@@ -30,6 +31,7 @@ describe('TabBar', () => {
   let mockRemoveCallbacks: jest.Mock;
   let mockSwitchToTab: jest.Mock;
   let mockCloseChatTab: jest.Mock;
+  let mockReorderTabs: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -38,6 +40,7 @@ describe('TabBar', () => {
     mockRemoveCallbacks = jest.fn();
     mockSwitchToTab = jest.fn();
     mockCloseChatTab = jest.fn();
+    mockReorderTabs = jest.fn();
 
     mockMultiChatService = {
       setCallbacks: mockSetCallbacks,
@@ -46,6 +49,7 @@ describe('TabBar', () => {
       getActiveTabId: jest.fn().mockReturnValue(null),
       switchToTab: mockSwitchToTab,
       closeChatTab: mockCloseChatTab,
+      reorderTabs: mockReorderTabs,
       createNewChatTab: jest.fn(),
       openChatTab: jest.fn(),
       createPromptSelectorTab: jest.fn(),
@@ -199,5 +203,93 @@ describe('TabBar', () => {
     await waitFor(() => {
       expect(screen.getByText('New Chat')).toBeInTheDocument();
     });
+  });
+
+  it('reorders tabs on drag and drop', async () => {
+    const mockTabs: ITabInfo[] = [
+      {
+        tabId: 'tab-1',
+        type: 'chat',
+        chatId: 1,
+        title: 'Chat 1',
+      },
+      {
+        tabId: 'tab-2',
+        type: 'chat',
+        chatId: 2,
+        title: 'Chat 2',
+      },
+    ];
+
+    mockMultiChatService.getAllTabs.mockReturnValue(mockTabs);
+
+    render(<TabBar multiChatService={mockMultiChatService} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Chat 1')).toBeInTheDocument();
+      expect(screen.getByText('Chat 2')).toBeInTheDocument();
+    });
+
+    const tabButtons = screen.getAllByRole('button', { name: /Switch to tab:/i });
+    const firstTabButton = tabButtons[0];
+    const secondTabButton = tabButtons[1];
+
+    // Create mock dataTransfer object for drag events
+    const data: Record<string, string> = {};
+    const mockDataTransfer = {
+      effectAllowed: 'move' as const,
+      dropEffect: 'move' as const,
+      data,
+      setData: jest.fn((format: string, dataValue: string): void => {
+        data[format] = dataValue;
+      }),
+      getData: jest.fn((format: string): string => {
+        return data[format] || '';
+      }),
+      setDragImage: jest.fn(),
+      clearData: jest.fn(),
+      files: [],
+      items: [],
+      types: [],
+    };
+
+    // Create drag events with dataTransfer attached
+    const dragStartEvent = createEvent.dragStart(firstTabButton);
+    Object.defineProperty(dragStartEvent, 'dataTransfer', {
+      value: mockDataTransfer,
+      writable: true,
+    });
+    fireEvent(firstTabButton, dragStartEvent);
+
+    const dragOverEvent = createEvent.dragOver(secondTabButton);
+    Object.defineProperty(dragOverEvent, 'dataTransfer', {
+      value: mockDataTransfer,
+      writable: true,
+    });
+    Object.defineProperty(dragOverEvent, 'preventDefault', {
+      value: jest.fn(),
+      writable: true,
+    });
+    fireEvent(secondTabButton, dragOverEvent);
+
+    const dropEvent = createEvent.drop(secondTabButton);
+    Object.defineProperty(dropEvent, 'dataTransfer', {
+      value: mockDataTransfer,
+      writable: true,
+    });
+    Object.defineProperty(dropEvent, 'preventDefault', {
+      value: jest.fn(),
+      writable: true,
+    });
+    fireEvent(secondTabButton, dropEvent);
+
+    const dragEndEvent = createEvent.dragEnd(firstTabButton);
+    Object.defineProperty(dragEndEvent, 'dataTransfer', {
+      value: mockDataTransfer,
+      writable: true,
+    });
+    fireEvent(firstTabButton, dragEndEvent);
+
+    expect(mockReorderTabs).toHaveBeenCalledWith(0, 1);
   });
 });

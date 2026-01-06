@@ -392,6 +392,30 @@ export class MultiChatService {
   }
 
   /**
+   * Reorder tabs by moving a tab from one index to another
+   */
+  public reorderTabs(fromIndex: number, toIndex: number): void {
+    const lastIndex = this.tabs.length - 1;
+
+    if (fromIndex === toIndex) {
+      return;
+    }
+
+    if (fromIndex < 0 || fromIndex > lastIndex) {
+      return;
+    }
+
+    if (toIndex < 0 || toIndex > lastIndex) {
+      return;
+    }
+
+    const [movedTab] = this.tabs.splice(fromIndex, 1);
+    this.tabs.splice(toIndex, 0, movedTab);
+
+    this.notifyTabsChange();
+  }
+
+  /**
    * Replace a prompt selector tab with a chat tab
    */
   private replacePromptSelectorTabWithChat(promptSelectorTabId: string): ITabInfo {
@@ -525,6 +549,7 @@ export class MultiChatService {
    */
   private notifyTabsChange(): void {
     const tabsSnapshot = [...this.tabs];
+
     for (const callback of this.onTabsChangeCallbacks) {
       callback(tabsSnapshot);
     }

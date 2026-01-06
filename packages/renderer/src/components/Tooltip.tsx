@@ -23,6 +23,10 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, className =
     setIsVisible(false);
   };
 
+  const handleDragStart = (): void => {
+    setIsVisible(false);
+  };
+
   useEffect(() => {
     if (isVisible && triggerRef.current) {
       // Use setTimeout to ensure tooltip is rendered before calculating position
@@ -84,6 +88,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, className =
         ref={triggerRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onDragStartCapture={handleDragStart}
         className="inline-flex w-full min-w-0"
         role="tooltip"
       >

@@ -339,6 +339,45 @@ describe('MultiChatService', () => {
     });
   });
 
+  describe('reorderTabs', () => {
+    it('moves a tab from one index to another and notifies subscribers', () => {
+      const onTabsChange = jest.fn();
+      multiChatService.setCallbacks({ onTabsChange });
+
+      const tab1 = multiChatService.createNewChatTab();
+      const tab2 = multiChatService.createNewChatTab();
+      const tab3 = multiChatService.createNewChatTab();
+
+      const initialOrder = multiChatService.getAllTabs().map(tab => tab.tabId);
+      expect(initialOrder).toEqual([tab1.tabId, tab2.tabId, tab3.tabId]);
+
+      multiChatService.reorderTabs(0, 2);
+
+      const reordered = multiChatService.getAllTabs().map(tab => tab.tabId);
+      expect(reordered).toEqual([tab2.tabId, tab3.tabId, tab1.tabId]);
+      expect(onTabsChange).toHaveBeenCalled();
+    });
+
+    it('ignores invalid indices', () => {
+      const onTabsChange = jest.fn();
+      multiChatService.setCallbacks({ onTabsChange });
+
+      multiChatService.createNewChatTab();
+      multiChatService.createNewChatTab();
+
+      const initialOrder = multiChatService.getAllTabs().map(tab => tab.tabId);
+      const initialOnTabsChangeCalls = onTabsChange.mock.calls.length;
+
+      multiChatService.reorderTabs(-1, 1);
+      multiChatService.reorderTabs(0, 5);
+      multiChatService.reorderTabs(0, 0);
+
+      const finalOrder = multiChatService.getAllTabs().map(tab => tab.tabId);
+      expect(finalOrder).toEqual(initialOrder);
+      expect(onTabsChange).toHaveBeenCalledTimes(initialOnTabsChangeCalls);
+    });
+  });
+
   describe('getActiveTab', () => {
     it('returns the active tab', () => {
       const tab = multiChatService.createNewChatTab();
