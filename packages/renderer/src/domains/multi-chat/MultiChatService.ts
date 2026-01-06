@@ -275,10 +275,6 @@ export class MultiChatService {
       return existingTab;
     }
 
-    // Remove empty chats before opening a new one
-    // Allow removing the last tab since we're about to create a new one
-    this.removeEmptyTabs(true);
-
     // Create new tab for this chat
     const tab = this.createNewChatTab();
     tab.chatId = chatId;

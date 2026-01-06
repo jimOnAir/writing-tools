@@ -249,6 +249,81 @@ describe('MultiChatService', () => {
       expect(tab).toBeDefined();
       expect(tab.chatId).toBe(nonExistentChatId);
     });
+
+    it('preserves empty chat tab when opening an existing chat', () => {
+      // Create an empty chat tab (chatId is null, no messages)
+      const emptyTab = multiChatService.createNewChatTab();
+      const emptyTabId = emptyTab.tabId;
+      expect(emptyTab.chatId).toBeNull();
+
+      // Mock getMessages to return empty array (indicating empty tab)
+      mockChatService.getMessages = jest.fn().mockReturnValue([]);
+      mockChatService.getCurrentChatId = jest.fn().mockReturnValue(null);
+
+      // Mock IPC responses for loading chat messages
+      mockIpcAdapter.invoke.mockResolvedValue({
+        messages: [
+          {
+            id: '1',
+            role: 'user',
+            content: 'Test message',
+            timestamp: new Date(),
+          },
+        ],
+      });
+
+      // Mock getChatInfo response
+      mockChatService.getChatInfo = jest.fn().mockResolvedValue({
+        id: 1,
+        title: 'Test Chat',
+        provider: 'ollama',
+        model: 'test-model',
+        createdAt: new Date(),
+      });
+
+      const onTabsChange = jest.fn();
+      multiChatService.setCallbacks({ onTabsChange });
+
+      // Open an existing chat
+      const newTab = multiChatService.openChatTab(1);
+
+      // Verify both tabs exist
+      const allTabs = multiChatService.getAllTabs();
+      expect(allTabs).toHaveLength(2);
+
+      // Verify the empty tab is still present
+      const preservedEmptyTab = allTabs.find(t => t.tabId === emptyTabId);
+      expect(preservedEmptyTab).toBeDefined();
+      expect(preservedEmptyTab?.chatId).toBeNull();
+
+      // Verify the new tab for the existing chat
+      expect(newTab.chatId).toBe(1);
+      const newTabInList = allTabs.find(t => t.tabId === newTab.tabId);
+      expect(newTabInList).toBeDefined();
+      expect(newTabInList?.chatId).toBe(1);
+
+      expect(onTabsChange).toHaveBeenCalled();
+    });
+
+    it('switches to existing tab if chat is already open', () => {
+      // Create a tab with chatId 1
+      const existingTab = multiChatService.createNewChatTab();
+      (existingTab as { chatId: number }).chatId = 1;
+
+      const onActiveTabChange = jest.fn();
+      multiChatService.setCallbacks({ onActiveTabChange });
+
+      // Try to open the same chat again
+      const result = multiChatService.openChatTab(1);
+
+      // Should return the existing tab and switch to it
+      expect(result.tabId).toBe(existingTab.tabId);
+      expect(multiChatService.getActiveTabId()).toBe(existingTab.tabId);
+      expect(onActiveTabChange).toHaveBeenCalledWith(existingTab.tabId);
+
+      // Should still have only one tab
+      expect(multiChatService.getAllTabs()).toHaveLength(1);
+    });
   });
 
   describe('getAllTabs', () => {
