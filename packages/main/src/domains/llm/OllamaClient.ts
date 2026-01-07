@@ -19,6 +19,11 @@ export type OllamaChatFailedResponse = {
 
 export type OllamaChatResponse = OllamaChatSuccessResponse | OllamaChatFailedResponse;
 
+export type OllamaStreamChunk = {
+  content: string,
+  done: boolean,
+};
+
 export class OllamaClient {
   private readonly config: OllamaClientConfig;
   private readonly logger: ILogger;
@@ -45,6 +50,35 @@ export class OllamaClient {
       this.logger.error('Failed to send Ollama messages: %s', errorMessage);
 
       return { error: errorMessage, success: false } as const ;
+    }
+  }
+
+  /**
+   * Stream chat responses from Ollama
+   * Yields chunks of content as they arrive from the model
+   */
+  public async *chatStream(model: string, messages: Message[]): AsyncGenerator<OllamaStreamChunk, void> {
+    try {
+      const ollama = new Ollama({ host: this.config.host });
+      const response = await ollama.chat({
+        model,
+        messages,
+        stream: true,
+      });
+
+      for await (const part of response) {
+        yield {
+          content: part.message.content,
+          done: part.done,
+        };
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error);
+      this.logger.error('Failed to stream Ollama messages: %s', errorMessage);
+
+      throw error;
     }
   }
 

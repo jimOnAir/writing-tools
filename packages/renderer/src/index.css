@@ -29,3 +29,20 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Streaming cursor animation */
+.streaming-cursor {
+  display: inline-block;
+  animation: blink 1s step-end infinite;
+  color: currentColor;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}

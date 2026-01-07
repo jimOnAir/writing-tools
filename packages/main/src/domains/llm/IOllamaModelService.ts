@@ -1,6 +1,6 @@
 import type { Message } from 'ollama';
 
-import type { OllamaChatResponse } from './OllamaClient';
+import type { OllamaChatResponse, OllamaStreamChunk } from './OllamaClient';
 
 /**
  * Interface for Ollama model service operations
@@ -16,4 +16,9 @@ export interface IOllamaModelService {
    * Send messages to Ollama and get response
    */
   sendMessages: (messages: Message[]) => Promise<OllamaChatResponse>;
+
+  /**
+   * Send messages to Ollama and get streaming response
+   */
+  sendMessagesStream: (messages: Message[]) => AsyncGenerator<OllamaStreamChunk, void>;
 }

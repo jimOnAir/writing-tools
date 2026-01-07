@@ -4,7 +4,7 @@ import type { Message } from 'ollama';
 import type { ISettingsService } from '../settings/ISettingsService';
 
 import type { IOllamaModelService } from './IOllamaModelService';
-import type { OllamaChatResponse } from './OllamaClient';
+import type { OllamaChatResponse, OllamaStreamChunk } from './OllamaClient';
 import { OllamaClient } from './OllamaClient';
 
 export class OllamaModelService implements IOllamaModelService {
@@ -40,5 +40,24 @@ export class OllamaModelService implements IOllamaModelService {
     }, this.logger);
 
     return client.chat(model, messages);
+  };
+
+  public sendMessagesStream = async function* (
+    this: OllamaModelService,
+    messages: Message[],
+  ): AsyncGenerator<OllamaStreamChunk, void> {
+    const settings = await this.settingsService.loadSettings();
+    const { address, model, apiKey } = settings.ollama;
+
+    if (!model) {
+      throw new Error('Model not specified');
+    }
+
+    const client = new OllamaClient({
+      host: address,
+      apiKey,
+    }, this.logger);
+
+    yield* client.chatStream(model, messages);
   };
 }

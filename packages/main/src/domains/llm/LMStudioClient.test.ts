@@ -1,6 +1,7 @@
 import type { ILogger } from '@writing-tools/shared';
 import nock from 'nock';
 
+import type { LMStudioStreamChunk } from './LMStudioClient';
 import { LMStudioClient } from './LMStudioClient';
 
 // HTTP status codes
@@ -337,6 +338,42 @@ describe('LMStudioClient', () => {
         .reply(HTTP_OK, mockResponse);
 
       expect(scope).toBeDefined();
+    });
+  });
+
+  describe('chatStream', () => {
+    it('handles HTTP errors during streaming', async () => {
+      nock(baseUrl)
+        .post('/v1/chat/completions')
+        .reply(HTTP_INTERNAL_SERVER_ERROR, { error: 'Internal server error' });
+
+      await expect(async () => {
+        const chunks: LMStudioStreamChunk[] = [];
+        for await (const chunk of client.chatStream('test-model', [
+          { role: 'user', content: 'Hello' },
+        ])) {
+          chunks.push(chunk);
+        }
+      }).rejects.toThrow('HTTP 500');
+
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+
+    it('handles network errors during streaming', async () => {
+      nock(baseUrl)
+        .post('/v1/chat/completions')
+        .replyWithError('Network error');
+
+      await expect(async () => {
+        const chunks: LMStudioStreamChunk[] = [];
+        for await (const chunk of client.chatStream('test-model', [
+          { role: 'user', content: 'Hello' },
+        ])) {
+          chunks.push(chunk);
+        }
+      }).rejects.toThrow('Network error');
+
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 });

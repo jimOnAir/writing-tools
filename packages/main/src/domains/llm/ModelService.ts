@@ -3,7 +3,7 @@ import type { Message } from 'ollama';
 import type { ISettingsService } from '../settings/ISettingsService';
 
 import type { ILMStudioModelService } from './ILMStudioModelService';
-import type { IModelService, LLMChatResponse } from './IModelService';
+import type { IModelService, LLMChatResponse, LLMStreamChunk } from './IModelService';
 import type { IOllamaModelService } from './IOllamaModelService';
 
 /**
@@ -45,6 +45,25 @@ export class ModelService implements IModelService {
         return this.lmStudioModelService.sendMessages(messages);
       case 'ollama':
         return this.ollamaModelService.sendMessages(messages);
+      default:
+        throw new Error(`Unknown provider: ${String(provider)}`);
+    }
+  };
+
+  public sendMessagesStream = async function* (
+    this: ModelService,
+    messages: Message[],
+  ): AsyncGenerator<LLMStreamChunk, void> {
+    const settings = await this.settingsService.loadSettings();
+    const provider = settings.provider;
+
+    switch (provider) {
+      case 'lmstudio':
+        yield* this.lmStudioModelService.sendMessagesStream(messages);
+        break;
+      case 'ollama':
+        yield* this.ollamaModelService.sendMessagesStream(messages);
+        break;
       default:
         throw new Error(`Unknown provider: ${String(provider)}`);
     }

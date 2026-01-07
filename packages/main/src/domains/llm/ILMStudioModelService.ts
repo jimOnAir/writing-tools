@@ -1,6 +1,6 @@
 import type { Message } from 'ollama';
 
-import type { LMStudioChatResponse } from './LMStudioClient';
+import type { LMStudioChatResponse, LMStudioStreamChunk } from './LMStudioClient';
 
 /**
  * Interface for LM Studio model service operations
@@ -16,4 +16,9 @@ export interface ILMStudioModelService {
    * Send messages to LM Studio and get response
    */
   sendMessages: (messages: Message[]) => Promise<LMStudioChatResponse>;
+
+  /**
+   * Send messages to LM Studio and get streaming response
+   */
+  sendMessagesStream: (messages: Message[]) => AsyncGenerator<LMStudioStreamChunk, void>;
 }

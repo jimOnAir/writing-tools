@@ -103,5 +103,29 @@ if (typeof window !== 'undefined') {
     offChatSaveTabsRequest: (listener: TIpcRenderListener) => {
       return ipcRenderer.off(EIpcRendererEvent.CHAT_SAVE_TABS_REQUEST, listener);
     },
+    onChatStreamChunk: (cb: (message: any) => void) => {
+      const chatStreamChunkListener = (_: IpcRendererEvent, message: any) => {
+        cb(message);
+      };
+
+      ipcRenderer.on(EIpcRendererEvent.CHAT_STREAM_CHUNK, chatStreamChunkListener);
+
+      return chatStreamChunkListener;
+    },
+    offChatStreamChunk: (listener: TIpcRenderListener) => {
+      return ipcRenderer.off(EIpcRendererEvent.CHAT_STREAM_CHUNK, listener);
+    },
+    onChatStreamEnd: (cb: (message: any) => void) => {
+      const chatStreamEndListener = (_: IpcRendererEvent, message: any) => {
+        cb(message);
+      };
+
+      ipcRenderer.on(EIpcRendererEvent.CHAT_STREAM_END, chatStreamEndListener);
+
+      return chatStreamEndListener;
+    },
+    offChatStreamEnd: (listener: TIpcRenderListener) => {
+      return ipcRenderer.off(EIpcRendererEvent.CHAT_STREAM_END, listener);
+    },
   });
 }

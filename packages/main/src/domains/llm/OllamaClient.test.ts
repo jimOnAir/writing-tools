@@ -2,6 +2,7 @@ import type { ILogger } from '@writing-tools/shared';
 import type { Message } from 'ollama';
 import { Ollama } from 'ollama';
 
+import type { OllamaStreamChunk } from './OllamaClient';
 import { OllamaClient } from './OllamaClient';
 
 // Mock the ollama package
@@ -174,6 +175,76 @@ describe('OllamaClient', () => {
       await customClient.listModels();
 
       expect(Ollama).toHaveBeenCalledWith({ host: 'http://custom-host:11434' });
+    });
+  });
+
+  describe('chatStream', () => {
+    it('streams chat responses successfully', async () => {
+      // Create async iterator mock for streaming
+      const mockStreamResponse = (async function* () {
+        yield { message: { content: 'Hello' }, done: false };
+        yield { message: { content: ' world' }, done: false };
+        yield { message: { content: '!' }, done: true };
+      })();
+
+      mockOllamaInstance.chat.mockResolvedValue(mockStreamResponse);
+
+      const messages: Message[] = [
+        { role: 'user', content: 'Hello' },
+      ];
+
+      const chunks: OllamaStreamChunk[] = [];
+      for await (const chunk of client.chatStream('test-model', messages)) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks).toEqual([
+        { content: 'Hello', done: false },
+        { content: ' world', done: false },
+        { content: '!', done: true },
+      ]);
+      expect(mockOllamaInstance.chat).toHaveBeenCalledWith({
+        model: 'test-model',
+        messages,
+        stream: true,
+      });
+    });
+
+    it('handles streaming errors', async () => {
+      const error = new Error('Stream error');
+      mockOllamaInstance.chat.mockRejectedValue(error);
+
+      const messages: Message[] = [
+        { role: 'user', content: 'Hello' },
+      ];
+
+      await expect(async () => {
+        const chunks: OllamaStreamChunk[] = [];
+        for await (const chunk of client.chatStream('test-model', messages)) {
+          chunks.push(chunk);
+        }
+      }).rejects.toThrow('Stream error');
+
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+
+    it('handles empty stream', async () => {
+      const mockStreamResponse = (async function* () {
+        // Empty stream
+      })();
+
+      mockOllamaInstance.chat.mockResolvedValue(mockStreamResponse);
+
+      const messages: Message[] = [
+        { role: 'user', content: 'Hello' },
+      ];
+
+      const chunks: OllamaStreamChunk[] = [];
+      for await (const chunk of client.chatStream('test-model', messages)) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks).toEqual([]);
     });
   });
 });

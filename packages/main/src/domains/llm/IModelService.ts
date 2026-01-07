@@ -1,9 +1,11 @@
 import type { Message } from 'ollama';
 
-import type { LMStudioChatResponse } from './LMStudioClient';
-import type { OllamaChatResponse } from './OllamaClient';
+import type { LMStudioChatResponse, LMStudioStreamChunk } from './LMStudioClient';
+import type { OllamaChatResponse, OllamaStreamChunk } from './OllamaClient';
 
 export type LLMChatResponse = OllamaChatResponse | LMStudioChatResponse;
+
+export type LLMStreamChunk = OllamaStreamChunk | LMStudioStreamChunk;
 
 /**
  * Interface for model service operations
@@ -20,4 +22,9 @@ export interface IModelService {
    * Send messages to the LLM and get response
    */
   sendMessages: (messages: Message[]) => Promise<LLMChatResponse>;
+
+  /**
+   * Send messages to the LLM and get streaming response
+   */
+  sendMessagesStream: (messages: Message[]) => AsyncGenerator<LLMStreamChunk, void>;
 }

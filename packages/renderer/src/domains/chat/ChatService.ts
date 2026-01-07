@@ -1,5 +1,5 @@
 /* eslint-disable max-lines */
-import type { IChatMessage, TChatResponse, TIpcEvent, IChatInfo } from '@writing-tools/shared';
+import type { IChatMessage, TChatResponse, TIpcEvent, IChatInfo, IChatStreamChunk, IChatStreamEnd } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
@@ -17,11 +17,16 @@ export class ChatService {
   private error: string | null = null;
   private historyIndex = -1;
   private isHandlingOllamaResponse = false;
+  private isStreaming = false;
+  private streamingMessageId: string | null = null;
+  private streamingContent = '';
   private chatWindowDataListener: TIpcRenderListener | null = null;
   private ollamaResponseListener: TIpcRenderListener | null = null;
   private chatTitleUpdatedListener: TIpcRenderListener | null = null;
   private chatLoadMessagesDataListener: TIpcRenderListener | null = null;
   private chatDeletedListener: TIpcRenderListener | null = null;
+  private chatStreamChunkListener: TIpcRenderListener | null = null;
+  private chatStreamEndListener: TIpcRenderListener | null = null;
   private currentChatId: number | null = null;
 
   // Callbacks for component state updates
@@ -31,6 +36,7 @@ export class ChatService {
   private onHistoryIndexChange?: (index: number) => void;
   private onHandlingResponseChange?: (isHandling: boolean) => void;
   private onTitleChange?: (title: string) => void;
+  private onStreamingChange?: (isStreaming: boolean) => void;
   // Support multiple title change callbacks (for ChatComponent and MultiChatService)
   private readonly onTitleChangeCallbacks = new Set<(title: string) => void>();
 
@@ -48,6 +54,7 @@ export class ChatService {
     onHistoryIndexChange?: (index: number) => void,
     onHandlingResponseChange?: (isHandling: boolean) => void,
     onTitleChange?: (title: string) => void,
+    onStreamingChange?: (isStreaming: boolean) => void,
   }): void {
     this.onMessagesChange = callbacks.onMessagesChange;
     this.onLoadingChange = callbacks.onLoadingChange;
@@ -55,6 +62,7 @@ export class ChatService {
     this.onHistoryIndexChange = callbacks.onHistoryIndexChange;
     this.onHandlingResponseChange = callbacks.onHandlingResponseChange;
     this.onTitleChange = callbacks.onTitleChange;
+    this.onStreamingChange = callbacks.onStreamingChange;
     // Also add to multiple callbacks set for title changes
     if (callbacks.onTitleChange !== undefined) {
       this.onTitleChangeCallbacks.add(callbacks.onTitleChange);
@@ -178,12 +186,59 @@ export class ChatService {
       }
     };
 
+    const handleStreamChunk = (data: IChatStreamChunk) => {
+      // Only process chunks for the current chat
+      if (this.currentChatId !== data.chatId) {
+        return;
+      }
+
+      // Update streaming content
+      this.streamingContent += data.content;
+
+      // Update the streaming message in the messages array
+      if (this.streamingMessageId !== null) {
+        this.updateStreamingMessage(this.streamingContent);
+      }
+    };
+
+    const handleStreamEnd = (data: IChatStreamEnd) => {
+      // Only process stream end for the current chat
+      if (this.currentChatId !== data.chatId) {
+        return;
+      }
+
+      logger.info('Stream ended for chatId=%s, error=%s', String(data.chatId), data.error ?? 'none');
+
+      // Handle error
+      if (data.error !== undefined) {
+        this.setError(`Streaming error: ${data.error}`);
+        // Update the message to show the error
+        if (this.streamingMessageId !== null) {
+          this.updateStreamingMessage(`Error: ${data.error}`);
+        }
+      } else {
+        // Finalize the message with the full content
+        if (this.streamingMessageId !== null) {
+          this.updateStreamingMessage(data.fullContent);
+        }
+      }
+
+      // Reset streaming state
+      this.streamingMessageId = null;
+      this.streamingContent = '';
+      this.setStreaming(false);
+      this.setLoading(false);
+      this.setHandlingResponse(false);
+    };
+
     try {
       // CHAT_WINDOW_DATA listener intentionally not set up - MultiChatService handles routing
       this.ollamaResponseListener = this.ipcAdapter.onOllamaResponse(handleOllamaResponse);
       this.chatTitleUpdatedListener = this.ipcAdapter.onChatTitleUpdated(handleChatTitleUpdated);
       this.chatLoadMessagesDataListener = this.ipcAdapter.onChatLoadMessagesData(handleChatLoadMessagesData);
       this.chatDeletedListener = this.ipcAdapter.onChatDeleted(handleChatDeleted);
+      this.chatStreamChunkListener = this.ipcAdapter.onChatStreamChunk(handleStreamChunk);
+      this.chatStreamEndListener = this.ipcAdapter.onChatStreamEnd(handleStreamEnd);
     } catch (error) {
       const errorText = error instanceof Error ? error.message : String(error);
       logger.error('Failed to initialize chat listeners: %s', errorText);
@@ -218,10 +273,20 @@ export class ChatService {
       this.ipcAdapter.offChatDeleted(this.chatDeletedListener);
       this.chatDeletedListener = null;
     }
+
+    if (this.chatStreamChunkListener) {
+      this.ipcAdapter.offChatStreamChunk(this.chatStreamChunkListener);
+      this.chatStreamChunkListener = null;
+    }
+
+    if (this.chatStreamEndListener) {
+      this.ipcAdapter.offChatStreamEnd(this.chatStreamEndListener);
+      this.chatStreamEndListener = null;
+    }
   }
 
   /**
-   * Send a message to the chat
+   * Send a message to the chat (uses streaming by default)
    */
   public async sendMessage(inputValue: string): Promise<string | null> {
     if (!inputValue.trim() || this.isLoading) {
@@ -255,48 +320,51 @@ export class ChatService {
     this.setError(null);
     this.setHistoryIndex(-1);
 
-    const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_MESSAGE> = {
+    // Create a placeholder message for streaming
+    const streamingMessageId = `${Date.now().toString()}-response`;
+    const streamingMessage: IChatMessage = {
+      id: streamingMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+    };
+    this.addMessage(streamingMessage);
+    this.streamingMessageId = streamingMessageId;
+    this.streamingContent = '';
+    this.setStreaming(true);
+
+    const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_MESSAGE_STREAM> = {
       channel: EIpcChannel.CHAT,
-      event: EIpcEvent.CHAT_SEND_MESSAGE,
-      payload: { chatId, messages: this.messages },
+      event: EIpcEvent.CHAT_SEND_MESSAGE_STREAM,
+      payload: { chatId, messages: this.messages.slice(0, -1) }, // Exclude the placeholder message
     };
 
     try {
       const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
 
-      if (isErrorResponse(response)) {
+      if ('error' in response && response.error !== undefined) {
         throw new Error(response.error);
       }
 
-      const assistantMessage: IChatMessage = {
-        id: `${Date.now().toString()}-response`,
-        role: 'assistant',
-        content: response.response,
-        timestamp: new Date(),
-      };
-      this.addMessage(assistantMessage);
+      // Streaming has started, the actual content will come via CHAT_STREAM_CHUNK events
+      logger.info('Streaming started for chatId=%s', String(chatId));
 
       return null;
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
 
-      logger.error('Failed to send message: %s', errorText);
+      logger.error('Failed to start streaming: %s', errorText);
       this.setError(`Failed to send message: ${errorText}`);
 
-      const errorMessage: IChatMessage = {
-        id: `${Date.now().toString()}-error`,
-        role: 'assistant',
-        content: `Error: ${errorText}`,
-        timestamp: new Date(),
-      };
-      this.addMessage(errorMessage);
+      // Update the placeholder message to show error
+      this.updateStreamingMessage(`Error: ${errorText}`);
+      this.streamingMessageId = null;
+      this.streamingContent = '';
+      this.setStreaming(false);
+      this.setLoading(false);
+      this.setHandlingResponse(false);
 
       return errorText;
-    } finally {
-      this.setLoading(false);
-      setTimeout(() => {
-        this.setHandlingResponse(false);
-      }, 100);
     }
   }
 
@@ -385,6 +453,13 @@ export class ChatService {
    */
   public getIsHandlingResponse(): boolean {
     return this.isHandlingOllamaResponse;
+  }
+
+  /**
+   * Get streaming state
+   */
+  public getIsStreaming(): boolean {
+    return this.isStreaming;
   }
 
   /**
@@ -555,5 +630,26 @@ export class ChatService {
   private setHandlingResponse(isHandling: boolean): void {
     this.isHandlingOllamaResponse = isHandling;
     this.onHandlingResponseChange?.(isHandling);
+  }
+
+  private setStreaming(isStreaming: boolean): void {
+    this.isStreaming = isStreaming;
+    this.onStreamingChange?.(isStreaming);
+  }
+
+  private updateStreamingMessage(content: string): void {
+    if (this.streamingMessageId === null) {
+      return;
+    }
+
+    // Find and update the streaming message
+    const updatedMessages = this.messages.map(msg =>
+      msg.id === this.streamingMessageId
+        ? { ...msg, content }
+        : msg,
+    );
+
+    this.messages = updatedMessages;
+    this.onMessagesChange?.(this.messages);
   }
 }

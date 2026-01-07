@@ -1,4 +1,4 @@
-import type { TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, IChatWindowData, IChatMessage, TOpenTab, TChatResponse } from '@writing-tools/shared';
+import type { TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, IChatWindowData, IChatMessage, TOpenTab, TChatResponse, IChatStreamChunk, IChatStreamEnd } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
@@ -107,6 +107,26 @@ export interface IIpcAdapter {
    * Load tabs from main process
    */
   loadTabs: () => Promise<{ tabs: TOpenTab[] } | { error: string }>;
+
+  /**
+   * Register a listener for chat stream chunk events
+   */
+  onChatStreamChunk: (callback: (data: IChatStreamChunk) => void) => TIpcRenderListener;
+
+  /**
+   * Unregister a chat stream chunk listener
+   */
+  offChatStreamChunk: (listener: TIpcRenderListener) => void;
+
+  /**
+   * Register a listener for chat stream end events
+   */
+  onChatStreamEnd: (callback: (data: IChatStreamEnd) => void) => TIpcRenderListener;
+
+  /**
+   * Unregister a chat stream end listener
+   */
+  offChatStreamEnd: (listener: TIpcRenderListener) => void;
 }
 
 /**
@@ -216,6 +236,22 @@ export class ElectronIpcAdapter implements IIpcAdapter {
     }
 
     return { tabs: response.tabs };
+  }
+
+  public onChatStreamChunk(callback: (data: IChatStreamChunk) => void): TIpcRenderListener {
+    return this.getElectronAPI().onChatStreamChunk(callback);
+  }
+
+  public offChatStreamChunk(listener: TIpcRenderListener): void {
+    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatStreamChunk(listener);
+  }
+
+  public onChatStreamEnd(callback: (data: IChatStreamEnd) => void): TIpcRenderListener {
+    return this.getElectronAPI().onChatStreamEnd(callback);
+  }
+
+  public offChatStreamEnd(listener: TIpcRenderListener): void {
+    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatStreamEnd(listener);
   }
 
   private getElectronAPI(): NonNullable<typeof window.electronAPI> {

@@ -18,6 +18,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isHandlingResponse, setIsHandlingResponse] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [chatTitle, setChatTitle] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -33,6 +34,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
       onErrorChange: setError,
       onHandlingResponseChange: setIsHandlingResponse,
       onTitleChange: setChatTitle,
+      onStreamingChange: setIsStreaming,
     });
   }, [chatService]);
 
@@ -53,12 +55,16 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
     }
   }, [chatService, chatId]);
 
-  // Scroll to bottom when messages change (unless handling response)
+  // Scroll to bottom when messages change
+  // During streaming, use auto-scroll to keep the latest content visible
   useEffect(() => {
-    if (!isHandlingResponse) {
+    if (isStreaming) {
+      // During streaming, scroll immediately without smooth animation for better UX
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    } else if (!isHandlingResponse) {
       scrollToBottom();
     }
-  }, [messages, isHandlingResponse]);
+  }, [messages, isHandlingResponse, isStreaming]);
 
   // Fetch title when chatId or messages change
   useEffect(() => {
@@ -188,67 +194,79 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
           </div>
         ) : (
           <div className="space-y-3">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`group flex flex-col space-y-1 ${message.role === 'user' ? 'items-end' : 'items-start'}`}
-              >
+            {messages.map((message, index) => {
+              // Check if this is the last message and it's streaming
+              const isLastMessage = index === messages.length - 1;
+              const isStreamingMessage = isStreaming && isLastMessage && message.role === 'assistant';
+
+              return (
                 <div
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  key={message.id}
+                  className={`group flex flex-col space-y-1 ${message.role === 'user' ? 'items-end' : 'items-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] p-3 ${MessageStyles[message.role]}`}
+                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className="whitespace-pre-wrap markdown-content"
-                      dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
-                    />
-                    <div className={`text-xs mt-1.5 ${ColorPalette.text.muted}`}>
-                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      className={`max-w-[80%] p-3 ${MessageStyles[message.role]}`}
+                    >
+                      <div
+                        className="whitespace-pre-wrap markdown-content"
+                        dangerouslySetInnerHTML={{
+                          __html: renderMarkdown(message.content) + (isStreamingMessage ? '<span class="streaming-cursor">▋</span>' : ''),
+                        }}
+                      />
+                      {!isStreamingMessage && (
+                        <div className={`text-xs mt-1.5 ${ColorPalette.text.muted}`}>
+                          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-                <div
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} opacity-0 transition-opacity duration-150 group-hover:opacity-100`}
-                >
-                  <Tooltip content="Copy message">
-                    <button
-                      type="button"
-                      className={`${ButtonStyles.base} ${ButtonStyles.ghost} px-2 py-1 whitespace-nowrap`}
-                      onClick={() => {
-                        void handleCopyMessage(message.id, message.content);
-                      }}
-                      aria-label="Copy message to clipboard"
+                  {!isStreamingMessage && (
+                    <div
+                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} opacity-0 transition-opacity duration-150 group-hover:opacity-100`}
                     >
-                      <span
-                        className="relative inline-block w-4 h-4"
-                        style={{ fontSize: '20px', lineHeight: '20px' }}
-                      >
-                        <span
-                          className={`
-                            absolute inset-0 flex items-center justify-center
-                            transition-all duration-150
-                            ${copiedMessageId === message.id ? 'opacity-0 scale-75' : 'opacity-100 scale-100'}
-                          `}
+                      <Tooltip content="Copy message">
+                        <button
+                          type="button"
+                          className={`${ButtonStyles.base} ${ButtonStyles.ghost} px-2 py-1 whitespace-nowrap`}
+                          onClick={() => {
+                            void handleCopyMessage(message.id, message.content);
+                          }}
+                          aria-label="Copy message to clipboard"
                         >
-                          ⧉
-                        </span>
-                        <span
-                          className={`
-                            absolute inset-0 flex items-center justify-center
-                            transition-all duration-150
-                            ${copiedMessageId === message.id ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}
-                          `}
-                        >
-                          ✓
-                        </span>
-                      </span>
-                    </button>
-                  </Tooltip>
+                          <span
+                            className="relative inline-block w-4 h-4"
+                            style={{ fontSize: '20px', lineHeight: '20px' }}
+                          >
+                            <span
+                              className={`
+                                absolute inset-0 flex items-center justify-center
+                                transition-all duration-150
+                                ${copiedMessageId === message.id ? 'opacity-0 scale-75' : 'opacity-100 scale-100'}
+                              `}
+                            >
+                              ⧉
+                            </span>
+                            <span
+                              className={`
+                                absolute inset-0 flex items-center justify-center
+                                transition-all duration-150
+                                ${copiedMessageId === message.id ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}
+                              `}
+                            >
+                              ✓
+                            </span>
+                          </span>
+                        </button>
+                      </Tooltip>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
-            {isLoading && (
+              );
+            })}
+            {isLoading && !isStreaming && (
               <div className="flex justify-start">
                 <div className={`${BackgroundStyles.loadingBubble} ${ColorPalette.text.tertiary} p-3 rounded rounded-l-sm`}>
                   <div className={LoadingStyles}>

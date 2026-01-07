@@ -34,6 +34,8 @@ export type TEnvGetPayload = Record<string, never>;
 
 export type TPromptSelectPayload = { prompt: string };
 
+export type TChatSendMessageStreamPayload = { chatId: number, messages: IChatMessage[] };
+
 export type TIpcEventPayloadMap = {
   [EIpcEvent.CHAT_CREATE_SESSION]: TChatCreateSessionPayload,
   [EIpcEvent.CHAT_DELETE]: TChatDeletePayload,
@@ -44,6 +46,7 @@ export type TIpcEventPayloadMap = {
   [EIpcEvent.CHAT_OPEN]: TChatOpenPayload,
   [EIpcEvent.CHAT_SAVE_TABS]: TChatSaveTabsPayload,
   [EIpcEvent.CHAT_SEND_MESSAGE]: TChatSendMessagePayload,
+  [EIpcEvent.CHAT_SEND_MESSAGE_STREAM]: TChatSendMessageStreamPayload,
   [EIpcEvent.ENV_GET]: TEnvGetPayload,
   [EIpcEvent.MODEL_LIST]: TModelListPayload,
   [EIpcEvent.PROMPT_SELECT]: TPromptSelectPayload,

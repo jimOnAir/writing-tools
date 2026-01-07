@@ -78,6 +78,14 @@ export type TChatSaveTabsResponse = TChatSaveTabsSuccessResponse | TChatSaveTabs
 
 export type TPromptSelectResponse = Record<string, never>;
 
+// Streaming response - the actual content is sent via CHAT_STREAM_CHUNK events
+// This response just acknowledges the stream was started
+export type TChatSendMessageStreamSuccessResponse = { started: true };
+
+export type TChatSendMessageStreamFailedResponse = { error: string, started: false };
+
+export type TChatSendMessageStreamResponse = TChatSendMessageStreamSuccessResponse | TChatSendMessageStreamFailedResponse;
+
 export type TIpcResponsePayloadMap = {
   [EIpcEvent.CHAT_CREATE_SESSION]: TChatCreateSessionResponse,
   [EIpcEvent.CHAT_DELETE]: TChatDeleteResponse,
@@ -88,6 +96,7 @@ export type TIpcResponsePayloadMap = {
   [EIpcEvent.CHAT_OPEN]: TChatOpenResponse,
   [EIpcEvent.CHAT_SAVE_TABS]: TChatSaveTabsResponse,
   [EIpcEvent.CHAT_SEND_MESSAGE]: TChatSendMessageResponse,
+  [EIpcEvent.CHAT_SEND_MESSAGE_STREAM]: TChatSendMessageStreamResponse,
   [EIpcEvent.ENV_GET]: TEnvGetResponse,
   [EIpcEvent.MODEL_LIST]: TModelListResponse,
   [EIpcEvent.PROMPT_SELECT]: TPromptSelectResponse,

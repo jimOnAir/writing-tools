@@ -20,6 +20,7 @@ type TSettingChannelEventPayload = TIpcEvent<EIpcChannel.SETTINGS, EIpcEvent.SET
 type TChannelEventPayloadModel = TIpcEvent<EIpcChannel.MODEL, EIpcEvent.MODEL_LIST>;
 
 type TChatChannelEventPayload = TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_MESSAGE>
+  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_MESSAGE_STREAM>
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_CREATE_SESSION>
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LOAD_MESSAGES>
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS>
@@ -87,6 +88,8 @@ export class IpcHandlers implements IIpcHandlers {
       switch (data.event) {
         case EIpcEvent.CHAT_SEND_MESSAGE:
           return this.handleChatSendMessage(data.payload.chatId, data.payload.messages);
+        case EIpcEvent.CHAT_SEND_MESSAGE_STREAM:
+          return this.handleChatSendMessageStream(data.payload.chatId, data.payload.messages);
         case EIpcEvent.CHAT_CREATE_SESSION:
           return this.handleChatCreateSession(data.payload);
         case EIpcEvent.CHAT_LOAD_MESSAGES:
@@ -197,6 +200,110 @@ export class IpcHandlers implements IIpcHandlers {
       }
 
       return llmResponse;
+    } finally {
+      this.processingChatIds.delete(chatId);
+    }
+  }
+
+  private async handleChatSendMessageStream(chatId: number, messages: IChatMessage[]) {
+    // Prevent duplicate processing for the same chatId
+    if (this.processingChatIds.has(chatId)) {
+      this.logger.warn('handleChatSendMessageStream: Already processing chatId=%s, ignoring duplicate request', String(chatId));
+
+      return { error: 'Request already processing', started: false } as const;
+    }
+    this.processingChatIds.add(chatId);
+
+    try {
+      // Save all messages before sending to LLM
+      for (const message of messages) {
+        try {
+          this.chatService.saveMessage(chatId, message);
+        } catch (error: unknown) {
+          const errorText = error instanceof Error ? error.message : String(error);
+          this.logger.error('Failed to save message before streaming: %s', errorText);
+          // Continue even if save fails
+        }
+      }
+
+      // Get the main window to send stream events
+      const { window: mainWindow } = await this.windowService.getMainWindow();
+
+      // Start streaming in the background
+      void this.streamLLMResponse(chatId, messages, mainWindow);
+
+      // Return immediately to indicate streaming has started
+      return { started: true } as const;
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to start streaming: %s', errorText);
+      this.processingChatIds.delete(chatId);
+
+      return { error: errorText, started: false } as const;
+    }
+  }
+
+  private async streamLLMResponse(
+    chatId: number,
+    messages: IChatMessage[],
+    mainWindow: Electron.BrowserWindow,
+  ): Promise<void> {
+    let fullContent = '';
+
+    try {
+      const streamGenerator = this.modelService.sendMessagesStream(messages.map((message => {
+        return {
+          role: message.role,
+          content: message.content,
+        };
+      })));
+
+      for await (const chunk of streamGenerator) {
+        fullContent += chunk.content;
+
+        // Send chunk to renderer
+        mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_CHUNK, {
+          chatId,
+          content: chunk.content,
+          done: chunk.done,
+        });
+      }
+
+      // Save assistant response
+      const assistantMessage: IChatMessage = {
+        id: `${Date.now().toString()}-response`,
+        role: 'assistant',
+        content: fullContent,
+        timestamp: new Date(),
+      };
+
+      try {
+        this.chatService.saveMessage(chatId, assistantMessage);
+      } catch (error: unknown) {
+        const errorText = error instanceof Error ? error.message : String(error);
+        this.logger.error('Failed to save streamed assistant response: %s', errorText);
+      }
+
+      // Send stream end event
+      mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_END, {
+        chatId,
+        fullContent,
+      });
+
+      this.logger.info('Streaming completed for chatId=%s', String(chatId));
+
+      // Generate title after first exchange
+      void this.generateTitleIfNeeded(chatId);
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.logger.error('Streaming error for chatId=%s: %s', String(chatId), errorText);
+
+      // Send error to renderer
+      mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_END, {
+        chatId,
+        error: errorText,
+        fullContent,
+      });
     } finally {
       this.processingChatIds.delete(chatId);
     }
