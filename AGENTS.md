@@ -118,11 +118,11 @@ export class SettingsRepository implements ISettingsRepository {
 
 ```typescript
 // ✅ Good: Service receives all dependencies via constructor
-export class ChatService implements IChatService {
-  private readonly repository: IChatRepository;
+export class EntityService implements IEntityService {
+  private readonly repository: IEntityRepository;
   private readonly logger: ILogger;
 
-  public constructor(repository: IChatRepository, logger: ILogger) {
+  public constructor(repository: IEntityRepository, logger: ILogger) {
     this.repository = repository;
     this.logger = logger;
   }
@@ -131,8 +131,8 @@ export class ChatService implements IChatService {
 // ❌ Bad: Service imports Electron directly
 import { app } from 'electron';
 
-export class ChatService implements IChatService {
-  public constructor(repository: IChatRepository) {
+export class EntityService implements IEntityService {
+  public constructor(repository: IEntityRepository) {
     // Direct Electron dependency - WRONG!
     const appPath = app.getPath('appData');
   }
@@ -141,21 +141,21 @@ export class ChatService implements IChatService {
 
 ```typescript
 // ✅ Good: Logger injected via constructor
-export class ChatService implements IChatService {
+export class EntityService implements IEntityService {
   private readonly logger: ILogger;
-  private readonly repository: IChatRepository;
+  private readonly repository: IEntityRepository;
 
-  public constructor(repository: IChatRepository, logger: ILogger) {
+  public constructor(repository: IEntityRepository, logger: ILogger) {
     this.logger = logger;
     this.repository = repository;
   }
 
-  public async generateChatTitle(): Promise<string | null> {
+  public async processEntity(): Promise<string | null> {
     try {
       // ... logic
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      this.logger.error('Error generating chat title: %s', errorText);
+      this.logger.error('Error processing entity: %s', errorText);
       return null;
     }
   }
@@ -164,16 +164,16 @@ export class ChatService implements IChatService {
 // ❌ Bad: Global logger import
 import { logger } from '@writing-tools/shared';
 
-export class ChatService implements IChatService {
-  public constructor(repository: IChatRepository) {
+export class EntityService implements IEntityService {
+  public constructor(repository: IEntityRepository) {
     // Missing logger injection
   }
 
-  public async generateChatTitle(): Promise<string | null> {
+  public async processEntity(): Promise<string | null> {
     try {
       // ... logic
     } catch (error: unknown) {
-      logger.error('Error generating chat title: %s', errorText); // Using global logger
+      logger.error('Error processing entity: %s', errorText); // Using global logger
       return null;
     }
   }
@@ -193,15 +193,15 @@ export class AppBootstrap {
 
   public constructor(logger: ILogger) {
     this.logger = logger;
-    const chatRepository = new ChatRepository(this.logger);
-    const chatService = new ChatService(chatRepository, this.logger);
+    const entityRepository = new EntityRepository(this.logger);
+    const entityService = new EntityService(entityRepository, this.logger);
   }
 }
 
 // ✅ Good: Test with mock logger
-describe('ChatService', () => {
+describe('EntityService', () => {
   let mockLogger: jest.Mocked<ILogger>;
-  let chatService: ChatService;
+  let entityService: EntityService;
 
   beforeEach(() => {
     mockLogger = {
@@ -213,7 +213,7 @@ describe('ChatService', () => {
       warn: jest.fn(),
     } as unknown as jest.Mocked<ILogger>;
 
-    chatService = new ChatService(mockRepository, mockLogger);
+    entityService = new EntityService(mockRepository, mockLogger);
   });
 });
 ```
@@ -255,25 +255,25 @@ When using the logger, follow these essential rules for effective and maintainab
 
 ```typescript
 // ✅ Good: Comprehensive error logging
-public async sendMessage(message: string): Promise<void> {
+public async processData(data: string): Promise<void> {
   try {
-    const response = await this.modelService.sendMessages(messages);
+    const response = await this.externalService.process(data);
     if (response.success === false) {
-      this.logger.error('Failed to send message to model: %s', response.error);
+      this.logger.error('Failed to process data via external service: %s', response.error);
       return;
     }
     // ... handle success
   } catch (error: unknown) {
     const errorText = error instanceof Error ? error.message : String(error);
-    this.logger.error('Error sending message: %s', errorText);
+    this.logger.error('Error processing data: %s', errorText);
     throw error;
   }
 }
 
 // ❌ Bad: Missing error logging
-public async sendMessage(message: string): Promise<void> {
+public async processData(data: string): Promise<void> {
   try {
-    await this.modelService.sendMessages(messages);
+    await this.externalService.process(data);
   } catch (error: unknown) {
     // No logging - error is lost!
     throw error;
@@ -309,25 +309,25 @@ this.logger.debug('Processing message: ' + JSON.stringify({ id: messageId, role:
 
 ```typescript
 // ✅ Good: Logging with context
-public async deleteChat(chatId: number): Promise<void> {
-  this.logger.info('Deleting chat: id=%d', chatId);
+public async deleteEntity(entityId: number): Promise<void> {
+  this.logger.info('Deleting entity: id=%d', entityId);
   try {
-    await this.repository.deleteChat(chatId);
-    this.logger.info('Chat deleted successfully: id=%d', chatId);
+    await this.repository.deleteEntity(entityId);
+    this.logger.info('Entity deleted successfully: id=%d', entityId);
   } catch (error: unknown) {
     const errorText = error instanceof Error ? error.message : String(error);
-    this.logger.error('Failed to delete chat: id=%d, error=%s', chatId, errorText);
+    this.logger.error('Failed to delete entity: id=%d, error=%s', entityId, errorText);
     throw error;
   }
 }
 
 // ❌ Bad: Missing context
-public async deleteChat(chatId: number): Promise<void> {
-  this.logger.info('Deleting chat');
+public async deleteEntity(entityId: number): Promise<void> {
+  this.logger.info('Deleting entity');
   try {
-    await this.repository.deleteChat(chatId);
+    await this.repository.deleteEntity(entityId);
   } catch (error: unknown) {
-    this.logger.error('Failed'); // No context about which chat or what error
+    this.logger.error('Failed'); // No context about which entity or what error
     throw error;
   }
 }
@@ -348,15 +348,15 @@ public async deleteChat(chatId: number): Promise<void> {
 
 ```typescript
 // ✅ Good: Logging method entry/exit at debug level
-public async loadChats(): Promise<IChatInfo[]> {
-  this.logger.debug('Loading chats');
+public async loadEntities(): Promise<IEntityInfo[]> {
+  this.logger.debug('Loading entities');
   try {
-    const chats = await this.repository.getAllChats();
-    this.logger.debug('Loaded %d chats', chats.length);
-    return chats;
+    const entities = await this.repository.getAllEntities();
+    this.logger.debug('Loaded %d entities', entities.length);
+    return entities;
   } catch (error: unknown) {
     const errorText = error instanceof Error ? error.message : String(error);
-    this.logger.error('Failed to load chats: %s', errorText);
+    this.logger.error('Failed to load entities: %s', errorText);
     throw error;
   }
 }
@@ -376,24 +376,24 @@ public async loadChats(): Promise<IChatInfo[]> {
 
 ```typescript
 // ✅ Good: Selective logging
-public async sendMessage(message: string): Promise<void> {
-  // Don't log every message - too frequent
+public async processData(data: string): Promise<void> {
+  // Don't log every operation - too frequent
   // Only log errors
   try {
-    await this.processMessage(message);
+    await this.processOperation(data);
   } catch (error: unknown) {
     const errorText = error instanceof Error ? error.message : String(error);
-    this.logger.error('Error processing message: %s', errorText);
+    this.logger.error('Error processing data: %s', errorText);
     throw error;
   }
 }
 
 // ❌ Bad: Excessive logging
-public async sendMessage(message: string): Promise<void> {
-  this.logger.info('Sending message: %s', message); // Too verbose
+public async processData(data: string): Promise<void> {
+  this.logger.info('Processing data: %s', data); // Too verbose
   try {
-    await this.processMessage(message);
-    this.logger.info('Message sent successfully'); // Too verbose
+    await this.processOperation(data);
+    this.logger.info('Data processed successfully'); // Too verbose
   } catch (error: unknown) {
     // ...
   }
@@ -409,20 +409,20 @@ public async sendMessage(message: string): Promise<void> {
 
 ```typescript
 // ✅ Good: Service initialization logging
-export class ChatService implements IChatService {
-  public constructor(repository: IChatRepository, logger: ILogger) {
+export class EntityService implements IEntityService {
+  public constructor(repository: IEntityRepository, logger: ILogger) {
     this.logger = logger;
     this.repository = repository;
-    this.logger.info('ChatService initialized');
+    this.logger.info('EntityService initialized');
   }
 
   public async initialize(): Promise<void> {
     try {
       await this.repository.initialize();
-      this.logger.info('ChatService ready');
+      this.logger.info('EntityService ready');
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to initialize ChatService: %s', errorText);
+      this.logger.error('Failed to initialize EntityService: %s', errorText);
       throw error;
     }
   }
@@ -433,41 +433,41 @@ export class ChatService implements IChatService {
 
 ```typescript
 // ✅ Good: Comprehensive logging with appropriate levels
-export class ChatService implements IChatService {
+export class EntityService implements IEntityService {
   private readonly logger: ILogger;
-  private readonly repository: IChatRepository;
+  private readonly repository: IEntityRepository;
 
-  public constructor(repository: IChatRepository, logger: ILogger) {
+  public constructor(repository: IEntityRepository, logger: ILogger) {
     this.logger = logger;
     this.repository = repository;
-    this.logger.info('ChatService initialized');
+    this.logger.info('EntityService initialized');
   }
 
-  public async createChat(title: string, provider: string, model: string): Promise<number> {
-    this.logger.debug('Creating chat: title=%s, provider=%s, model=%s', title, provider, model);
+  public async createEntity(title: string, type: string, config: string): Promise<number> {
+    this.logger.debug('Creating entity: title=%s, type=%s, config=%s', title, type, config);
     try {
-      const chatId = this.repository.createChat(title, provider, model);
-      this.logger.info('Chat created: id=%d, title=%s', chatId, title);
-      return chatId;
+      const entityId = this.repository.createEntity(title, type, config);
+      this.logger.info('Entity created: id=%d, title=%s', entityId, title);
+      return entityId;
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to create chat: title=%s, error=%s', title, errorText);
+      this.logger.error('Failed to create entity: title=%s, error=%s', title, errorText);
       throw error;
     }
   }
 
-  public async sendMessage(chatId: number, message: string): Promise<void> {
-    this.logger.debug('Sending message: chatId=%d', chatId);
+  public async processEntity(entityId: number, data: string): Promise<void> {
+    this.logger.debug('Processing entity: entityId=%d', entityId);
     try {
-      const response = await this.modelService.sendMessages(messages);
+      const response = await this.externalService.process(data);
       if (response.success === false) {
-        this.logger.error('Model service error: chatId=%d, error=%s', chatId, response.error);
+        this.logger.error('External service error: entityId=%d, error=%s', entityId, response.error);
         return;
       }
       // ... process response
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      this.logger.error('Error sending message: chatId=%d, error=%s', chatId, errorText);
+      this.logger.error('Error processing entity: entityId=%d, error=%s', entityId, errorText);
       throw error;
     }
   }
@@ -476,27 +476,27 @@ export class ChatService implements IChatService {
 
 ```typescript
 // ❌ Bad: Poor logging practices
-export class ChatService implements IChatService {
-  public constructor(repository: IChatRepository, logger: ILogger) {
+export class EntityService implements IEntityService {
+  public constructor(repository: IEntityRepository, logger: ILogger) {
     // No initialization logging
   }
 
-  public async createChat(title: string, provider: string, model: string): Promise<number> {
+  public async createEntity(title: string, type: string, config: string): Promise<number> {
     // No debug logging
     try {
-      const chatId = this.repository.createChat(title, provider, model);
+      const entityId = this.repository.createEntity(title, type, config);
       // No success logging
-      return chatId;
+      return entityId;
     } catch (error: unknown) {
       // No error logging
       throw error;
     }
   }
 
-  public async sendMessage(chatId: number, message: string): Promise<void> {
-    this.logger.info('Message: ' + message); // String concatenation, too verbose
+  public async processEntity(entityId: number, data: string): Promise<void> {
+    this.logger.info('Data: ' + data); // String concatenation, too verbose
     try {
-      await this.processMessage(message);
+      await this.processData(data);
     } catch {
       // No error logging
     }
@@ -1329,497 +1329,312 @@ const window = new BrowserWindow({
 
 These guidelines are based on best practices from the article "Making Electron apps feel native on Mac" (https://dev.to/vadimdemedes/making-electron-apps-feel-native-on-mac-52e8) and general Electron desktop app best practices.
 
-## IPC Response Handling
+## Electron Security Best Practices
 
-When processing IPC responses, always use the centralized type guard functions from `utils/responseTypeGuards.ts`:
+When working with Electron applications, always follow these essential security practices:
 
-### Type Guard Functions
-- **`isErrorResponse(response: unknown): response is { error: string }`**
-  - Checks if a response has an `error` property with a string value
-  - Use for responses that may have an `error` property (e.g., `TChatListChatsResponse`, `TChatSendMessageResponse`)
+### Context Isolation and Preload Scripts
 
-- **`isFailedResponse(response: unknown): response is { error: string, success: false }`**
-  - Checks if a response has `success: false` and an `error` property with a string value
-  - Use for responses that have a `success` property (e.g., `TChatOpenResponse`, `TChatDeleteResponse`, `TSettingsSaveResponse`)
+- **Always enable context isolation** - Context isolation is enabled by default since Electron 12 and must remain enabled
+  - Set `contextIsolation: true` in `webPreferences` for all BrowserWindow instances
+  - This prevents renderer processes from accessing Node.js APIs directly
+  - Prevents prototype pollution attacks
 
-### Usage Pattern
-Always use these type guards instead of direct property checks to ensure type safety and consistency:
+- **Use `contextBridge` for IPC communication** - Never expose `ipcRenderer` directly
+  - Use `contextBridge.exposeInMainWorld()` to expose only specific, well-defined APIs
+  - Expose only the functions needed, not the entire `ipcRenderer` module
+  - Validate and sanitize all data passed through contextBridge
 
 ```typescript
-// ✅ Good: Using type guards from utils
-import { isErrorResponse, isFailedResponse } from '../utils/responseTypeGuards';
+// ✅ Good: Exposing specific, well-defined APIs
+contextBridge.exposeInMainWorld('electronAPI', {
+  invoke: async (channel: string, data: any) => {
+    // Validate channel and data before invoking
+    if (!isValidChannel(channel)) {
+      throw new Error('Invalid channel');
+    }
+    return ipcRenderer.invoke(channel, data);
+  },
+});
 
-const response = await ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+// ❌ Bad: Exposing entire ipcRenderer
+contextBridge.exposeInMainWorld('electronAPI', {
+  send: ipcRenderer.send,  // Too permissive
+  invoke: ipcRenderer.invoke,  // No validation
+});
+```
 
-if (isErrorResponse(response)) {
-  throw new Error(response.error);
+### Node.js Integration
+
+- **Always disable Node.js integration in renderer** - Set `nodeIntegration: false` in `webPreferences`
+  - Renderer processes should not have direct access to Node.js APIs
+  - All Node.js access should go through the main process via IPC
+  - This significantly reduces the attack surface
+
+```typescript
+// ✅ Good: Node integration disabled
+webPreferences: {
+  nodeIntegration: false,
+  contextIsolation: true,
+  preload: getPreloadPath(),
 }
 
-// Or for success-based responses
-if (isFailedResponse(response)) {
-  throw new Error(response.error);
+// ❌ Bad: Node integration enabled
+webPreferences: {
+  nodeIntegration: true,  // Security risk!
+  contextIsolation: false,  // Security risk!
 }
 ```
 
-```typescript
-// ❌ Bad: Direct property checks without type guards
-const response = await ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+### Process Sandboxing
 
-if ('error' in response) {
-  throw new Error(response.error); // TypeScript may not properly narrow the type
-}
+- **Enable process sandboxing** - Sandboxing is enabled by default since Electron 20
+  - Sandboxing uses the OS to limit what renderer processes can access
+  - Add an extra layer of security beyond context isolation
+  - Verify sandboxing is enabled in production builds
+
+### IPC Security
+
+- **Validate and sanitize all IPC messages** - Never trust data from renderer processes
+  - Validate channel names against a whitelist
+  - Validate payload structure and types
+  - Sanitize user inputs before processing
+  - Use type guards and validation schemas
+
+```typescript
+// ✅ Good: Validating IPC messages
+ipcMain.handle('save-data', async (_event, payload: unknown) => {
+  // Validate payload structure
+  if (!isValidPayload(payload)) {
+    throw new Error('Invalid payload');
+  }
+
+  // Sanitize user input
+  const sanitized = sanitizeInput(payload.data);
+
+  return repository.save(sanitized);
+});
+
+// ❌ Bad: No validation
+ipcMain.handle('save-data', async (_event, payload: any) => {
+  return repository.save(payload.data);  // No validation!
+});
 ```
 
-### Benefits
-- **Type Safety**: TypeScript properly narrows the response type after the guard check
-- **Consistency**: All components use the same error checking logic
-- **Maintainability**: Error checking logic is centralized in one place
-- **Lint Compliance**: Avoids unsafe assignment and member access lint errors
+### Content Security Policy (CSP)
 
-### When to Use Which Guard
-- Use `isErrorResponse` for responses like:
-  - `TChatListChatsResponse` (has `error` or `chats`)
-  - `TChatSendMessageResponse` (has `error` or `response`)
-  - `TChatGetResponse` (has `error` or `chat`)
-  - `TChatLoadMessagesResponse` (has `error` or `messages`)
+- **Implement Content Security Policy** - Define CSP headers to restrict content sources
+  - Mitigate XSS attacks by restricting script sources
+  - Restrict resource loading to trusted sources only
+  - Use `webSecurity: true` in webPreferences (default)
 
-- Use `isFailedResponse` for responses like:
-  - `TChatOpenResponse` (has `success: true` or `success: false, error`)
-  - `TChatDeleteResponse` (has `success: true` or `success: false, error`)
-  - `TSettingsSaveResponse` (has `success: true` or `success: false, error`)
+### Session Permissions
 
-## Model Service Response Processing
+- **Handle session permission requests** - Don't auto-approve all permission requests
+  - Implement custom handlers for notifications, camera, microphone, etc.
+  - Only grant permissions to trusted content
+  - Log permission requests for security auditing
 
-When processing model service responses (LLM API responses), always use the success/failed response pattern with explicit `success` property checks.
+```typescript
+// ✅ Good: Custom permission handler
+session.defaultSession.setPermissionRequestHandler(
+  (webContents, permission, callback) => {
+    // Only allow specific permissions from trusted sources
+    if (permission === 'notifications' && isTrustedSource(webContents)) {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  }
+);
+```
 
-### Response Type Pattern
+### Preload Script Security
 
-- **All model service responses must use success/failed pattern** - Model service responses must have a `success` boolean property
-  - Success responses: `{ response: string, success: true }`
-  - Failed responses: `{ error: string, success: false }`
-  - Union type: `type ModelResponse = { response: string, success: true } | { error: string, success: false }`
-  - This pattern provides type safety and clear distinction between success and failure states
+- **Keep preload scripts minimal** - Minimize code in preload scripts
+  - Reduce attack surface by limiting exposed functionality
+  - Only expose APIs that are absolutely necessary
+  - Avoid complex logic in preload scripts
 
-### Response Processing Rules
+### Electron Updates
 
-- **Always check `success` property first** - Use explicit `success === false` check before accessing response data
-  - TypeScript will properly narrow the type after the check
-  - Never check for `'error' in response` or `'response' in response` - use the `success` property
-  - After checking `success === false`, TypeScript knows the response is a failed response
-  - After the check passes, TypeScript knows the response is a success response with `response` property
-
-### Type Narrowing
-
-- **Use type narrowing with success property** - The `success` property enables proper type narrowing
-  - Check `response.success === false` to narrow to failed response type
-  - After the check, TypeScript automatically narrows to success response type
-  - No need for optional chaining or undefined checks after type narrowing
+- **Keep Electron updated** - Regularly update Electron to latest stable version
+  - Security patches are released regularly
+  - New security features are added in updates
+  - Use automated dependency updates where possible
 
 ### Examples
 
 ```typescript
-// ✅ Good: Using success property for type narrowing
-public async generateChatTitle(userMessage: string, assistantMessage: string): Promise<string | null> {
-  try {
-    const response = await this.modelService.sendMessages([
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ]);
-
-    if (response.success === false) {
-      this.logger.error('Failed to generate chat title: %s', response.error);
-      return null;
-    }
-
-    // TypeScript knows response.response exists here
-    let title = response.response.trim();
-    // ... process title
-    return title || null;
-  } catch (error: unknown) {
-    const errorText = error instanceof Error ? error.message : String(error);
-    this.logger.error('Error generating chat title: %s', errorText);
-    return null;
-  }
-}
-```
-
-```typescript
-// ✅ Good: Processing LLM response in handler
-const llmResponse = await this.modelService.sendMessages(messages);
-
-if (llmResponse.success === false) {
-  this.logger.error('LLM error: %s', llmResponse.error);
-  // Handle error...
-  return;
-}
-
-// TypeScript knows llmResponse.response exists here
-const assistantMessage: IChatMessage = {
-  id: `${Date.now().toString()}-response`,
-  role: 'assistant',
-  content: llmResponse.response,
-  timestamp: new Date(),
-};
-```
-
-```typescript
-// ❌ Bad: Checking for 'error' property instead of success
-const response = await this.modelService.sendMessages(messages);
-
-if ('error' in response) {
-  // TypeScript may not properly narrow the type
-  this.logger.error('Error: %s', response.error);
-  return;
-}
-
-// Unsafe: response.response might be undefined
-const content = response.response ?? ''; // Wrong pattern
-```
-
-```typescript
-// ❌ Bad: Using optional chaining when type narrowing is available
-const response = await this.modelService.sendMessages(messages);
-
-if (response.success === false) {
-  return;
-}
-
-// Unnecessary optional chaining - TypeScript already knows response.response exists
-const content = response.response ?? ''; // Unnecessary
-```
-
-```typescript
-// ❌ Bad: Checking response.response for undefined
-const response = await this.modelService.sendMessages(messages);
-
-if (response.success === false) {
-  return;
-}
-
-// Unnecessary check - TypeScript knows response.response exists after success check
-if (response.response === undefined) {
-  return null;
-}
-```
-
-### Response Type Definitions
-
-Model service response types should follow this pattern:
-
-```typescript
-// ✅ Good: Success/failed response types
-export type OllamaChatSuccessResponse = {
-  response: string;
-  success: true;
-};
-
-export type OllamaChatFailedResponse = {
-  error: string;
-  success: false;
-};
-
-export type OllamaChatResponse = OllamaChatSuccessResponse | OllamaChatFailedResponse;
-```
-
-```typescript
-// ❌ Bad: Optional properties without success flag
-export interface OllamaChatResponse {
-  response?: string;
-  error?: string;
-}
-```
-
-### Client Implementation
-
-Clients should return responses with explicit `success` property:
-
-```typescript
-// ✅ Good: Client returns success/failed response
-public async chat(model: string, messages: Message[]): Promise<OllamaChatResponse> {
-  try {
-    const response = await ollama.chat({
-      model,
-      messages,
-      stream: false,
-    });
-
-    return { response: response.message.content, success: true as const };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error
-      ? error.message
-      : String(error);
-    this.logger.error('Failed to send Ollama messages: %s', errorMessage);
-
-    return { error: errorMessage, success: false as const };
-  }
-}
-```
-
-```typescript
-// ❌ Bad: Client returns optional properties
-public async chat(model: string, messages: Message[]): Promise<OllamaChatResponse> {
-  try {
-    const response = await ollama.chat({ model, messages, stream: false });
-    return { response: response.message.content };
-  } catch (error: unknown) {
-    return { error: String(error) };
-  }
-}
-```
-
-### Benefits
-
-- **Type Safety**: TypeScript properly narrows response types after `success` check
-- **Clarity**: Explicit `success` property makes success/failure states obvious
-- **Consistency**: All model service responses follow the same pattern
-- **No Optional Chaining**: After type narrowing, no need for optional chaining or undefined checks
-- **Compile-Time Safety**: TypeScript catches errors when accessing properties that don't exist on the narrowed type
-
-## IPC Handling Architecture
-
-**All IPC communication must be handled in services, not in components.**
-
-**Services must be provided through props, not instantiated in components.**
-
-### Service Pattern
-- **Services handle all IPC calls** - Components should never directly call `ipcAdapter.invoke()`
-- **Services manage state** - Services maintain internal state and notify components via callbacks
-- **Services are provided through props** - Components receive services as props, never instantiate them
-- **Services encapsulate business logic** - All domain logic, error handling, and IPC communication belongs in services
-- **Service instantiation at app level** - Services are created in `App.tsx` (or top-level component) and passed down
-
-### Service Structure
-Services should follow this pattern:
-
-```typescript
-// ✅ Good: Service handles IPC and state management
-export class ChatListService {
-  private readonly ipcAdapter: IIpcAdapter;
-  private chats: IChatInfo[] = [];
-  private isLoading = false;
-  private error: string | null = null;
-
-  // Callbacks for component state updates
-  private onChatsChange?: (chats: IChatInfo[]) => void;
-  private onLoadingChange?: (isLoading: boolean) => void;
-  private onErrorChange?: (error: string | null) => void;
-
-  public constructor(ipcAdapter: IIpcAdapter) {
-    this.ipcAdapter = ipcAdapter;
-  }
-
-  public setCallbacks(callbacks: {
-    onChatsChange?: (chats: IChatInfo[]) => void,
-    onLoadingChange?: (isLoading: boolean) => void,
-    onErrorChange?: (error: string | null) => void,
-  }): void {
-    this.onChatsChange = callbacks.onChatsChange;
-    this.onLoadingChange = callbacks.onLoadingChange;
-    this.onErrorChange = callbacks.onErrorChange;
-  }
-
-  public async loadChats(): Promise<void> {
-    this.setLoading(true);
-    this.setError(null);
-
-    try {
-      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS> = {
-        channel: EIpcChannel.CHAT,
-        event: EIpcEvent.CHAT_LIST_CHATS,
-        payload: {},
-      };
-
-      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
-
-      if (isErrorResponse(response)) {
-        throw new Error(response.error);
-      }
-
-      if ('chats' in response && Array.isArray(response.chats)) {
-        this.setChats(response.chats);
-      }
-    } catch (err: unknown) {
-      const errorText = err instanceof Error ? err.message : String(err);
-      logger.error('Failed to load chats: %s', errorText);
-      this.setError(errorText);
-    } finally {
-      this.setLoading(false);
-    }
-  }
-
-  private setChats(chats: IChatInfo[]): void {
-    this.chats = chats;
-    this.onChatsChange?.(chats);
-  }
-
-  private setLoading(isLoading: boolean): void {
-    this.isLoading = isLoading;
-    this.onLoadingChange?.(isLoading);
-  }
-
-  private setError(error: string | null): void {
-    this.error = error;
-    this.onErrorChange?.(error);
-  }
-}
-```
-
-### Component Pattern
-Components should receive services as props, not instantiate them:
-
-```typescript
-// ✅ Good: Component receives service as prop
-interface ChatListComponentProps {
-  chatListService: ChatListService;
-}
-
-const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService }) => {
-  const [chats, setChats] = useState<IChatInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Register callbacks
-  useEffect(() => {
-    chatListService.setCallbacks({
-      onChatsChange: setChats,
-      onLoadingChange: setIsLoading,
-      onErrorChange: setError,
-    });
-  }, [chatListService]);
-
-  useEffect(() => {
-    void chatListService.loadChats();
-  }, [chatListService]);
-
-  const handleOpenChat = async (chatId: number) => {
-    await chatListService.openChat(chatId);
-  };
-
-  return (
-    // Component JSX
-  );
-};
-```
-
-### Service Instantiation Pattern
-**Services must be instantiated at the application level (e.g., in `App.tsx`) and passed down as props.**
-
-This pattern provides dependency injection, making components more testable and flexible:
-
-```typescript
-// ✅ Good: Services instantiated in App, passed as props
-function App() {
-  // Create shared IPC adapter
-  const ipcAdapter = useMemo(() => new ElectronIpcAdapter(), []);
-
-  // Create service instances
-  const chatService = useMemo(() => new ChatService(ipcAdapter), [ipcAdapter]);
-  const chatListService = useMemo(() => new ChatListService(ipcAdapter), [ipcAdapter]);
-  const settingsService = useMemo(() => new SettingsService(ipcAdapter), [ipcAdapter]);
-  const promptSelectorService = useMemo(() => new PromptSelectorService(ipcAdapter), [ipcAdapter]);
-
-  if (view === 'chat-list') {
-    return <ChatListComponent chatListService={chatListService} />;
-  }
-
-  if (view === 'settings') {
-    return <Settings settingsService={settingsService} />;
-  }
-
-  return <ChatComponent chatService={chatService} />;
-}
-```
-
-**Key Rules:**
-- ✅ Services are instantiated in `App.tsx` (or top-level component)
-- ✅ Services are passed to components via props
-- ✅ Components receive services through props interface
-- ✅ Use `useMemo` to prevent unnecessary service re-instantiation
-- ❌ Never instantiate services inside components
-- ❌ Never use `useMemo` to create services inside components
-
-```typescript
-// ❌ Bad: Component instantiates service
-const ChatListComponent: React.FC = () => {
-  const chatListService = useMemo(() => {
-    const ipcAdapter = new ElectronIpcAdapter();
-    return new ChatListService(ipcAdapter);
-  }, []);
-  // Service instantiation in component - WRONG! Services must come from props.
-};
-
-// ❌ Bad: Component creates IPC adapter
-const ChatListComponent: React.FC = () => {
-  const ipcAdapter = useMemo(() => new ElectronIpcAdapter(), []);
-  // IPC adapter should be created in App, not in components.
-};
-
-// ❌ Bad: Component directly calls IPC
-const ChatListComponent: React.FC = () => {
-  const [chats, setChats] = useState<IChatInfo[]>([]);
-  const ipcAdapter = useMemo(() => new ElectronIpcAdapter(), []);
-
-  const loadChats = async () => {
-    const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS> = {
-      channel: EIpcChannel.CHAT,
-      event: EIpcEvent.CHAT_LIST_CHATS,
-      payload: {},
-    };
-
-    const response = await ipcAdapter.invoke(EIpcChannel.CHAT, payload);
-    // Direct IPC handling in component - WRONG!
-  };
-};
-```
-
-### Benefits
-- **Separation of Concerns**: Business logic is separated from UI logic
-- **Reusability**: Services can be reused across multiple components
-- **Testability**: Services can be tested independently of components, and components can be tested with mock services passed as props
-- **Maintainability**: IPC handling is centralized in services
-- **Type Safety**: Services provide type-safe interfaces for components
-- **Dependency Injection**: Services are injected via props, making components more testable and flexible
-- **Single Responsibility**: Components focus on rendering, services handle business logic
-- **Lifecycle Management**: Service instances are managed at the application level, ensuring proper initialization and cleanup
-- **Shared State**: Services can be shared between components when needed (e.g., same IPC adapter instance)
-
-### Testing with Dependency Injection
-When services are provided via props, testing becomes much easier:
-
-```typescript
-// ✅ Good: Component can be tested with mock service
-describe('ChatListComponent', () => {
-  it('should load chats on mount', () => {
-    const mockService = {
-      setCallbacks: jest.fn(),
-      loadChats: jest.fn(),
-      openChat: jest.fn(),
-      deleteChat: jest.fn(),
-    };
-
-    render(<ChatListComponent chatListService={mockService as unknown as ChatListService} />);
-
-    expect(mockService.setCallbacks).toHaveBeenCalled();
-    expect(mockService.loadChats).toHaveBeenCalled();
-  });
+// ✅ Good: Secure BrowserWindow configuration
+const window = new BrowserWindow({
+  webPreferences: {
+    nodeIntegration: false,  // Disable Node.js in renderer
+    contextIsolation: true,  // Enable context isolation
+    preload: path.join(__dirname, 'preload.js'),  // Use preload script
+    sandbox: true,  // Enable sandboxing (default in Electron 20+)
+    webSecurity: true,  // Enable web security (default)
+  },
+});
+
+// ❌ Bad: Insecure configuration
+const window = new BrowserWindow({
+  webPreferences: {
+    nodeIntegration: true,  // Security risk!
+    contextIsolation: false,  // Security risk!
+    // No preload script - direct access to Node.js
+  },
 });
 ```
 
-### Service Responsibilities
-Services should handle:
-- ✅ All IPC communication (`ipcAdapter.invoke()`)
-- ✅ State management (internal state + callbacks)
-- ✅ Error handling and logging
-- ✅ Business logic and data transformation
-- ✅ Response validation using type guards
+## Node.js Best Practices
 
-Components should handle:
-- ✅ UI rendering and user interactions
-- ✅ Local UI state (form inputs, temporary UI state)
-- ✅ Calling service methods
-- ✅ Registering service callbacks
+When working with Node.js in the main process, follow these essential practices:
+
+### Environment Variables
+
+- **Use environment variables for sensitive data** - Never hardcode secrets
+  - Store API keys, database credentials, and tokens in environment variables
+  - Use `.env` files for development (never commit to git)
+  - Use platform-specific secure storage for production
+  - Validate environment variables at startup
+
+```typescript
+// ✅ Good: Using environment variables
+const apiKey = process.env.API_KEY;
+if (!apiKey) {
+  throw new Error('API_KEY environment variable is required');
+}
+
+// ❌ Bad: Hardcoded secrets
+const apiKey = 'sk-1234567890abcdef';  // Never do this!
+```
+
+### Input Validation and Sanitization
+
+- **Validate and sanitize all inputs** - Never trust user input
+  - Validate input structure and types
+  - Sanitize strings to prevent injection attacks
+  - Use validation libraries (e.g., Zod, Joi) for complex validation
+  - Validate IPC payloads, file paths, and user-provided data
+
+```typescript
+// ✅ Good: Validating and sanitizing input
+import { z } from 'zod';
+
+const UserInputSchema = z.object({
+  name: z.string().min(1).max(100),
+  email: z.string().email(),
+});
+
+const validateInput = (input: unknown) => {
+  return UserInputSchema.parse(input);
+};
+
+// ❌ Bad: No validation
+const processInput = (input: any) => {
+  return repository.save(input);  // No validation!
+};
+```
+
+### Asynchronous Programming
+
+- **Embrace asynchronous patterns** - Use async/await for all I/O operations
+  - Never block the event loop with synchronous operations
+  - Use Promise.all() for parallel operations when appropriate
+  - Handle errors properly with try/catch
+  - Use proper error propagation
+
+```typescript
+// ✅ Good: Proper async/await usage
+public async loadData(): Promise<IData> {
+  try {
+    const data = await this.repository.load();
+    return this.transform(data);
+  } catch (error) {
+    logger.error('Failed to load data:', error);
+    throw error;
+  }
+}
+
+// ❌ Bad: Blocking operations
+public loadData(): IData {
+  return this.repository.loadSync();  // Blocks event loop!
+}
+```
+
+### Database Optimization
+
+- **Optimize database interactions** - Use efficient queries and connection management
+  - Use prepared statements to prevent SQL injection
+  - Implement connection pooling for better performance
+  - Use transactions for multiple related operations
+  - Index frequently queried columns
+  - Batch operations when possible
+
+```typescript
+// ✅ Good: Using prepared statements and transactions
+public async saveMultiple(items: IItem[]): Promise<void> {
+  const transaction = this.db.transaction(() => {
+    const stmt = this.db.prepare('INSERT INTO items (name, value) VALUES (?, ?)');
+    for (const item of items) {
+      stmt.run(item.name, item.value);
+    }
+  });
+  transaction();
+}
+
+// ❌ Bad: String concatenation in queries
+public async saveItem(item: IItem): Promise<void> {
+  this.db.run(`INSERT INTO items (name, value) VALUES ('${item.name}', ${item.value})`);  // SQL injection risk!
+}
+```
+
+### Error Handling
+
+- **Implement comprehensive error handling** - Handle errors at appropriate levels
+  - Log errors with context for debugging
+  - Use typed errors for better error handling
+  - Don't expose internal error details to renderer
+  - Return user-friendly error messages
+
+```typescript
+// ✅ Good: Proper error handling
+public async processData(data: IData): Promise<IResult> {
+  try {
+    return await this.repository.save(data);
+  } catch (error) {
+    logger.error('Failed to process data:', { error, data });
+
+    if (error instanceof ValidationError) {
+      throw new Error('Invalid data provided');
+    }
+
+    throw new Error('Failed to process data');
+  }
+}
+```
+
+### Resource Management
+
+- **Properly manage resources** - Clean up resources when done
+  - Close database connections
+  - Remove event listeners
+  - Clear timers and intervals
+  - Release file handles
+
+```typescript
+// ✅ Good: Resource cleanup
+public cleanup(): void {
+  this.db.close();
+  this.removeAllListeners();
+  if (this.timer) {
+    clearInterval(this.timer);
+  }
+}
+```
+
+For application-specific IPC communication patterns, response handling, and model service response processing, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## React Performance Optimization
 
