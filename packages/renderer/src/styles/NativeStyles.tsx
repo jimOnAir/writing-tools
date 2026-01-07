@@ -6,7 +6,7 @@ export const NativeStyles = {
     // macOS styling - translucent, rounded, soft shadows
     sidebar: {
       background: 'bg-gray-800/60 backdrop-blur-xl shadow-lg',
-      border: 'border-r border-gray-700/30',
+      border: '',
       width: {
         expanded: 'w-96',
         collapsed: 'w-12',
@@ -26,11 +26,11 @@ export const NativeStyles = {
     },
     header: {
       background: 'bg-gray-800/60 backdrop-blur-xl shadow-sm',
-      border: 'border-b border-gray-700/30',
+      border: '',
     },
     modal: {
       backdrop: 'bg-black/40 backdrop-blur-sm',
-      container: 'bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-700/30',
+      container: 'bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-2xl',
     },
     button: {
       primary: 'bg-purple-700/80 hover:bg-purple-700 text-white rounded-xl shadow-md hover:shadow-lg hover:shadow-purple-600/30 transition-all duration-300',
@@ -38,7 +38,7 @@ export const NativeStyles = {
       settings: 'p-2.5 rounded-xl bg-gray-700/50 hover:bg-gray-700/70 text-white transition-all duration-300 shadow-sm hover:shadow-md',
     },
     input: {
-      base: 'bg-gray-800/60 backdrop-blur-sm border border-gray-700/30 rounded-xl focus:ring-2 focus:ring-purple-600/50 focus:border-purple-600/50 transition-all duration-300',
+      base: 'bg-gray-800/60 backdrop-blur-sm rounded-xl focus:ring-2 focus:ring-purple-600/50 transition-all duration-300',
     },
     font: {
       base: 'font-sans',
@@ -48,8 +48,8 @@ export const NativeStyles = {
   win32: {
     // Windows styling - solid backgrounds, flatter design
     sidebar: {
-      background: 'bg-gray-900 border-r border-gray-800 shadow-md',
-      border: 'border-r border-gray-800',
+      background: 'bg-gray-900 shadow-md',
+      border: '',
       width: {
         expanded: 'w-96',
         collapsed: 'w-12',
@@ -69,19 +69,19 @@ export const NativeStyles = {
     },
     header: {
       background: 'bg-gray-900 shadow-sm',
-      border: 'border-b border-gray-800',
+      border: '',
     },
     modal: {
       backdrop: 'bg-black/60',
-      container: 'bg-gray-900 rounded-xl shadow-2xl border border-gray-800',
+      container: 'bg-gray-900 rounded-xl shadow-2xl',
     },
     button: {
       primary: 'bg-purple-700 hover:bg-purple-800 text-white transition-all duration-300 shadow-sm hover:shadow-md',
       secondary: 'bg-gray-800 hover:bg-gray-700 text-white transition-all duration-300 shadow-sm hover:shadow-md',
-      settings: 'p-2.5 bg-gray-800 hover:bg-gray-700 text-white transition-all duration-300 border border-gray-700 shadow-sm hover:shadow-md',
+      settings: 'p-2.5 bg-gray-800 hover:bg-gray-700 text-white transition-all duration-300 shadow-sm hover:shadow-md',
     },
     input: {
-      base: 'bg-gray-900 border border-gray-800 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 transition-all duration-300',
+      base: 'bg-gray-900 rounded-lg focus:ring-2 focus:ring-purple-600 transition-all duration-300',
     },
     font: {
       base: 'font-sans',
@@ -91,8 +91,8 @@ export const NativeStyles = {
   linux: {
     // Linux styling - GTK-inspired, moderate transparency
     sidebar: {
-      background: 'bg-gray-900/95 backdrop-blur-sm border-r border-gray-800/50 shadow-lg',
-      border: 'border-r border-gray-800/50',
+      background: 'bg-gray-900/95 backdrop-blur-sm shadow-lg',
+      border: '',
       width: {
         expanded: 'w-96',
         collapsed: 'w-12',
@@ -112,11 +112,11 @@ export const NativeStyles = {
     },
     header: {
       background: 'bg-gray-900/95 backdrop-blur-sm shadow-sm',
-      border: 'border-b border-gray-800/50',
+      border: '',
     },
     modal: {
       backdrop: 'bg-black/50 backdrop-blur-sm',
-      container: 'bg-gray-900/95 backdrop-blur-lg rounded-xl shadow-2xl border border-gray-800/50',
+      container: 'bg-gray-900/95 backdrop-blur-lg rounded-xl shadow-2xl',
     },
     button: {
       primary: 'bg-purple-700 hover:bg-purple-800 text-white rounded-xl transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-purple-600/30',
@@ -124,7 +124,7 @@ export const NativeStyles = {
       settings: 'p-2.5 rounded-xl bg-gray-800/70 hover:bg-gray-800/90 text-white transition-all duration-300 shadow-sm hover:shadow-md',
     },
     input: {
-      base: 'bg-gray-900/80 backdrop-blur-sm border border-gray-800/50 rounded-xl focus:ring-2 focus:ring-purple-600/50 focus:border-purple-600/50 transition-all duration-300',
+      base: 'bg-gray-900/80 backdrop-blur-sm rounded-xl focus:ring-2 focus:ring-purple-600/50 transition-all duration-300',
     },
     font: {
       base: 'font-sans',

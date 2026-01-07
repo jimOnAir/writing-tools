@@ -14,7 +14,7 @@ jest.mock('../styles/NativeStyles', () => ({
     },
     sidebar: {
       background: 'sidebar-bg',
-      border: 'sidebar-border',
+      border: '',
       width: {
         expanded: 'w-64',
         collapsed: 'w-16',

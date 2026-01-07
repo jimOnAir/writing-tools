@@ -43,7 +43,7 @@ jest.mock('../styles/NativeStyles', () => ({
   getNativeStyles: jest.fn(() => ({
     header: {
       background: 'header-bg',
-      border: 'header-border',
+      border: '',
     },
     button: {
       settings: 'settings-button',

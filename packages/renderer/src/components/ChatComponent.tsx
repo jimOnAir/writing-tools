@@ -149,7 +149,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
   return (
     <div className={`flex flex-col h-full w-full ${LayoutStyles.container}`}>
       {hasActiveChat && (
-        <div className={`mb-4 pb-4 border-b ${ColorPalette.border.defaultLight}`}>
+        <div className="mb-4 pb-4">
           {displayTitle === null ? (
             <div className={`${TypographyStyles.h2} ${ColorPalette.text.muted}`}>
               New Chat

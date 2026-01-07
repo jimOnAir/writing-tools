@@ -43,7 +43,7 @@ export const PreconfiguredPromptItem: React.FC<PreconfiguredPromptItemProps> = (
           <img
             src={prompt.icon}
             alt="Icon preview"
-            className={`w-8 h-8 object-contain rounded ${ColorPalette.border.defaultSubtle}`}
+            className="w-8 h-8 object-contain rounded"
           />
         )}
         <div className={FileInputStyles.wrapper}>

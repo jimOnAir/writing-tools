@@ -112,8 +112,8 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, className =
         <div
           ref={tooltipRef}
           className={`
-            fixed z-[9999] px-3 py-2 rounded-lg shadow-xl border
-            bg-gray-800 border-gray-700 text-white text-sm max-w-md
+            fixed z-[9999] px-3 py-2 rounded-lg shadow-xl
+            bg-gray-800 text-white text-sm max-w-md
             pointer-events-none markdown-content tooltip-content
             break-words overflow-x-hidden box-border w-full
             ${className}

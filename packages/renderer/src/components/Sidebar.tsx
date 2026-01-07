@@ -42,7 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ chatListService, multiChatServ
         h-full overflow-hidden
       `}
     >
-      <div className="p-3 border-b border-gray-700/30 space-y-3">
+      <div className="p-3 space-y-3">
         <div className="flex items-center justify-between">
           {isExpanded && (
             <h2 className="text-sm font-semibold text-white transition-opacity duration-300">Chats</h2>
@@ -74,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ chatListService, multiChatServ
         </div>
       )}
       {isExpanded && (
-        <div className="sticky bottom-0 p-3 border-t border-gray-700/30">
+        <div className="sticky bottom-0 p-3">
           <button
             type="button"
             onClick={onOpenSettings}

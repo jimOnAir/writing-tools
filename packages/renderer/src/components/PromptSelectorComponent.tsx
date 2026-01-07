@@ -86,7 +86,7 @@ const PromptSelectorComponent: React.FC<PromptSelectorComponentProps> = ({ promp
                   <img
                     src={prompt.icon}
                     alt={prompt.title}
-                    className={`w-5 h-5 mr-2 object-contain rounded ${ColorPalette.border.defaultSubtle}`}
+                    className="w-5 h-5 mr-2 object-contain rounded"
                   />
                 ) : null}
                 <div className={`font-medium ${ColorPalette.text.primary} text-sm`}>{prompt.title}</div>
