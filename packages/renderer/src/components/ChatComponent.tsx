@@ -89,6 +89,28 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
     void fetchTitle();
   }, [chatService, chatId, messages]);
 
+  // Measure markdown line-height after messages render
+  useEffect(() => {
+    // #region agent log
+    if (messages.length > 0 && !isStreaming) {
+      const messageElements = document.querySelectorAll('.markdown-message');
+      if (messageElements.length > 0) {
+        const firstMessage = messageElements[0] as HTMLElement;
+        const computedStyle = window.getComputedStyle(firstMessage);
+        const paragraphs = firstMessage.querySelectorAll('p');
+        const firstP = paragraphs[0] as HTMLElement;
+        const secondP = paragraphs[1] as HTMLElement;
+        const firstPStyle = firstP ? window.getComputedStyle(firstP) : null;
+        const secondPStyle = secondP ? window.getComputedStyle(secondP) : null;
+        const firstPRect = firstP?.getBoundingClientRect();
+        const secondPRect = secondP?.getBoundingClientRect();
+        const spacingBetween = firstPRect && secondPRect ? secondPRect.top - firstPRect.bottom : null;
+        fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatComponent.tsx:91',message:'Markdown spacing measurement',data:{containerLineHeight:computedStyle.lineHeight,paragraphLineHeight:firstPStyle?.lineHeight,firstPMarginBottom:firstPStyle?.marginBottom,spacingBetweenParagraphs:spacingBetween,paragraphCount:paragraphs.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
+      }
+    }
+    // #endregion
+  }, [messages, isStreaming]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -208,16 +230,16 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[80%] p-3 ${MessageStyles[message.role]}`}
+                      className={`min-w-[200px] max-w-[80%] p-3 ${MessageStyles[message.role]}`}
                     >
                       <div
-                        className="whitespace-pre-wrap markdown-content"
+                        className="whitespace-pre-wrap markdown-content markdown-message"
                         dangerouslySetInnerHTML={{
                           __html: renderMarkdown(message.content) + (isStreamingMessage ? '<span class="streaming-cursor">▋</span>' : ''),
                         }}
                       />
                       {!isStreamingMessage && (
-                        <div className={`text-xs mt-1.5 ${ColorPalette.text.muted}`}>
+                        <div className={`text-xs ${ColorPalette.text.muted}`}>
                           {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       )}
