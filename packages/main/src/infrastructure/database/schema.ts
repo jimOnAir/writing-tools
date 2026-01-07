@@ -17,6 +17,7 @@ export const messages = sqliteTable('messages', {
   content: text('content').notNull(),
   timestamp: text('timestamp').notNull(),
   created_at: text('created_at').notNull(),
+  statistics: text('statistics'),
 });
 
 export const chatsRelations = relations(chats, ({ many }) => ({

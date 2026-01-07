@@ -1,5 +1,5 @@
 /* eslint-disable max-lines */
-import type { IChatMessage, ILogger, ISettings, TIpcEvent } from '@writing-tools/shared';
+import type { IChatMessage, ILogger, IMessageStatistics, ISettings, TIpcEvent } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent, EIpcRendererEvent } from '@writing-tools/shared';
 import { ipcMain } from 'electron';
 import * as os from 'node:os';
@@ -178,11 +178,20 @@ export class IpcHandlers implements IIpcHandlers {
       // Save assistant response if successful
       if (llmResponse.success) {
         this.logger.info('Saving assistant response and triggering title generation');
+
+        // Log statistics for debugging
+        if (llmResponse.statistics === undefined) {
+          this.logger.warn('LLM response does not include statistics');
+        } else {
+          this.logger.info('LLM response includes statistics: provider=%s, model=%s', llmResponse.statistics.provider, llmResponse.statistics.model ?? 'unknown');
+        }
+
         const assistantMessage: IChatMessage = {
           id: `${Date.now().toString()}-response`,
           role: 'assistant',
           content: llmResponse.response,
           timestamp: new Date(),
+          statistics: llmResponse.statistics,
         };
 
         try {
@@ -249,6 +258,7 @@ export class IpcHandlers implements IIpcHandlers {
     mainWindow: Electron.BrowserWindow,
   ): Promise<void> {
     let fullContent = '';
+    let statistics: IMessageStatistics | undefined;
 
     try {
       const streamGenerator = this.modelService.sendMessagesStream(messages.map((message => {
@@ -261,11 +271,17 @@ export class IpcHandlers implements IIpcHandlers {
       for await (const chunk of streamGenerator) {
         fullContent += chunk.content;
 
-        // Send chunk to renderer
+        // Capture statistics from the final chunk
+        if (chunk.done && 'statistics' in chunk && chunk.statistics !== undefined) {
+          statistics = chunk.statistics;
+        }
+
+        // Send chunk to renderer with statistics if available
         mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_CHUNK, {
           chatId,
           content: chunk.content,
           done: chunk.done,
+          statistics: 'statistics' in chunk ? chunk.statistics : undefined,
         });
       }
 
@@ -276,6 +292,7 @@ export class IpcHandlers implements IIpcHandlers {
         role: 'assistant',
         content: trimmedContent,
         timestamp: new Date(),
+        statistics,
       };
 
       try {

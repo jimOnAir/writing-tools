@@ -1,4 +1,4 @@
-import type { IChatMessage, IChatInfo, ILogger } from '@writing-tools/shared';
+import type { IChatMessage, IChatInfo, ILogger, IMessageStatistics } from '@writing-tools/shared';
 import { asc, desc, eq } from 'drizzle-orm';
 
 import type { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
@@ -57,6 +57,13 @@ export class ChatRepository implements IChatRepository {
 
     const db = this.dbConnection.getDatabase();
 
+    const statisticsJson = message.statistics !== undefined ? JSON.stringify(message.statistics) : null;
+
+    // Log statistics for debugging
+    if (message.statistics !== undefined) {
+      this.logger.debug('Saving message with statistics: messageId=%s, statistics=%j', message.id, message.statistics);
+    }
+
     // Use onConflictDoNothing to handle duplicate messages gracefully
     db.insert(messages).values({
       id: message.id,
@@ -65,6 +72,7 @@ export class ChatRepository implements IChatRepository {
       content: message.content,
       timestamp: message.timestamp.toISOString(),
       created_at: new Date().toISOString(),
+      statistics: statisticsJson,
     }).onConflictDoNothing().run();
 
     // Update chat's updated_at timestamp
@@ -85,14 +93,34 @@ export class ChatRepository implements IChatRepository {
       role: messages.role,
       content: messages.content,
       timestamp: messages.timestamp,
+      statistics: messages.statistics,
     }).from(messages).where(eq(messages.chat_id, chatId)).orderBy(asc(messages.timestamp)).all();
 
-    return rows.map(row => ({
-      id: row.id,
-      role: row.role as 'user' | 'assistant',
-      content: row.content,
-      timestamp: new Date(row.timestamp),
-    }));
+    return rows.map(row => {
+      let statistics: IMessageStatistics | undefined;
+
+      if (row.statistics !== null && row.statistics !== undefined) {
+        try {
+          const parsed = JSON.parse(row.statistics) as IMessageStatistics;
+          // Convert generatedAt string back to Date
+          if (parsed.generatedAt !== undefined) {
+            parsed.generatedAt = new Date(parsed.generatedAt);
+          }
+          statistics = parsed;
+        } catch (error: unknown) {
+          const errorText = error instanceof Error ? error.message : String(error);
+          this.logger.warn('Failed to parse message statistics: %s', errorText);
+        }
+      }
+
+      return {
+        id: row.id,
+        role: row.role as 'user' | 'assistant',
+        content: row.content,
+        timestamp: new Date(row.timestamp),
+        statistics,
+      };
+    });
   }
 
   public getAllChats(): IChatInfo[] {

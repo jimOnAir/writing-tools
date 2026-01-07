@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 
 import type { ChatService } from '../domains/chat';
 import { ButtonStyles, MessageStyles, InputStyles, NotificationStyles, LoadingStyles, BackgroundStyles, LayoutStyles, SpinnerIcon, ColorPalette, TypographyStyles } from '../styles/Styles';
+import { formatStatistics } from '../utils/formatStatistics';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
 import { Tooltip } from './Tooltip';
@@ -89,26 +90,9 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
     void fetchTitle();
   }, [chatService, chatId, messages]);
 
-  // Measure markdown line-height after messages render
+  // Auto-scroll when messages change
   useEffect(() => {
-    // #region agent log
-    if (messages.length > 0 && !isStreaming) {
-      const messageElements = document.querySelectorAll('.markdown-message');
-      if (messageElements.length > 0) {
-        const firstMessage = messageElements[0] as HTMLElement;
-        const computedStyle = window.getComputedStyle(firstMessage);
-        const paragraphs = firstMessage.querySelectorAll('p');
-        const firstP = paragraphs[0] as HTMLElement;
-        const secondP = paragraphs[1] as HTMLElement;
-        const firstPStyle = firstP ? window.getComputedStyle(firstP) : null;
-        const secondPStyle = secondP ? window.getComputedStyle(secondP) : null;
-        const firstPRect = firstP?.getBoundingClientRect();
-        const secondPRect = secondP?.getBoundingClientRect();
-        const spacingBetween = firstPRect && secondPRect ? secondPRect.top - firstPRect.bottom : null;
-        fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatComponent.tsx:91',message:'Markdown spacing measurement',data:{containerLineHeight:computedStyle.lineHeight,paragraphLineHeight:firstPStyle?.lineHeight,firstPMarginBottom:firstPStyle?.marginBottom,spacingBetweenParagraphs:spacingBetween,paragraphCount:paragraphs.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
-      }
-    }
-    // #endregion
+    // Scroll behavior is handled in the earlier useEffect
   }, [messages, isStreaming]);
 
   const scrollToBottom = () => {
@@ -247,19 +231,35 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
                   </div>
                   {!isStreamingMessage && (
                     <div
-                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} opacity-0 transition-opacity duration-150 group-hover:opacity-100`}
+                      className={`flex gap-1 ${message.role === 'user' ? 'justify-end' : 'justify-start'} opacity-0 transition-opacity duration-150 group-hover:opacity-100`}
                     >
+                      {message.role === 'assistant' && message.statistics !== undefined && (
+                        <Tooltip content={formatStatistics(message.statistics)}>
+                          <button
+                            type="button"
+                            className={`${ButtonStyles.base} ${ButtonStyles.ghost} px-1 py-0.5 whitespace-nowrap`}
+                            aria-label="Show message statistics"
+                          >
+                            <span
+                              className="inline-block w-3 h-3"
+                              style={{ fontSize: '14px', lineHeight: '14px' }}
+                            >
+                              ℹ
+                            </span>
+                          </button>
+                        </Tooltip>
+                      )}
                       <Tooltip content="Copy message">
                         <button
                           type="button"
-                          className={`${ButtonStyles.base} ${ButtonStyles.ghost} px-2 py-1 whitespace-nowrap`}
+                          className={`${ButtonStyles.base} ${ButtonStyles.ghost} px-1 py-0.5 whitespace-nowrap`}
                           onClick={() => {
                             void handleCopyMessage(message.id, message.content);
                           }}
                           aria-label="Copy message to clipboard"
                         >
                           <span
-                            className="relative inline-block w-4 h-4"
+                            className="relative inline-block w-3 h-3"
                             style={{ fontSize: '20px', lineHeight: '20px' }}
                           >
                             <span

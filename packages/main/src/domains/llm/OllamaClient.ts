@@ -1,4 +1,4 @@
-import type { ILogger } from '@writing-tools/shared';
+import type { ILogger, IMessageStatistics } from '@writing-tools/shared';
 import type { Message } from 'ollama';
 import { Ollama } from 'ollama';
 
@@ -10,6 +10,7 @@ export interface OllamaClientConfig {
 export type OllamaChatSuccessResponse = {
   response: string,
   success: true,
+  statistics?: IMessageStatistics,
 };
 
 export type OllamaChatFailedResponse = {
@@ -22,6 +23,7 @@ export type OllamaChatResponse = OllamaChatSuccessResponse | OllamaChatFailedRes
 export type OllamaStreamChunk = {
   content: string,
   done: boolean,
+  statistics?: IMessageStatistics,
 };
 
 export class OllamaClient {
@@ -48,7 +50,38 @@ export class OllamaClient {
 
       const response = await ollama.chat(chatOptions);
 
-      return { response: response.message.content.trimEnd(), success: true } as const;
+      // Extract statistics from Ollama response
+      // The Ollama npm library returns statistics directly on the response object
+      const responseWithStats = response as unknown as { total_duration?: number, eval_count?: number, load_duration?: number, prompt_eval_count?: number, prompt_eval_duration?: number, eval_duration?: number };
+
+      const statistics: IMessageStatistics | undefined = responseWithStats.total_duration !== undefined || responseWithStats.eval_count !== undefined
+        ? {
+            provider: 'ollama',
+            model,
+            generatedAt: new Date(),
+            ollama: {
+              totalDuration: responseWithStats.total_duration,
+              loadDuration: responseWithStats.load_duration,
+              promptEvalCount: responseWithStats.prompt_eval_count,
+              promptEvalDuration: responseWithStats.prompt_eval_duration,
+              evalCount: responseWithStats.eval_count,
+              evalDuration: responseWithStats.eval_duration,
+            },
+          }
+        : undefined;
+
+      // Log statistics extraction for debugging
+      if (statistics !== undefined) {
+        this.logger.debug('Extracted statistics from Ollama response: %j', statistics);
+      } else {
+        this.logger.debug('No statistics found in Ollama response');
+      }
+
+      return {
+        response: response.message.content.trimEnd(),
+        success: true,
+        statistics,
+      } as const;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error
         ? error.message
@@ -72,10 +105,33 @@ export class OllamaClient {
         stream: true,
       });
 
+      let statistics: IMessageStatistics | undefined;
+
       for await (const part of response) {
+        // Extract statistics from the final chunk (when done is true)
+        if (part.done) {
+          const partWithStats = part as unknown as { total_duration?: number, eval_count?: number, load_duration?: number, prompt_eval_count?: number, prompt_eval_duration?: number, eval_duration?: number };
+          if (partWithStats.total_duration !== undefined || partWithStats.eval_count !== undefined) {
+            statistics = {
+              provider: 'ollama',
+              model,
+              generatedAt: new Date(),
+              ollama: {
+                totalDuration: partWithStats.total_duration,
+                loadDuration: partWithStats.load_duration,
+                promptEvalCount: partWithStats.prompt_eval_count,
+                promptEvalDuration: partWithStats.prompt_eval_duration,
+                evalCount: partWithStats.eval_count,
+                evalDuration: partWithStats.eval_duration,
+              },
+            };
+          }
+        }
+
         yield {
           content: part.message.content,
           done: part.done,
+          statistics: part.done ? statistics : undefined,
         };
       }
     } catch (error: unknown) {

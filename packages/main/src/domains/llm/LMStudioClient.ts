@@ -1,4 +1,4 @@
-import type { ILogger } from '@writing-tools/shared';
+import type { ILogger, IMessageStatistics } from '@writing-tools/shared';
 
 export interface LMStudioClientConfig {
   apiKey?: string;
@@ -8,6 +8,7 @@ export interface LMStudioClientConfig {
 export type LMStudioChatSuccessResponse = {
   response: string,
   success: true,
+  statistics?: IMessageStatistics,
 };
 
 export type LMStudioChatFailedResponse = {
@@ -20,6 +21,7 @@ export type LMStudioChatResponse = LMStudioChatSuccessResponse | LMStudioChatFai
 export type LMStudioStreamChunk = {
   content: string,
   done: boolean,
+  statistics?: IMessageStatistics,
 };
 
 interface ChatMessage {
@@ -41,6 +43,12 @@ interface LMStudioStreamChunkData {
     },
     finish_reason: string | null,
   }>;
+  usage?: {
+    prompt_tokens?: number,
+    completion_tokens?: number,
+    total_tokens?: number,
+  };
+  model?: string;
 }
 
 interface LMStudioChatResponseBody {
@@ -49,6 +57,12 @@ interface LMStudioChatResponseBody {
       content: string,
     },
   }>;
+  usage?: {
+    prompt_tokens?: number,
+    completion_tokens?: number,
+    total_tokens?: number,
+  };
+  model?: string;
 }
 
 interface LMStudioModelsResponse {
@@ -96,7 +110,25 @@ export class LMStudioClient {
         throw new Error('No response from LM Studio');
       }
 
-      return { response: data.choices[0].message.content.trimEnd(), success: true } as const;
+      // Extract statistics from LM Studio response
+      const statistics: IMessageStatistics | undefined = data.usage !== undefined
+        ? {
+            provider: 'lmstudio',
+            model: data.model,
+            generatedAt: new Date(),
+            lmstudio: {
+              promptTokens: data.usage.prompt_tokens,
+              completionTokens: data.usage.completion_tokens,
+              totalTokens: data.usage.total_tokens,
+            },
+          }
+        : undefined;
+
+      return {
+        response: data.choices[0].message.content.trimEnd(),
+        success: true,
+        statistics,
+      } as const;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error
         ? error.message
@@ -139,6 +171,7 @@ export class LMStudioClient {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let statistics: IMessageStatistics | undefined;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -161,7 +194,7 @@ export class LMStudioClient {
           }
 
           if (trimmedLine === 'data: [DONE]') {
-            yield { content: '', done: true };
+            yield { content: '', done: true, statistics };
 
             return;
           }
@@ -177,7 +210,21 @@ export class LMStudioClient {
                 const content = choice.delta.content ?? '';
                 const isDone = choice.finish_reason !== null;
 
-                yield { content, done: isDone };
+                // Extract statistics from the final chunk
+                if (isDone && data.usage !== undefined) {
+                  statistics = {
+                    provider: 'lmstudio',
+                    model: data.model,
+                    generatedAt: new Date(),
+                    lmstudio: {
+                      promptTokens: data.usage.prompt_tokens,
+                      completionTokens: data.usage.completion_tokens,
+                      totalTokens: data.usage.total_tokens,
+                    },
+                  };
+                }
+
+                yield { content, done: isDone, statistics: isDone ? statistics : undefined };
               }
             } catch {
               // Skip invalid JSON lines

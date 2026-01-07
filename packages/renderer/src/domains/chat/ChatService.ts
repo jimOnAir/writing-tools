@@ -1,5 +1,5 @@
 /* eslint-disable max-lines */
-import type { IChatMessage, TChatResponse, TIpcEvent, IChatInfo, IChatStreamChunk, IChatStreamEnd } from '@writing-tools/shared';
+import type { IChatMessage, TChatResponse, TIpcEvent, IChatInfo, IChatStreamChunk, IChatStreamEnd, IMessageStatistics } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
@@ -197,7 +197,15 @@ export class ChatService {
 
       // Update the streaming message in the messages array
       if (this.streamingMessageId !== null) {
-        this.updateStreamingMessage(this.streamingContent);
+        // Update both content and statistics if available (runtime-guarded for older shared typings)
+        const chunkStatistics = (data as unknown as { statistics?: IMessageStatistics }).statistics;
+        this.updateStreamingMessage(this.streamingContent, chunkStatistics);
+      }
+
+      // If this was the final chunk, stop treating the message as streaming immediately
+      // so UI actions (like statistics tooltip) can appear without waiting for CHAT_STREAM_END.
+      if (data.done) {
+        this.setStreaming(false);
       }
     };
 
@@ -637,17 +645,28 @@ export class ChatService {
     this.onStreamingChange?.(isStreaming);
   }
 
-  private updateStreamingMessage(content: string): void {
+  private updateStreamingMessage(content: string, statistics?: IMessageStatistics): void {
     if (this.streamingMessageId === null) {
       return;
     }
 
     // Find and update the streaming message
-    const updatedMessages = this.messages.map(msg =>
-      msg.id === this.streamingMessageId
-        ? { ...msg, content }
-        : msg,
-    );
+    const updatedMessages = this.messages.map(msg => {
+      if (msg.id === this.streamingMessageId) {
+        // Preserve existing statistics if new statistics are not provided
+        const updatedMessage: IChatMessage = {
+          ...msg,
+          content,
+        };
+        if (statistics !== undefined) {
+          updatedMessage.statistics = statistics;
+        }
+
+        return updatedMessage;
+      }
+
+      return msg;
+    });
 
     this.messages = updatedMessages;
     this.onMessagesChange?.(this.messages);

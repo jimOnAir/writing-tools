@@ -48,9 +48,19 @@ export function runInitialMigration(db: Database.Database): void {
       content TEXT NOT NULL,
       timestamp TEXT NOT NULL,
       created_at TEXT NOT NULL,
+      statistics TEXT,
       FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE
     )
   `);
+
+  // Add statistics column to existing messages table if it doesn't exist
+  try {
+    db.exec(`
+      ALTER TABLE messages ADD COLUMN statistics TEXT
+    `);
+  } catch {
+    // Column already exists, ignore error
+  }
 
   // Create index for faster queries
   db.exec(`

@@ -1,5 +1,6 @@
 export type { IChatInfo } from './interfaces/IChatInfo';
 export type { IChatMessage } from './interfaces/IChatMessage';
+export type { IMessageStatistics } from './interfaces/IMessageStatistics';
 export type { IChatStreamChunk } from './interfaces/IChatStreamChunk';
 export type { IChatStreamEnd } from './interfaces/IChatStreamEnd';
 export type { IChatWindowData } from './interfaces/IChatWindowData';
