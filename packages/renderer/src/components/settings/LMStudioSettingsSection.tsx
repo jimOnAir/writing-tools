@@ -26,73 +26,76 @@ export const LMStudioSettingsSection: React.FC<LMStudioSettingsSectionProps> = (
   onRefreshModels,
 }) => {
   return (
-    <>
-      <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card}`}>
-        <label htmlFor="lmstudio-address" className={TypographyStyles.label}>
-          LM Studio Address
-        </label>
-        <input
-          id="lmstudio-address"
-          type="text"
-          value={address}
-          onChange={(e) => {
-            onAddressChange(e.target.value);
-          }}
-          className={InputStyles}
-          placeholder="http://localhost:1234"
-        />
-      </div>
-
-      <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card}`}>
-        <label htmlFor="lmstudio-apikey" className={TypographyStyles.label}>
-          LM Studio API Key (Optional)
-        </label>
-        <input
-          id="lmstudio-apikey"
-          type="password"
-          value={apiKey ?? ''}
-          onChange={(e) => {
-            onApiKeyChange(e.target.value);
-          }}
-          className={InputStyles}
-          placeholder="Enter API key if required"
-        />
-      </div>
-
-      <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card}`}>
-        <label htmlFor="lmstudio-model" className={TypographyStyles.label}>
-          LM Studio Model
-        </label>
-        <div className="flex items-center gap-3">
-          <select
-            id="lmstudio-model"
-            value={model ?? ''}
+    <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card}`}>
+      <h3 className={TypographyStyles.h2}>LM Studio Settings</h3>
+      <div className="space-y-3">
+        <div>
+          <label htmlFor="lmstudio-address" className={TypographyStyles.label}>
+            LM Studio Address
+          </label>
+          <input
+            id="lmstudio-address"
+            type="text"
+            value={address}
             onChange={(e) => {
-              onModelChange(e.target.value);
+              onAddressChange(e.target.value);
             }}
             className={InputStyles}
-          >
-            {availableModels.map(modelOption => (
-              <option key={modelOption} value={modelOption}>{modelOption}</option>
-            ))}
-          </select>
-          <button
-            onClick={onRefreshModels}
-            disabled={loadingModels}
-            className={`${ButtonStyles.base} ${ButtonSizeStyles.default} ${loadingModels ? ButtonStyles.disabled : ButtonStyles.primary} whitespace-nowrap`}
-          >
-            {loadingModels ? (
-              <span className="flex items-center">
-                <SpinnerIcon />
-                Loading...
-              </span>
-            ) : (
-              'Refresh Models'
-            )}
-          </button>
+            placeholder="http://localhost:1234"
+          />
         </div>
-        {loadingModels && <div className={`mt-3 text-sm ${ColorPalette.text.muted}`}>Fetching available models...</div>}
+
+        <div>
+          <label htmlFor="lmstudio-apikey" className={TypographyStyles.label}>
+            LM Studio API Key (Optional)
+          </label>
+          <input
+            id="lmstudio-apikey"
+            type="password"
+            value={apiKey ?? ''}
+            onChange={(e) => {
+              onApiKeyChange(e.target.value);
+            }}
+            className={InputStyles}
+            placeholder="Enter API key if required"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="lmstudio-model" className={TypographyStyles.label}>
+            Default Model
+          </label>
+          <div className="flex items-center gap-3">
+            <select
+              id="lmstudio-model"
+              value={model ?? ''}
+              onChange={(e) => {
+                onModelChange(e.target.value);
+              }}
+              className={InputStyles}
+            >
+              {availableModels.map(modelOption => (
+                <option key={modelOption} value={modelOption}>{modelOption}</option>
+              ))}
+            </select>
+            <button
+              onClick={onRefreshModels}
+              disabled={loadingModels}
+              className={`${ButtonStyles.base} ${ButtonSizeStyles.default} ${loadingModels ? ButtonStyles.disabled : ButtonStyles.primary} whitespace-nowrap`}
+            >
+              {loadingModels ? (
+                <span className="flex items-center">
+                  <SpinnerIcon />
+                  Loading...
+                </span>
+              ) : (
+                'Refresh Models'
+              )}
+            </button>
+          </div>
+          {loadingModels && <div className={`mt-3 text-sm ${ColorPalette.text.muted}`}>Fetching available models...</div>}
+        </div>
       </div>
-    </>
+    </div>
   );
 };

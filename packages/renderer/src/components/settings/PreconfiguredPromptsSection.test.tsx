@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import type { IPreconfiguredPrompt } from '@writing-tools/shared';
+import type { IPreconfiguredPrompt, ISettings } from '@writing-tools/shared';
+import { DefaultSettings } from '@writing-tools/shared';
 import React from 'react';
 
 import type { PreconfiguredPromptsSectionProps } from './PreconfiguredPromptsSection';
@@ -8,6 +9,7 @@ import { PreconfiguredPromptsSection } from './PreconfiguredPromptsSection';
 type MockPreconfiguredPromptItemProps = {
   onRemove: (index: number) => void,
   prompt: IPreconfiguredPrompt,
+  settings: ISettings,
 };
 
 // Mock PreconfiguredPromptItem
@@ -27,6 +29,8 @@ jest.mock('./PreconfiguredPromptItem', () => ({
 describe('PreconfiguredPromptsSection', () => {
   const defaultProps: PreconfiguredPromptsSectionProps = {
     prompts: [] as IPreconfiguredPrompt[],
+    settings: DefaultSettings,
+    availableModels: [],
     onAdd: jest.fn(),
     onUpdate: jest.fn(),
     onIconUpload: jest.fn().mockResolvedValue(undefined),

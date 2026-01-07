@@ -1,6 +1,7 @@
 import type { IPreconfiguredPrompt } from '@writing-tools/shared';
 import React, { useState, useEffect } from 'react';
 
+import { Tooltip } from '../components/Tooltip';
 import type { PromptSelectorService } from '../domains/prompt-selector';
 import { ButtonStyles, ButtonSizeStyles, InputStyles, BackgroundStyles, TypographyStyles, CardStyles, LayoutStyles, ColorPalette } from '../styles/Styles';
 import { renderMarkdown } from '../utils/markdownRenderer';
@@ -29,9 +30,9 @@ const PromptSelectorComponent: React.FC<PromptSelectorComponentProps> = ({ promp
   // Note: Listeners are initialized in MainLayout
   // The service is shared across tabs, so we don't initialize/cleanup here
 
-  const handlePromptSelect = async (promptTemplate: string) => {
+  const handlePromptSelect = async (prompt: IPreconfiguredPrompt) => {
     try {
-      await promptSelectorService.selectPrompt(promptTemplate);
+      await promptSelectorService.selectPrompt(prompt);
     } catch {
       // Error is already logged in the service
     }
@@ -73,29 +74,44 @@ const PromptSelectorComponent: React.FC<PromptSelectorComponentProps> = ({ promp
       <div className={LayoutStyles.section}>
         <h2 className={TypographyStyles.h3}>Preconfigured Prompts</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {preconfiguredPrompts.map((prompt) => (
-            <button
-              key={`${prompt.title}-${prompt.prompt}`}
-              onClick={() => {
-                void handlePromptSelect(prompt.prompt);
-              }}
-              className={CardStyles.promptCard}
-            >
-              <div className="flex items-center mb-1">
-                {prompt.icon ? (
-                  <img
-                    src={prompt.icon}
-                    alt={prompt.title}
-                    className="w-5 h-5 mr-2 object-contain rounded"
-                  />
-                ) : null}
-                <div className={`font-medium ${ColorPalette.text.primary} text-sm`}>{prompt.title}</div>
-              </div>
-              <div className={`text-xs ${ColorPalette.text.muted} line-clamp-2`}>
-                {prompt.prompt.replace(/\{text\}/g, '...')}
-              </div>
-            </button>
-          ))}
+          {preconfiguredPrompts.map((prompt) => {
+            const providerDisplay = prompt.provider ?? 'Default';
+            const modelDisplay = prompt.model ?? 'Default';
+            const modelTooltip = prompt.model ?? 'Uses default model from settings';
+
+            return (
+              <button
+                key={`${prompt.title}-${prompt.prompt}`}
+                onClick={() => {
+                  void handlePromptSelect(prompt);
+                }}
+                className={CardStyles.promptCard}
+              >
+                <div className="flex items-center mb-1">
+                  {prompt.icon ? (
+                    <img
+                      src={prompt.icon}
+                      alt={prompt.title}
+                      className="w-5 h-5 mr-2 object-contain rounded"
+                    />
+                  ) : null}
+                  <div className={`font-medium ${ColorPalette.text.primary} text-sm`}>{prompt.title}</div>
+                </div>
+                <div className={`text-xs ${ColorPalette.text.muted} line-clamp-2 mb-2`}>
+                  {prompt.prompt.replaceAll('{text}', '...')}
+                </div>
+                <div className={`text-xs ${ColorPalette.text.muted} flex items-center gap-2`}>
+                  <span>Provider: {providerDisplay}</span>
+                  <span>|</span>
+                  <Tooltip content={modelTooltip}>
+                    <span className="truncate">
+                      Model: {modelDisplay}
+                    </span>
+                  </Tooltip>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 

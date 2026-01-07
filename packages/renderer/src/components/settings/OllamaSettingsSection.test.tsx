@@ -26,7 +26,7 @@ describe('OllamaSettingsSection', () => {
 
     expect(screen.getByLabelText('Ollama Address')).toBeInTheDocument();
     expect(screen.getByLabelText('Ollama API Key (Optional)')).toBeInTheDocument();
-    expect(screen.getByLabelText('Ollama Model')).toBeInTheDocument();
+    expect(screen.getByLabelText('Default Model')).toBeInTheDocument();
   });
 
   it('calls onAddressChange when address is changed', () => {
@@ -41,7 +41,7 @@ describe('OllamaSettingsSection', () => {
   it('calls onModelChange when model is changed', () => {
     render(<OllamaSettingsSection {...defaultProps} />);
 
-    const modelSelect = screen.getByLabelText('Ollama Model');
+    const modelSelect = screen.getByLabelText('Default Model');
     fireEvent.change(modelSelect, { target: { value: 'model2' } });
 
     expect(defaultProps.onModelChange).toHaveBeenCalledWith('model2');
@@ -75,7 +75,7 @@ describe('OllamaSettingsSection', () => {
   it('displays available models in select', () => {
     render(<OllamaSettingsSection {...defaultProps} />);
 
-    const modelSelect = screen.getByLabelText('Ollama Model');
+    const modelSelect = screen.getByLabelText('Default Model');
     expect(modelSelect).toHaveValue('model1');
 
     const options = Array.from(modelSelect.querySelectorAll('option'));

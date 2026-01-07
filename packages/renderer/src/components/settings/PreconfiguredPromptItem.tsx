@@ -1,12 +1,14 @@
-import type { IPreconfiguredPrompt } from '@writing-tools/shared';
-import React from 'react';
+import type { IPreconfiguredPrompt, ISettings } from '@writing-tools/shared';
+import React, { useMemo } from 'react';
 
-import { InputStyles, TypographyStyles, CardStyles, FileInputStyles, ColorPalette } from '../../styles/Styles';
+import { InputStyles, TypographyStyles, CardStyles, FileInputStyles } from '../../styles/Styles';
 import { CloseIcon } from '../icons';
 
 export interface PreconfiguredPromptItemProps {
   readonly prompt: IPreconfiguredPrompt;
   readonly index: number;
+  readonly settings: ISettings;
+  readonly availableModels: string[];
   readonly onUpdate: (index: number, field: keyof IPreconfiguredPrompt, value: string) => void;
   readonly onIconUpload: (index: number, file: globalThis.File) => Promise<void>;
   readonly onRemove: (index: number) => void;
@@ -15,14 +17,45 @@ export interface PreconfiguredPromptItemProps {
 export const PreconfiguredPromptItem: React.FC<PreconfiguredPromptItemProps> = ({
   prompt,
   index,
+  settings,
+  availableModels,
   onUpdate,
   onIconUpload,
   onRemove,
 }) => {
   const indexStr = String(index);
 
+  // Get configured providers (providers with address set)
+  const configuredProviders = useMemo(() => {
+    const providers: Array<'ollama' | 'lmstudio'> = [];
+    if (settings.ollama.address && settings.ollama.address.trim() !== '') {
+      providers.push('ollama');
+    }
+    if (settings.lmstudio.address && settings.lmstudio.address.trim() !== '') {
+      providers.push('lmstudio');
+    }
+
+    return providers;
+  }, [settings]);
+
+  // Get models to show based on selected provider or default provider
+  const modelsToShow = useMemo(() => {
+    // For now, show availableModels which are for the currently selected provider in settings
+    // In the future, we could fetch models per provider separately
+    return availableModels;
+  }, [availableModels]);
+
   return (
-    <div className={CardStyles.promptItemCard}>
+    <div className={`${CardStyles.promptItemCard} relative`}>
+      <button
+        onClick={() => {
+          onRemove(index);
+        }}
+        className="absolute top-2 right-2 p-1.5 rounded hover:bg-gray-700/50 text-gray-400 hover:text-red-400 transition-all duration-200 flex items-center justify-center"
+        aria-label="Remove prompt"
+      >
+        <CloseIcon size={16} />
+      </button>
       <div className="mb-3">
         <label htmlFor={`prompt-title-${indexStr}`} className={TypographyStyles.label}>
           Title
@@ -81,15 +114,45 @@ export const PreconfiguredPromptItem: React.FC<PreconfiguredPromptItemProps> = (
           placeholder="Enter prompt content. Use {text} as placeholder."
         />
       </div>
-      <button
-        onClick={() => {
-          onRemove(index);
-        }}
-        className="p-1.5 rounded hover:bg-gray-700/50 text-gray-400 hover:text-red-400 transition-all duration-200 flex items-center justify-center"
-        aria-label="Remove prompt"
-      >
-        <CloseIcon size={16} />
-      </button>
+      <div className="mb-3">
+        <label htmlFor={`prompt-provider-${indexStr}`} className={TypographyStyles.label}>
+          Provider (Optional)
+        </label>
+        <select
+          id={`prompt-provider-${indexStr}`}
+          value={prompt.provider ?? ''}
+          onChange={(e) => {
+            onUpdate(index, 'provider', e.target.value);
+          }}
+          className={InputStyles}
+        >
+          <option value="">Use default</option>
+          {configuredProviders.includes('ollama') && (
+            <option value="ollama">Ollama</option>
+          )}
+          {configuredProviders.includes('lmstudio') && (
+            <option value="lmstudio">LM Studio</option>
+          )}
+        </select>
+      </div>
+      <div className="mb-3">
+        <label htmlFor={`prompt-model-${indexStr}`} className={TypographyStyles.label}>
+          Model (Optional)
+        </label>
+        <select
+          id={`prompt-model-${indexStr}`}
+          value={prompt.model ?? ''}
+          onChange={(e) => {
+            onUpdate(index, 'model', e.target.value);
+          }}
+          className={InputStyles}
+        >
+          <option value="">Use default model</option>
+          {modelsToShow.map(modelOption => (
+            <option key={modelOption} value={modelOption}>{modelOption}</option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 };

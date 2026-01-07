@@ -32,6 +32,15 @@ export class SettingsRepository implements ISettingsRepository {
         const loadedSettings = JSON.parse(settingsData) as Partial<ISettings>;
 
         // Merge with default settings to ensure all fields are present
+        // Migrate prompts to ensure they have provider/model fields (even if undefined)
+        const migratedPrompts = loadedSettings.preconfiguredPrompts
+          ? loadedSettings.preconfiguredPrompts.map(prompt => ({
+            ...prompt,
+            provider: prompt.provider ?? undefined,
+            model: prompt.model ?? undefined,
+          }))
+          : DefaultSettings.preconfiguredPrompts;
+
         const settings: ISettings = {
           ...DefaultSettings,
           ...loadedSettings,
@@ -43,7 +52,7 @@ export class SettingsRepository implements ISettingsRepository {
             ...DefaultSettings.lmstudio,
             ...loadedSettings.lmstudio,
           },
-          preconfiguredPrompts: loadedSettings.preconfiguredPrompts ?? DefaultSettings.preconfiguredPrompts,
+          preconfiguredPrompts: migratedPrompts,
         };
 
         this.currentSettings = settings;

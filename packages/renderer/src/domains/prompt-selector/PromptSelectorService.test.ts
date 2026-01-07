@@ -97,14 +97,19 @@ describe('PromptSelectorService', () => {
 
       mockIpcAdapter.invoke.mockResolvedValue({} as Record<string, never>);
 
-      await promptSelectorService.selectPrompt('Summarize: {text}');
+      await promptSelectorService.selectPrompt({
+        prompt: 'Summarize: {text}',
+        title: 'Summarize',
+      });
 
       expect(mockIpcAdapter.invoke).toHaveBeenCalledWith(
         EIpcChannel.PROMPT_SELECTOR,
         expect.objectContaining({
           event: EIpcEvent.PROMPT_SELECT,
           payload: {
+            model: undefined,
             prompt: 'Summarize: Hello world',
+            provider: undefined,
           },
         }),
       );
@@ -118,7 +123,10 @@ describe('PromptSelectorService', () => {
 
       mockIpcAdapter.invoke.mockResolvedValue({} as Record<string, never>);
 
-      await promptSelectorService.selectPrompt('Just a prompt');
+      await promptSelectorService.selectPrompt({
+        prompt: 'Just a prompt',
+        title: 'Just a prompt',
+      });
 
       expect(mockIpcAdapter.invoke).toHaveBeenCalledWith(
         EIpcChannel.PROMPT_SELECTOR,
@@ -138,7 +146,10 @@ describe('PromptSelectorService', () => {
 
       mockIpcAdapter.invoke.mockRejectedValue(new Error('Select failed'));
 
-      await expect(promptSelectorService.selectPrompt('Prompt')).rejects.toThrow('Select failed');
+      await expect(promptSelectorService.selectPrompt({
+        prompt: 'Prompt',
+        title: 'Prompt',
+      })).rejects.toThrow('Select failed');
 
       expect(mockLogger.error).toHaveBeenCalledWith('Error selecting prompt: %s', 'Select failed');
     });

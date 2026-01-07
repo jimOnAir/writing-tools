@@ -22,6 +22,10 @@ describe('ElectronIpcAdapter', () => {
     offChatCreated: jest.Mock,
     onChatDeleted: jest.Mock,
     offChatDeleted: jest.Mock,
+    onChatStreamChunk: jest.Mock,
+    offChatStreamChunk: jest.Mock,
+    onChatStreamEnd: jest.Mock,
+    offChatStreamEnd: jest.Mock,
   };
 
   beforeEach(() => {
@@ -41,6 +45,10 @@ describe('ElectronIpcAdapter', () => {
       offChatCreated: jest.fn(),
       onChatDeleted: jest.fn(() => ({ remove: jest.fn() })),
       offChatDeleted: jest.fn(),
+      onChatStreamChunk: jest.fn(() => ({ remove: jest.fn() })),
+      offChatStreamChunk: jest.fn(),
+      onChatStreamEnd: jest.fn(() => ({ remove: jest.fn() })),
+      offChatStreamEnd: jest.fn(),
     };
 
     Object.defineProperty(globalThis, 'electronAPI', {
@@ -392,6 +400,92 @@ describe('ElectronIpcAdapter', () => {
 
       expect(() => {
         freshAdapter.offChatDeleted(listener);
+      }).not.toThrow();
+    });
+  });
+
+  describe('onChatStreamChunk', () => {
+    it('registers listener', () => {
+      const callback = jest.fn();
+
+      const listener = adapter.onChatStreamChunk(callback);
+
+      expect(mockElectronAPI.onChatStreamChunk).toHaveBeenCalledWith(callback);
+      expect(listener).toBeDefined();
+    });
+
+    it('throws when electronAPI is not available', () => {
+      delete (globalThis as { electronAPI?: unknown }).electronAPI;
+      const freshAdapter = new ElectronIpcAdapter();
+
+      const callback = jest.fn();
+
+      expect(() => {
+        freshAdapter.onChatStreamChunk(callback);
+      }).toThrow('electronAPI is not available');
+    });
+  });
+
+  describe('offChatStreamChunk', () => {
+    it('unregisters listener', () => {
+      const listener = { remove: jest.fn() } as unknown as TIpcRenderListener;
+
+      adapter.offChatStreamChunk(listener);
+
+      expect(mockElectronAPI.offChatStreamChunk).toHaveBeenCalledWith(listener);
+    });
+
+    it('does not throw when electronAPI is not available', () => {
+      delete (globalThis as { electronAPI?: unknown }).electronAPI;
+      const freshAdapter = new ElectronIpcAdapter();
+
+      const listener = { remove: jest.fn() } as unknown as TIpcRenderListener;
+
+      expect(() => {
+        freshAdapter.offChatStreamChunk(listener);
+      }).not.toThrow();
+    });
+  });
+
+  describe('onChatStreamEnd', () => {
+    it('registers listener', () => {
+      const callback = jest.fn();
+
+      const listener = adapter.onChatStreamEnd(callback);
+
+      expect(mockElectronAPI.onChatStreamEnd).toHaveBeenCalledWith(callback);
+      expect(listener).toBeDefined();
+    });
+
+    it('throws when electronAPI is not available', () => {
+      delete (globalThis as { electronAPI?: unknown }).electronAPI;
+      const freshAdapter = new ElectronIpcAdapter();
+
+      const callback = jest.fn();
+
+      expect(() => {
+        freshAdapter.onChatStreamEnd(callback);
+      }).toThrow('electronAPI is not available');
+    });
+  });
+
+  describe('offChatStreamEnd', () => {
+    it('unregisters listener', () => {
+      const listener = { remove: jest.fn() } as unknown as TIpcRenderListener;
+
+      adapter.offChatStreamEnd(listener);
+
+      expect(mockElectronAPI.offChatStreamEnd).toHaveBeenCalledWith(listener);
+    });
+
+    it('does not throw when electronAPI is not available', () => {
+      delete (globalThis as { electronAPI?: unknown }).electronAPI;
+      const freshAdapter = new ElectronIpcAdapter();
+
+      const listener = { remove: jest.fn() } as unknown as TIpcRenderListener;
+
+      expect(() => {
+        freshAdapter.offChatStreamEnd(listener);
       }).not.toThrow();
     });
   });

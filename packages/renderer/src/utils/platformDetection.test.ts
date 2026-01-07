@@ -66,7 +66,6 @@ describe('platformDetection', () => {
     });
 
     it('returns linux when electronAPI is unavailable', async () => {
-      // eslint-disable-next-line sonarjs/prefer-global-this
       delete (window as { electronAPI?: unknown }).electronAPI;
 
       const { getPlatform } = await import('./platformDetection');

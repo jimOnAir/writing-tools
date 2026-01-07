@@ -121,12 +121,12 @@ describe('Settings', () => {
     }
 
     expect(screen.getByText('OllamaSettingsSection')).toBeInTheDocument();
-    expect(screen.queryByText('LMStudioSettingsSection')).not.toBeInTheDocument();
+    expect(screen.getByText('LMStudioSettingsSection')).toBeInTheDocument();
     expect(screen.getByText('GlobalShortcutsSection')).toBeInTheDocument();
     expect(screen.getByText('PreconfiguredPromptsSection')).toBeInTheDocument();
   });
 
-  it('renders LM Studio settings section when provider is lmstudio', async () => {
+  it('renders both settings sections always visible', async () => {
     let onSettingsChange: ((settings: ISettings) => void) | undefined;
 
     mockSettingsService.setCallbacks.mockImplementation((callbacks) => {
@@ -154,8 +154,8 @@ describe('Settings', () => {
       });
     }
 
+    expect(screen.getByText('OllamaSettingsSection')).toBeInTheDocument();
     expect(screen.getByText('LMStudioSettingsSection')).toBeInTheDocument();
-    expect(screen.queryByText('OllamaSettingsSection')).not.toBeInTheDocument();
     expect(screen.getByText('GlobalShortcutsSection')).toBeInTheDocument();
     expect(screen.getByText('PreconfiguredPromptsSection')).toBeInTheDocument();
   });

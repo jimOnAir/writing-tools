@@ -48,6 +48,10 @@ describe('MultiChatService', () => {
       offOllamaResponse: jest.fn(),
       onPromptSelectorData: jest.fn(() => mockListener),
       offPromptSelectorData: jest.fn(),
+      onChatStreamChunk: jest.fn(() => mockListener),
+      offChatStreamChunk: jest.fn(),
+      onChatStreamEnd: jest.fn(() => mockListener),
+      offChatStreamEnd: jest.fn(),
       saveTabs: jest.fn(),
     } as unknown as jest.Mocked<IIpcAdapter>;
 

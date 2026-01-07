@@ -1,4 +1,4 @@
-import type { IPreconfiguredPrompt } from '@writing-tools/shared';
+import type { IPreconfiguredPrompt, ISettings } from '@writing-tools/shared';
 import React from 'react';
 
 import { ButtonStyles, ButtonSizeStyles, TypographyStyles, LayoutStyles, BackgroundStyles } from '../../styles/Styles';
@@ -7,6 +7,8 @@ import { PreconfiguredPromptItem } from './PreconfiguredPromptItem';
 
 export interface PreconfiguredPromptsSectionProps {
   readonly prompts: IPreconfiguredPrompt[];
+  readonly settings: ISettings;
+  readonly availableModels: string[];
   readonly onAdd: () => void;
   readonly onUpdate: (index: number, field: keyof IPreconfiguredPrompt, value: string) => void;
   readonly onIconUpload: (index: number, file: globalThis.File) => Promise<void>;
@@ -15,6 +17,8 @@ export interface PreconfiguredPromptsSectionProps {
 
 export const PreconfiguredPromptsSection: React.FC<PreconfiguredPromptsSectionProps> = ({
   prompts,
+  settings,
+  availableModels,
   onAdd,
   onUpdate,
   onIconUpload,
@@ -36,6 +40,8 @@ export const PreconfiguredPromptsSection: React.FC<PreconfiguredPromptsSectionPr
               key={`${prompt.title}-${indexStr}`}
               prompt={prompt}
               index={index}
+              settings={settings}
+              availableModels={availableModels}
               onUpdate={onUpdate}
               onIconUpload={onIconUpload}
               onRemove={onRemove}

@@ -66,14 +66,16 @@ export class PromptSelectorService {
   /**
    * Select a preconfigured prompt
    */
-  public async selectPrompt(promptTemplate: string): Promise<void> {
-    const prompt = this.processPromptTemplate(promptTemplate);
+  public async selectPrompt(promptObj: IPreconfiguredPrompt): Promise<void> {
+    const prompt = this.processPromptTemplate(promptObj.prompt);
 
     const payload: TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT> = {
       channel: EIpcChannel.PROMPT_SELECTOR,
       event: EIpcEvent.PROMPT_SELECT,
       payload: {
+        model: promptObj.model,
         prompt,
+        provider: promptObj.provider,
       },
     };
 

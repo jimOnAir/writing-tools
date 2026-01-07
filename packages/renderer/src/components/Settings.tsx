@@ -155,7 +155,7 @@ const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false })
 
         <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card} mb-6`}>
           <label htmlFor="llm-provider" className={TypographyStyles.label}>
-            LLM Provider
+            Default Provider
           </label>
           <select
             id="llm-provider"
@@ -170,34 +170,34 @@ const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false })
           </select>
         </div>
 
-        {(settings.provider || 'ollama') === 'ollama' ? (
-          <OllamaSettingsSection
-            address={settings.ollama.address}
-            model={settings.ollama.model}
-            apiKey={settings.ollama.apiKey}
-            availableModels={availableModels}
-            loadingModels={loadingModels}
-            onAddressChange={handleOllamaAddressChange}
-            onModelChange={handleOllamaModelChange}
-            onApiKeyChange={handleOllamaApiKeyChange}
-            onRefreshModels={fetchAvailableModels}
-          />
-        ) : (
-          <LMStudioSettingsSection
-            address={settings.lmstudio.address}
-            model={settings.lmstudio.model}
-            apiKey={settings.lmstudio.apiKey}
-            availableModels={availableModels}
-            loadingModels={loadingModels}
-            onAddressChange={handleLMStudioAddressChange}
-            onModelChange={handleLMStudioModelChange}
-            onApiKeyChange={handleLMStudioApiKeyChange}
-            onRefreshModels={fetchAvailableModels}
-          />
-        )}
+        <OllamaSettingsSection
+          address={settings.ollama.address}
+          model={settings.ollama.model}
+          apiKey={settings.ollama.apiKey}
+          availableModels={availableModels}
+          loadingModels={loadingModels}
+          onAddressChange={handleOllamaAddressChange}
+          onModelChange={handleOllamaModelChange}
+          onApiKeyChange={handleOllamaApiKeyChange}
+          onRefreshModels={fetchAvailableModels}
+        />
+
+        <LMStudioSettingsSection
+          address={settings.lmstudio.address}
+          model={settings.lmstudio.model}
+          apiKey={settings.lmstudio.apiKey}
+          availableModels={availableModels}
+          loadingModels={loadingModels}
+          onAddressChange={handleLMStudioAddressChange}
+          onModelChange={handleLMStudioModelChange}
+          onApiKeyChange={handleLMStudioApiKeyChange}
+          onRefreshModels={fetchAvailableModels}
+        />
 
         <PreconfiguredPromptsSection
           prompts={settings.preconfiguredPrompts}
+          settings={settings}
+          availableModels={availableModels}
           onAdd={handleAddPreconfiguredPrompt}
           onUpdate={handleUpdatePreconfiguredPrompt}
           onIconUpload={handleIconUpload}

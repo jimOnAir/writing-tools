@@ -319,8 +319,11 @@ export class SettingsService {
    */
   public addPreconfiguredPrompt(): void {
     const newPrompt: IPreconfiguredPrompt = {
-      title: 'New Prompt',
+      icon: undefined,
+      model: undefined,
+      provider: undefined,
       prompt: 'Enter your prompt here...',
+      title: 'New Prompt',
     };
 
     this.setSettings({
@@ -347,9 +350,23 @@ export class SettingsService {
    */
   public updatePreconfiguredPrompt(index: number, field: keyof IPreconfiguredPrompt, value: string): void {
     const newPrompts = [...this.settings.preconfiguredPrompts];
+
+    // Handle provider/model fields: empty string means "use default" (undefined)
+    let processedValue: string | undefined = value;
+    if (field === 'provider') {
+      if (value.trim() === '' || (value !== 'ollama' && value !== 'lmstudio')) {
+        // Empty string or invalid provider value, set to undefined
+        processedValue = undefined;
+      }
+    } else if (field === 'model') {
+      if (value.trim() === '') {
+        processedValue = undefined;
+      }
+    }
+
     newPrompts[index] = {
       ...newPrompts[index],
-      [field]: value,
+      [field]: processedValue,
     };
 
     this.setSettings({

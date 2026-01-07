@@ -23,6 +23,10 @@ const mockElectronAPI = {
   offChatCreated: jest.fn(),
   onChatDeleted: jest.fn(() => jest.fn()),
   offChatDeleted: jest.fn(),
+  onChatStreamChunk: jest.fn(() => jest.fn()),
+  offChatStreamChunk: jest.fn(),
+  onChatStreamEnd: jest.fn(() => jest.fn()),
+  offChatStreamEnd: jest.fn(),
 };
 
 // Mock globalThis.electronAPI

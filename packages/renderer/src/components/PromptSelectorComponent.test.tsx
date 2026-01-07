@@ -117,7 +117,7 @@ describe('PromptSelectorComponent', () => {
 
     await waitFor(() => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(mockPromptSelectorService.selectPrompt).toHaveBeenCalledWith('Test {text}');
+      expect(mockPromptSelectorService.selectPrompt).toHaveBeenCalledWith(mockPrompts[0]);
     });
   });
 

@@ -71,6 +71,44 @@ describe('MainLayout', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // Mock electronAPI for IpcAdapter (used by real ChatService instances)
+    const mockElectronAPI = {
+      invoke: jest.fn(),
+      onChatWindowData: jest.fn(() => jest.fn()),
+      offChatWindowData: jest.fn(),
+      onOllamaResponse: jest.fn(() => jest.fn()),
+      offOllamaResponse: jest.fn(),
+      onPromptSelectorData: jest.fn(() => jest.fn()),
+      offPromptSelectorData: jest.fn(),
+      onChatTitleUpdated: jest.fn(() => jest.fn()),
+      offChatTitleUpdated: jest.fn(),
+      onChatLoadMessagesData: jest.fn(() => jest.fn()),
+      offChatLoadMessagesData: jest.fn(),
+      onChatCreated: jest.fn(() => jest.fn()),
+      offChatCreated: jest.fn(),
+      onChatDeleted: jest.fn(() => jest.fn()),
+      offChatDeleted: jest.fn(),
+      onChatSaveTabsRequest: jest.fn(() => jest.fn()),
+      offChatSaveTabsRequest: jest.fn(),
+      onChatStreamChunk: jest.fn(() => jest.fn()),
+      offChatStreamChunk: jest.fn(),
+      onChatStreamEnd: jest.fn(() => jest.fn()),
+      offChatStreamEnd: jest.fn(),
+    };
+
+    // Set both globalThis and window since IpcAdapter accesses window.electronAPI
+    Object.defineProperty(globalThis, 'electronAPI', {
+      value: mockElectronAPI,
+      writable: true,
+      configurable: true,
+    });
+    // eslint-disable-next-line sonarqube/prefer-global-this
+    Object.defineProperty(window, 'electronAPI', {
+      value: mockElectronAPI,
+      writable: true,
+      configurable: true,
+    });
+
     const mockChatService: jest.Mocked<Pick<ChatService, 'setCallbacks' | 'initializeListeners' | 'cleanupListeners' | 'sendMessage' | 'getCurrentChatId'>> = {
       setCallbacks: jest.fn(),
       initializeListeners: jest.fn(),

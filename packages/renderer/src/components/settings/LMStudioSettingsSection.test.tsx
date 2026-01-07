@@ -26,7 +26,7 @@ describe('LMStudioSettingsSection', () => {
 
     expect(screen.getByLabelText('LM Studio Address')).toBeInTheDocument();
     expect(screen.getByLabelText('LM Studio API Key (Optional)')).toBeInTheDocument();
-    expect(screen.getByLabelText('LM Studio Model')).toBeInTheDocument();
+    expect(screen.getByLabelText('Default Model')).toBeInTheDocument();
   });
 
   it('calls onAddressChange when address is changed', () => {
@@ -41,7 +41,7 @@ describe('LMStudioSettingsSection', () => {
   it('calls onModelChange when model is changed', () => {
     render(<LMStudioSettingsSection {...defaultProps} />);
 
-    const modelSelect = screen.getByLabelText('LM Studio Model');
+    const modelSelect = screen.getByLabelText('Default Model');
     fireEvent.change(modelSelect, { target: { value: 'model2' } });
 
     expect(defaultProps.onModelChange).toHaveBeenCalledWith('model2');

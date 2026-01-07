@@ -114,7 +114,7 @@ export class IpcHandlers implements IIpcHandlers {
 
     ipcMain.handle(EIpcChannel.PROMPT_SELECTOR, async (_, data: TPromptSelectEventPayload) => {
       try {
-        await this.handlePromptSelect(data.payload.prompt);
+        await this.handlePromptSelect(data.payload);
       } catch (error: unknown) {
         const errorText = error instanceof Error ? error.message : String(error);
         this.logger.error('Error occurred in handler for \'PROMPT_SELECTOR\': %s', errorText);
@@ -476,15 +476,21 @@ export class IpcHandlers implements IIpcHandlers {
     }
   }
 
-  private async handlePromptSelect(prompt: string): Promise<void> {
+  private async handlePromptSelect(payload: { model?: string, prompt: string, provider?: 'ollama' | 'lmstudio' }): Promise<void> {
     const { window: mainWindow } = await this.windowService.getMainWindow();
 
     // Create a new chat session for the prompt
+    // Use prompt's provider/model if provided, otherwise use defaults from settings
     const settings = await this.settingsService.loadSettings();
-    const provider = settings.provider || 'ollama';
-    const model = provider === 'ollama'
+    const defaultProvider = settings.provider || 'ollama';
+    const defaultModel = defaultProvider === 'ollama'
       ? (settings.ollama.model || '')
       : (settings.lmstudio.model || '');
+
+    // Use prompt's provider/model if set, otherwise use defaults
+    const provider = payload.provider ?? defaultProvider;
+    const model = payload.model ?? defaultModel;
+
     const chatId = this.chatService.startNewChat('', provider, model);
     // ChatService now handles CHAT_CREATED event notification
 
@@ -492,7 +498,7 @@ export class IpcHandlers implements IIpcHandlers {
     const userMessage: IChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      content: prompt,
+      content: payload.prompt,
       timestamp: new Date(),
     };
     try {
@@ -502,16 +508,16 @@ export class IpcHandlers implements IIpcHandlers {
       this.logger.error('Failed to save user message in prompt select: %s', errorText);
     }
 
-    this.logger.info('Send chat-window-data: %s, chatId=%s', prompt, String(chatId));
+    this.logger.info('Send chat-window-data: %s, chatId=%s', payload.prompt, String(chatId));
     mainWindow.webContents.send(EIpcRendererEvent.CHAT_WINDOW_DATA, {
-      prompt,
+      prompt: payload.prompt,
       chatId,
     });
 
     const response = await this.modelService.sendMessages([
       {
         role: 'user',
-        content: prompt,
+        content: payload.prompt,
       },
     ]);
 

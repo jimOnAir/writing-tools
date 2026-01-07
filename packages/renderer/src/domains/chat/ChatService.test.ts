@@ -1,5 +1,5 @@
 import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
-import type { IChatInfo, IChatMessage, TChatResponse } from '@writing-tools/shared';
+import type { IChatInfo, IChatMessage, TChatResponse, IChatStreamChunk, IChatStreamEnd } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
@@ -31,6 +31,10 @@ describe('ChatService', () => {
       offChatLoadMessagesData: jest.fn(),
       onChatDeleted: jest.fn(() => mockListener),
       offChatDeleted: jest.fn(),
+      onChatStreamChunk: jest.fn(() => mockListener),
+      offChatStreamChunk: jest.fn(),
+      onChatStreamEnd: jest.fn(() => mockListener),
+      offChatStreamEnd: jest.fn(),
     } as unknown as jest.Mocked<IIpcAdapter>;
 
     chatService = new ChatService(mockIpcAdapter);
@@ -65,6 +69,8 @@ describe('ChatService', () => {
       expect(mockIpcAdapter.onChatTitleUpdated).toHaveBeenCalled();
       expect(mockIpcAdapter.onChatLoadMessagesData).toHaveBeenCalled();
       expect(mockIpcAdapter.onChatDeleted).toHaveBeenCalled();
+      expect(mockIpcAdapter.onChatStreamChunk).toHaveBeenCalled();
+      expect(mockIpcAdapter.onChatStreamEnd).toHaveBeenCalled();
     });
   });
 
@@ -77,6 +83,8 @@ describe('ChatService', () => {
       expect(mockIpcAdapter.offChatTitleUpdated).toHaveBeenCalled();
       expect(mockIpcAdapter.offChatLoadMessagesData).toHaveBeenCalled();
       expect(mockIpcAdapter.offChatDeleted).toHaveBeenCalled();
+      expect(mockIpcAdapter.offChatStreamChunk).toHaveBeenCalled();
+      expect(mockIpcAdapter.offChatStreamEnd).toHaveBeenCalled();
     });
   });
 
@@ -378,6 +386,214 @@ describe('ChatService', () => {
       messagesCallback({ chatId: 1, messages });
 
       expect(onMessagesChange).toHaveBeenCalledWith(messages);
+    });
+
+    it('handles stream chunk events', () => {
+      chatService.initializeListeners();
+
+      const onMessagesChange = jest.fn();
+      chatService.setCallbacks({ onMessagesChange });
+
+      // Set currentChatId by loading messages first
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const messagesCallback = (mockIpcAdapter.onChatLoadMessagesData as jest.Mock).mock.calls[0]?.[0] as (
+        data: { chatId: number, messages: IChatMessage[] },
+      ) => void;
+
+      messagesCallback({ chatId: 1, messages: [] });
+
+      // Clear mock after setup to only count calls from stream chunks
+      onMessagesChange.mockClear();
+
+      // Get the stream chunk callback
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const streamChunkCallback = (mockIpcAdapter.onChatStreamChunk as jest.Mock).mock.calls[0]?.[0] as (
+        data: IChatStreamChunk,
+      ) => void;
+
+      // Manually set up streaming state (normally done by sendMessage)
+      (chatService as unknown as { streamingMessageId: string | null }).streamingMessageId = 'assistant-1';
+      (chatService as unknown as { currentChatId: number | null }).currentChatId = 1;
+
+      // Send first chunk
+      streamChunkCallback({
+        chatId: 1,
+        content: 'Hello',
+        done: false,
+      });
+
+      expect(onMessagesChange).toHaveBeenCalled();
+
+      // Send second chunk
+      streamChunkCallback({
+        chatId: 1,
+        content: ' world',
+        done: false,
+      });
+
+      // Send final chunk
+      streamChunkCallback({
+        chatId: 1,
+        content: '!',
+        done: true,
+      });
+
+      // Expect 3 calls: one for each chunk (Hello, world, !)
+      const expectedChunkCalls = 3;
+      expect(onMessagesChange).toHaveBeenCalledTimes(expectedChunkCalls);
+    });
+
+    it('ignores stream chunk events for different chat', () => {
+      chatService.initializeListeners();
+
+      const onMessagesChange = jest.fn();
+      chatService.setCallbacks({ onMessagesChange });
+
+      // Set currentChatId to 1
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const messagesCallback = (mockIpcAdapter.onChatLoadMessagesData as jest.Mock).mock.calls[0]?.[0] as (
+        data: { chatId: number, messages: IChatMessage[] },
+      ) => void;
+
+      messagesCallback({ chatId: 1, messages: [] });
+
+      // Clear mock after setup to only count calls from stream chunk
+      onMessagesChange.mockClear();
+
+      // Get the stream chunk callback
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const streamChunkCallback = (mockIpcAdapter.onChatStreamChunk as jest.Mock).mock.calls[0]?.[0] as (
+        data: IChatStreamChunk,
+      ) => void;
+
+      // Send chunk for different chat
+      streamChunkCallback({
+        chatId: 2,
+        content: 'Hello',
+        done: false,
+      });
+
+      // Should not update messages for different chat
+      expect(onMessagesChange).not.toHaveBeenCalled();
+    });
+
+    it('handles stream end events successfully', () => {
+      chatService.initializeListeners();
+
+      const onMessagesChange = jest.fn();
+      const onLoadingChange = jest.fn();
+      const onErrorChange = jest.fn();
+      chatService.setCallbacks({
+        onMessagesChange,
+        onLoadingChange,
+        onErrorChange,
+      });
+
+      // Set currentChatId by loading messages first
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const messagesCallback = (mockIpcAdapter.onChatLoadMessagesData as jest.Mock).mock.calls[0]?.[0] as (
+        data: { chatId: number, messages: IChatMessage[] },
+      ) => void;
+
+      messagesCallback({ chatId: 1, messages: [] });
+
+      // Clear mocks after setup to only count calls from stream end
+      onMessagesChange.mockClear();
+      onLoadingChange.mockClear();
+      onErrorChange.mockClear();
+
+      // Get the stream end callback
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const streamEndCallback = (mockIpcAdapter.onChatStreamEnd as jest.Mock).mock.calls[0]?.[0] as (
+        data: IChatStreamEnd,
+      ) => void;
+
+      // Set up streaming state
+      (chatService as unknown as { streamingMessageId: string | null }).streamingMessageId = 'assistant-1';
+      (chatService as unknown as { currentChatId: number | null }).currentChatId = 1;
+      (chatService as unknown as { streamingContent: string }).streamingContent = 'Hello world';
+
+      // Send stream end with full content
+      streamEndCallback({
+        chatId: 1,
+        fullContent: 'Hello world!',
+      });
+
+      expect(onLoadingChange).toHaveBeenCalledWith(false);
+      expect(onErrorChange).not.toHaveBeenCalled();
+    });
+
+    it('handles stream end events with error', () => {
+      chatService.initializeListeners();
+
+      const onErrorChange = jest.fn();
+      const onLoadingChange = jest.fn();
+      chatService.setCallbacks({
+        onErrorChange,
+        onLoadingChange,
+      });
+
+      // Set currentChatId by loading messages first
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const messagesCallback = (mockIpcAdapter.onChatLoadMessagesData as jest.Mock).mock.calls[0]?.[0] as (
+        data: { chatId: number, messages: IChatMessage[] },
+      ) => void;
+
+      messagesCallback({ chatId: 1, messages: [] });
+
+      // Get the stream end callback
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const streamEndCallback = (mockIpcAdapter.onChatStreamEnd as jest.Mock).mock.calls[0]?.[0] as (
+        data: IChatStreamEnd,
+      ) => void;
+
+      // Set up streaming state
+      (chatService as unknown as { streamingMessageId: string | null }).streamingMessageId = 'assistant-1';
+      (chatService as unknown as { currentChatId: number | null }).currentChatId = 1;
+
+      // Send stream end with error
+      streamEndCallback({
+        chatId: 1,
+        fullContent: '',
+        error: 'Connection failed',
+      });
+
+      expect(onErrorChange).toHaveBeenCalledWith('Streaming error: Connection failed');
+      expect(onLoadingChange).toHaveBeenCalledWith(false);
+    });
+
+    it('ignores stream end events for different chat', () => {
+      chatService.initializeListeners();
+
+      const onErrorChange = jest.fn();
+      chatService.setCallbacks({ onErrorChange });
+
+      // Set currentChatId to 1
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const messagesCallback = (mockIpcAdapter.onChatLoadMessagesData as jest.Mock).mock.calls[0]?.[0] as (
+        data: { chatId: number, messages: IChatMessage[] },
+      ) => void;
+
+      messagesCallback({ chatId: 1, messages: [] });
+
+      // Clear mock after setup to only count calls from stream end
+      onErrorChange.mockClear();
+
+      // Get the stream end callback
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const streamEndCallback = (mockIpcAdapter.onChatStreamEnd as jest.Mock).mock.calls[0]?.[0] as (
+        data: IChatStreamEnd,
+      ) => void;
+
+      // Send stream end for different chat
+      streamEndCallback({
+        chatId: 2,
+        fullContent: '',
+        error: 'Connection failed',
+      });
+
+      // Should not update error for different chat
+      expect(onErrorChange).not.toHaveBeenCalled();
     });
   });
 });

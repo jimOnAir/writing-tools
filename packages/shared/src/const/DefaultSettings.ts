@@ -15,16 +15,22 @@ export const DefaultSettings: ISettings = Object.freeze({
   preconfiguredPrompts: [
     {
       icon: undefined,
+      model: undefined,
+      provider: undefined,
       prompt: 'Summarize the following text in one sentence: {text}',
       title: 'Summarize',
     },
     {
       icon: undefined,
+      model: undefined,
+      provider: undefined,
       prompt: 'Explain the following text in simple terms: {text}',
       title: 'Explain',
     },
     {
       icon: undefined,
+      model: undefined,
+      provider: undefined,
       prompt: 'Translate the following text to English: {text}',
       title: 'Translate',
     },

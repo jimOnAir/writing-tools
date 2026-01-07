@@ -32,7 +32,11 @@ export type TChatSaveTabsPayload = { tabs: TOpenTab[] };
 
 export type TEnvGetPayload = Record<string, never>;
 
-export type TPromptSelectPayload = { prompt: string };
+export type TPromptSelectPayload = {
+  model?: string,
+  prompt: string,
+  provider?: 'ollama' | 'lmstudio',
+};
 
 export type TChatSendMessageStreamPayload = { chatId: number, messages: IChatMessage[] };
 

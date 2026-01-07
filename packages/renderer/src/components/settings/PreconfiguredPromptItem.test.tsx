@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import type { IPreconfiguredPrompt } from '@writing-tools/shared';
+import type { IPreconfiguredPrompt, ISettings } from '@writing-tools/shared';
+import { DefaultSettings } from '@writing-tools/shared';
 import React from 'react';
 
 import { PreconfiguredPromptItem } from './PreconfiguredPromptItem';
@@ -9,6 +10,20 @@ describe('PreconfiguredPromptItem', () => {
     title: 'Test Prompt',
     prompt: 'Test {text}',
   };
+
+  const mockSettings: ISettings = {
+    ...DefaultSettings,
+    ollama: {
+      ...DefaultSettings.ollama,
+      address: 'http://localhost:11434',
+    },
+    lmstudio: {
+      ...DefaultSettings.lmstudio,
+      address: 'http://localhost:1234',
+    },
+  };
+
+  const mockAvailableModels = ['model1', 'model2', 'model3'];
 
   let onUpdate: jest.Mock;
   let onIconUpload: jest.Mock;
@@ -27,6 +42,8 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        settings={mockSettings}
+        availableModels={mockAvailableModels}
         onUpdate={onUpdate}
         onIconUpload={onIconUpload}
         onRemove={onRemove}
@@ -42,6 +59,8 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        settings={mockSettings}
+        availableModels={mockAvailableModels}
         onUpdate={onUpdate}
         onIconUpload={onIconUpload}
         onRemove={onRemove}
@@ -59,6 +78,8 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        settings={mockSettings}
+        availableModels={mockAvailableModels}
         onUpdate={onUpdate}
         onIconUpload={onIconUpload}
         onRemove={onRemove}
@@ -83,6 +104,8 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        settings={mockSettings}
+        availableModels={mockAvailableModels}
         onUpdate={onUpdate}
         onIconUpload={onIconUpload}
         onRemove={onRemove}
@@ -111,6 +134,8 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={promptWithIcon}
         index={0}
+        settings={mockSettings}
+        availableModels={mockAvailableModels}
         onUpdate={onUpdate}
         onIconUpload={onIconUpload}
         onRemove={onRemove}
@@ -132,6 +157,8 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={promptWithIcon}
         index={0}
+        settings={mockSettings}
+        availableModels={mockAvailableModels}
         onUpdate={onUpdate}
         onIconUpload={onIconUpload}
         onRemove={onRemove}
@@ -146,6 +173,8 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        settings={mockSettings}
+        availableModels={mockAvailableModels}
         onUpdate={onUpdate}
         onIconUpload={onIconUpload}
         onRemove={onRemove}
@@ -155,11 +184,64 @@ describe('PreconfiguredPromptItem', () => {
     expect(screen.getByText('Upload Icon')).toBeInTheDocument();
   });
 
+  it('shows only configured providers in provider dropdown', () => {
+    const settingsWithOnlyOllama: ISettings = {
+      ...DefaultSettings,
+      ollama: {
+        ...DefaultSettings.ollama,
+        address: 'http://localhost:11434',
+      },
+      lmstudio: {
+        ...DefaultSettings.lmstudio,
+        address: '',
+      },
+    };
+
+    render(
+      <PreconfiguredPromptItem
+        prompt={mockPrompt}
+        index={0}
+        settings={settingsWithOnlyOllama}
+        availableModels={mockAvailableModels}
+        onUpdate={onUpdate}
+        onIconUpload={onIconUpload}
+        onRemove={onRemove}
+      />,
+    );
+
+    const providerSelect = screen.getByLabelText('Provider (Optional)');
+    expect(providerSelect).toBeInTheDocument();
+    expect(providerSelect).toHaveValue('');
+    expect(providerSelect.querySelector('option[value="ollama"]')).toBeInTheDocument();
+    expect(providerSelect.querySelector('option[value="lmstudio"]')).not.toBeInTheDocument();
+  });
+
+  it('shows all configured providers in provider dropdown', () => {
+    render(
+      <PreconfiguredPromptItem
+        prompt={mockPrompt}
+        index={0}
+        settings={mockSettings}
+        availableModels={mockAvailableModels}
+        onUpdate={onUpdate}
+        onIconUpload={onIconUpload}
+        onRemove={onRemove}
+      />,
+    );
+
+    const providerSelect = screen.getByLabelText('Provider (Optional)');
+    expect(providerSelect).toBeInTheDocument();
+    expect(providerSelect.querySelector('option[value="ollama"]')).toBeInTheDocument();
+    expect(providerSelect.querySelector('option[value="lmstudio"]')).toBeInTheDocument();
+  });
+
   it('calls onRemove when remove button is clicked', () => {
     render(
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        settings={mockSettings}
+        availableModels={mockAvailableModels}
         onUpdate={onUpdate}
         onIconUpload={onIconUpload}
         onRemove={onRemove}
@@ -177,6 +259,8 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        settings={mockSettings}
+        availableModels={mockAvailableModels}
         onUpdate={onUpdate}
         onIconUpload={onIconUpload}
         onRemove={onRemove}
