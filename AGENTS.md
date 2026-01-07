@@ -916,6 +916,36 @@ When working with styles and colors in the renderer, always follow these essenti
   - Group related styles together (BackgroundStyles, ButtonStyles, etc.)
   - Reference `ColorPalette` within style definitions
 
+### Tooltip Usage
+- **Always use the shared markdown `Tooltip` component for UI tooltips**
+  - Import `Tooltip` from `packages/renderer/src/components/Tooltip.tsx`
+  - Pass tooltip text as markdown-capable `content` (it will be rendered via `renderMarkdown`)
+  - Wrap the interactive element as the `children` of `Tooltip`
+  - Do not use native `title` attributes for interactive tooltips in the renderer
+
+```typescript
+// ✅ Good: Using markdown Tooltip for a copy button
+import { Tooltip } from '../components/Tooltip';
+
+<Tooltip content="Copy message">
+  <button
+    type="button"
+    aria-label="Copy message to clipboard"
+  >
+    ⧉
+  </button>
+</Tooltip>
+
+// ❌ Bad: Using native title attribute instead of Tooltip
+<button
+  type="button"
+  aria-label="Copy message to clipboard"
+  title="Copy message"
+>
+  ⧉
+</button>
+```
+
 ### Examples
 
 ```typescript

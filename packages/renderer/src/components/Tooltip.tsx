@@ -47,8 +47,8 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, className =
         if (triggerRef.current && tooltipRef.current) {
           const rect = triggerRef.current.getBoundingClientRect();
           const tooltipRect = tooltipRef.current.getBoundingClientRect();
-          const scrollY = globalThis.window.scrollY || globalThis.window.pageYOffset;
-          const scrollX = globalThis.window.scrollX || globalThis.window.pageXOffset;
+          const scrollY = globalThis.window.scrollY;
+          const scrollX = globalThis.window.scrollX;
 
           // Position tooltip above the element, centered
           let top = rect.top + scrollY - tooltipRect.height - 8;
@@ -108,24 +108,26 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, className =
       >
         {children}
       </div>
-      {isVisible && globalThis.document.body && createPortal(
-        <div
-          ref={tooltipRef}
-          className={`
-            fixed z-[9999] px-3 py-2 rounded-lg shadow-xl
-            bg-gray-800 text-white text-sm max-w-md
-            pointer-events-none markdown-content tooltip-content
-            break-words overflow-x-hidden box-border w-full
-            ${className}
-          `}
-          style={{
-            top: `${position.top}px`,
-            left: `${position.left}px`,
-          }}
-          dangerouslySetInnerHTML={{ __html: renderedContent }}
-        />,
-        globalThis.document.body,
-      )}
+      {isVisible
+        ? createPortal(
+          <div
+            ref={tooltipRef}
+            className={`
+              fixed z-[9999] px-3 py-3 rounded-lg shadow-xl
+              bg-gray-800 text-white text-sm max-w-md
+              pointer-events-none markdown-content tooltip-content
+              break-words overflow-x-hidden box-border
+              ${className}
+            `}
+            style={{
+              top: position.top,
+              left: position.left,
+            }}
+            dangerouslySetInnerHTML={{ __html: renderedContent }}
+          />,
+          globalThis.document.body,
+        )
+        : null}
     </>
   );
 };

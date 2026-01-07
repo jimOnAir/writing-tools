@@ -61,6 +61,13 @@ describe('ChatComponent', () => {
 
     // Mock scrollIntoView for DOM elements
     Element.prototype.scrollIntoView = jest.fn();
+
+    // Mock clipboard API
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: jest.fn().mockResolvedValue(undefined),
+      },
+    });
   });
 
   test('renders chat interface with empty message list', () => {
@@ -163,6 +170,85 @@ describe('ChatComponent', () => {
 
     expect(screen.getByText('Hello')).toBeInTheDocument();
     expect(screen.getByText('Hi there')).toBeInTheDocument();
+  });
+
+  test('copies message content to clipboard when copy button is clicked', async () => {
+    const mockMessages: IChatMessage[] = [
+      {
+        id: '1',
+        role: 'user' as const,
+        content: 'Copy this message',
+        timestamp: new Date(),
+      },
+    ];
+
+    let onMessagesChange: ((messages: IChatMessage[]) => void) | undefined;
+
+    mockChatService.setCallbacks.mockImplementation((callbacks) => {
+      onMessagesChange = callbacks.onMessagesChange;
+    });
+
+    render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+    if (onMessagesChange) {
+      const callback = onMessagesChange;
+      act(() => {
+        callback(mockMessages);
+      });
+    }
+
+    const copyButtons = screen.getAllByLabelText('Copy message to clipboard');
+
+    expect(copyButtons.length).toBeGreaterThan(0);
+
+    const writeTextMock = navigator.clipboard.writeText as unknown as jest.Mock;
+
+    fireEvent.click(copyButtons[0]);
+
+    await waitFor(() => {
+      expect(writeTextMock).toHaveBeenCalledWith('Copy this message');
+      expect(copyButtons[0]).toHaveTextContent('✓');
+    });
+  });
+
+  test('handles clipboard write errors without throwing', async () => {
+    const mockMessages: IChatMessage[] = [
+      {
+        id: '1',
+        role: 'assistant' as const,
+        content: 'Message that fails to copy',
+        timestamp: new Date(),
+      },
+    ];
+
+    let onMessagesChange: ((messages: IChatMessage[]) => void) | undefined;
+
+    mockChatService.setCallbacks.mockImplementation((callbacks) => {
+      onMessagesChange = callbacks.onMessagesChange;
+    });
+
+    render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+    if (onMessagesChange) {
+      const callback = onMessagesChange;
+      act(() => {
+        callback(mockMessages);
+      });
+    }
+
+    const writeTextMock = navigator.clipboard.writeText as unknown as jest.Mock;
+
+    writeTextMock.mockRejectedValueOnce(new Error('Copy failed'));
+
+    const copyButtons = screen.getAllByLabelText('Copy message to clipboard');
+
+    expect(copyButtons.length).toBeGreaterThan(0);
+
+    fireEvent.click(copyButtons[0]);
+
+    await waitFor(() => {
+      expect(writeTextMock).toHaveBeenCalledWith('Message that fails to copy');
+    });
   });
 
   test('shows loading state', () => {
