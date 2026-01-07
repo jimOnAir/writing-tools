@@ -96,7 +96,7 @@ export class LMStudioClient {
         throw new Error('No response from LM Studio');
       }
 
-      return { response: data.choices[0].message.content, success: true } as const;
+      return { response: data.choices[0].message.content.trimEnd(), success: true } as const;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error
         ? error.message

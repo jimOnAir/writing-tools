@@ -48,7 +48,7 @@ export class OllamaClient {
 
       const response = await ollama.chat(chatOptions);
 
-      return { response: response.message.content, success: true } as const;
+      return { response: response.message.content.trimEnd(), success: true } as const;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error
         ? error.message

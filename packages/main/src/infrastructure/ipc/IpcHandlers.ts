@@ -270,10 +270,11 @@ export class IpcHandlers implements IIpcHandlers {
       }
 
       // Save assistant response
+      const trimmedContent = fullContent.trimEnd();
       const assistantMessage: IChatMessage = {
         id: `${Date.now().toString()}-response`,
         role: 'assistant',
-        content: fullContent,
+        content: trimmedContent,
         timestamp: new Date(),
       };
 
@@ -287,7 +288,7 @@ export class IpcHandlers implements IIpcHandlers {
       // Send stream end event
       mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_END, {
         chatId,
-        fullContent,
+        fullContent: trimmedContent,
       });
 
       this.logger.info('Streaming completed for chatId=%s', String(chatId));
