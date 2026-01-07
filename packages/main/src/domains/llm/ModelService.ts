@@ -36,15 +36,15 @@ export class ModelService implements IModelService {
     }
   };
 
-  public sendMessages = async (messages: Message[]): Promise<LLMChatResponse> => {
+  public sendMessages = async (messages: Message[], options?: { maxTokens?: number }): Promise<LLMChatResponse> => {
     const settings = await this.settingsService.loadSettings();
     const provider = settings.provider;
 
     switch (provider) {
       case 'lmstudio':
-        return this.lmStudioModelService.sendMessages(messages);
+        return this.lmStudioModelService.sendMessages(messages, options);
       case 'ollama':
-        return this.ollamaModelService.sendMessages(messages);
+        return this.ollamaModelService.sendMessages(messages, options);
       default:
         throw new Error(`Unknown provider: ${String(provider)}`);
     }

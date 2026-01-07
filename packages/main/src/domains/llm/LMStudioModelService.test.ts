@@ -107,6 +107,7 @@ describe('LMStudioModelService', () => {
       expect(mockLMStudioClient.chat).toHaveBeenCalledWith(
         'test-model',
         [{ content: 'Hello', role: 'user' }],
+        undefined,
       );
       expect(result).toEqual({ response: 'Test response', success: true });
     });
@@ -137,6 +138,7 @@ describe('LMStudioModelService', () => {
           { content: 'Hello', role: 'user' },
           { content: 'Hi', role: 'assistant' },
         ],
+        undefined,
       );
     });
 

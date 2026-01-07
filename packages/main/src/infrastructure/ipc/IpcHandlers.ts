@@ -624,7 +624,7 @@ Title:`;
           content: prompt,
           role: 'user',
         },
-      ]);
+      ], { maxTokens: 10 });
 
       if (!response.success) {
         this.logger.error('Failed to generate chat title: %s', response.error);

@@ -33,14 +33,20 @@ export class OllamaClient {
     this.logger = logger;
   }
 
-  public async chat(model: string, messages: Message[]): Promise<OllamaChatResponse> {
+  public async chat(model: string, messages: Message[], options?: { maxTokens?: number }): Promise<OllamaChatResponse> {
     try {
       const ollama = new Ollama({ host: this.config.host });
-      const response = await ollama.chat({
+      const chatOptions: { model: string, messages: Message[], stream: boolean, num_predict?: number } = {
         model,
         messages,
         stream: false,
-      });
+      };
+
+      if (options?.maxTokens !== undefined) {
+        chatOptions.num_predict = options.maxTokens;
+      }
+
+      const response = await ollama.chat(chatOptions);
 
       return { response: response.message.content, success: true } as const;
     } catch (error: unknown) {

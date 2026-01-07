@@ -15,7 +15,7 @@ export interface ILMStudioModelService {
   /**
    * Send messages to LM Studio and get response
    */
-  sendMessages: (messages: Message[]) => Promise<LMStudioChatResponse>;
+  sendMessages: (messages: Message[], options?: { maxTokens?: number }) => Promise<LMStudioChatResponse>;
 
   /**
    * Send messages to LM Studio and get streaming response

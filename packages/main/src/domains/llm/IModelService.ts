@@ -21,7 +21,7 @@ export interface IModelService {
   /**
    * Send messages to the LLM and get response
    */
-  sendMessages: (messages: Message[]) => Promise<LLMChatResponse>;
+  sendMessages: (messages: Message[], options?: { maxTokens?: number }) => Promise<LLMChatResponse>;
 
   /**
    * Send messages to the LLM and get streaming response

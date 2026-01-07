@@ -28,6 +28,7 @@ interface ChatMessage {
 }
 
 interface LMStudioChatRequest {
+  max_tokens?: number;
   model: string;
   messages: ChatMessage[];
   stream: boolean;
@@ -65,7 +66,7 @@ export class LMStudioClient {
     this.logger = logger;
   }
 
-  public async chat(model: string, messages: ChatMessage[]): Promise<LMStudioChatResponse> {
+  public async chat(model: string, messages: ChatMessage[], options?: { maxTokens?: number }): Promise<LMStudioChatResponse> {
     try {
       const url = `${this.config.host}/v1/chat/completions`;
       const requestBody: LMStudioChatRequest = {
@@ -73,6 +74,10 @@ export class LMStudioClient {
         messages,
         stream: false,
       };
+
+      if (options?.maxTokens !== undefined) {
+        requestBody.max_tokens = options.maxTokens;
+      }
 
       const response = await fetch(url, {
         method: 'POST',

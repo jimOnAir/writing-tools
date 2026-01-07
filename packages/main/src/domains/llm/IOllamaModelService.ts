@@ -15,7 +15,7 @@ export interface IOllamaModelService {
   /**
    * Send messages to Ollama and get response
    */
-  sendMessages: (messages: Message[]) => Promise<OllamaChatResponse>;
+  sendMessages: (messages: Message[], options?: { maxTokens?: number }) => Promise<OllamaChatResponse>;
 
   /**
    * Send messages to Ollama and get streaming response

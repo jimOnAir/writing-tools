@@ -26,7 +26,7 @@ export class OllamaModelService implements IOllamaModelService {
     return client.listModels();
   };
 
-  public sendMessages = async (messages: Message[]): Promise<OllamaChatResponse> => {
+  public sendMessages = async (messages: Message[], options?: { maxTokens?: number }): Promise<OllamaChatResponse> => {
     const settings = await this.settingsService.loadSettings();
     const { address, model, apiKey } = settings.ollama;
 
@@ -39,7 +39,7 @@ export class OllamaModelService implements IOllamaModelService {
       apiKey,
     }, this.logger);
 
-    return client.chat(model, messages);
+    return client.chat(model, messages, options);
   };
 
   public sendMessagesStream = async function* (

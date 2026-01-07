@@ -84,7 +84,7 @@ Assistant: ${assistantMessage}
           role: 'user',
           content: prompt,
         },
-      ]);
+      ], { maxTokens: 10 });
 
       if (!response.success) {
         this.logger.error('Failed to generate chat title: %s', response.error);

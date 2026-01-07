@@ -85,7 +85,7 @@ describe('ModelService', () => {
 
       const result = await modelService.sendMessages(messages);
 
-      expect(mockOllamaModelService.sendMessages).toHaveBeenCalledWith(messages);
+      expect(mockOllamaModelService.sendMessages).toHaveBeenCalledWith(messages, undefined);
       expect(result).toEqual(mockResponse);
     });
 
@@ -109,7 +109,7 @@ describe('ModelService', () => {
 
       const result = await modelService.sendMessages(messages);
 
-      expect(mockLMStudioModelService.sendMessages).toHaveBeenCalledWith(messages);
+      expect(mockLMStudioModelService.sendMessages).toHaveBeenCalledWith(messages, undefined);
       expect(result).toEqual(mockResponse);
     });
 

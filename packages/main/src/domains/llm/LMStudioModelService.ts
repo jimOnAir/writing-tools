@@ -26,7 +26,7 @@ export class LMStudioModelService implements ILMStudioModelService {
     return client.listModels();
   };
 
-  public sendMessages = async (messages: Message[]): Promise<LMStudioChatResponse> => {
+  public sendMessages = async (messages: Message[], options?: { maxTokens?: number }): Promise<LMStudioChatResponse> => {
     const settings = await this.settingsService.loadSettings();
     const { address, model, apiKey } = settings.lmstudio;
 
@@ -45,7 +45,7 @@ export class LMStudioModelService implements ILMStudioModelService {
       content: msg.content,
     }));
 
-    return client.chat(model, lmStudioMessages);
+    return client.chat(model, lmStudioMessages, options);
   };
 
   public sendMessagesStream = async function* (

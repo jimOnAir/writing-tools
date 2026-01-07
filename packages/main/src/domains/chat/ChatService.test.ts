@@ -218,7 +218,15 @@ describe('ChatService', () => {
       const title = await chatService.generateChatTitle('User message', 'Assistant response');
 
       expect(title).toBe('Test Title');
-      expect(mockModelService.sendMessages).toHaveBeenCalled();
+      expect(mockModelService.sendMessages).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            role: 'user',
+            content: expect.stringContaining('Generate a concise simple text title'),
+          }),
+        ]),
+        { maxTokens: 10 },
+      );
     });
 
     it('removes quotes from title', async () => {
