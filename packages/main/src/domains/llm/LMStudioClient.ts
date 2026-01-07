@@ -113,15 +113,15 @@ export class LMStudioClient {
       // Extract statistics from LM Studio response
       const statistics: IMessageStatistics | undefined = data.usage !== undefined
         ? {
-            provider: 'lmstudio',
-            model: data.model,
-            generatedAt: new Date(),
-            lmstudio: {
-              promptTokens: data.usage.prompt_tokens,
-              completionTokens: data.usage.completion_tokens,
-              totalTokens: data.usage.total_tokens,
-            },
-          }
+          provider: 'lmstudio',
+          model: data.model,
+          generatedAt: new Date(),
+          lmstudio: {
+            promptTokens: data.usage.prompt_tokens,
+            completionTokens: data.usage.completion_tokens,
+            totalTokens: data.usage.total_tokens,
+          },
+        }
         : undefined;
 
       return {

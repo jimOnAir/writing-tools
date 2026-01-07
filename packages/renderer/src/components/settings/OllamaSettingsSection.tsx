@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { ButtonStyles, InputStyles, BackgroundStyles, TypographyStyles, LayoutStyles, SpinnerIcon, ColorPalette } from '../../styles/Styles';
+import { ButtonStyles, ButtonSizeStyles, InputStyles, BackgroundStyles, TypographyStyles, LayoutStyles, SpinnerIcon, ColorPalette } from '../../styles/Styles';
 
 export interface OllamaSettingsSectionProps {
   readonly address: string;
@@ -79,7 +79,7 @@ export const OllamaSettingsSection: React.FC<OllamaSettingsSectionProps> = ({
           <button
             onClick={onRefreshModels}
             disabled={loadingModels}
-            className={`${ButtonStyles.base} ${loadingModels ? ButtonStyles.disabled : ButtonStyles.primary} whitespace-nowrap`}
+            className={`${ButtonStyles.base} ${ButtonSizeStyles.default} ${loadingModels ? ButtonStyles.disabled : ButtonStyles.primary} whitespace-nowrap`}
           >
             {loadingModels ? (
               <span className="flex items-center">

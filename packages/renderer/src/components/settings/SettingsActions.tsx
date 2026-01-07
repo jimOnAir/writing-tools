@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { ButtonStyles, LayoutStyles } from '../../styles/Styles';
+import { ButtonStyles, ButtonSizeStyles, LayoutStyles } from '../../styles/Styles';
 
 interface SettingsActionsProps {
   readonly hasUnsavedChanges: boolean;
@@ -20,14 +20,14 @@ export const SettingsActions: React.FC<SettingsActionsProps> = ({
           void onSave();
         }}
         disabled={!hasUnsavedChanges}
-        className={`${ButtonStyles.base} ${hasUnsavedChanges ? ButtonStyles.success : ButtonStyles.disabled} whitespace-nowrap`}
+        className={`${ButtonStyles.base} ${ButtonSizeStyles.default} ${hasUnsavedChanges ? ButtonStyles.success : ButtonStyles.disabled} whitespace-nowrap`}
       >
         Save
       </button>
       <button
         onClick={onCancel}
         disabled={!hasUnsavedChanges}
-        className={`${ButtonStyles.base} ${hasUnsavedChanges ? ButtonStyles.cancel : ButtonStyles.disabled} whitespace-nowrap`}
+        className={`${ButtonStyles.base} ${ButtonSizeStyles.default} ${hasUnsavedChanges ? ButtonStyles.cancel : ButtonStyles.disabled} whitespace-nowrap`}
       >
         Cancel
       </button>

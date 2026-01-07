@@ -63,9 +63,15 @@ export const BackgroundStyles = {
   loadingBubble: `${ColorPalette.background.loading} rounded-xl shadow-sm`,
 };
 
+// Button size styles
+export const ButtonSizeStyles = {
+  default: 'px-5 py-2.5 rounded-lg',
+  small: 'w-6 h-6 p-0 rounded flex items-center justify-center',
+};
+
 // Button styles
 export const ButtonStyles = {
-  base: `px-5 py-2.5 rounded-lg font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900`,
+  base: `font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900`,
   primary: `${ColorPalette.button.primary} ${ColorPalette.button.primaryHover} ${ColorPalette.text.primary} ${ColorPalette.button.primaryFocus} hover:shadow-lg hover:shadow-purple-600/30 active:scale-[0.98]`,
   secondary: `${ColorPalette.button.secondary} ${ColorPalette.button.secondaryHover} ${ColorPalette.text.primary} focus:ring-gray-500 hover:shadow-lg hover:shadow-gray-700/50 active:scale-[0.98]`,
   success: `${ColorPalette.button.success} ${ColorPalette.button.successHover} ${ColorPalette.text.primary} ${ColorPalette.button.successFocus} hover:shadow-lg hover:shadow-green-500/30 active:scale-[0.98]`,

@@ -56,18 +56,18 @@ export class OllamaClient {
 
       const statistics: IMessageStatistics | undefined = responseWithStats.total_duration !== undefined || responseWithStats.eval_count !== undefined
         ? {
-            provider: 'ollama',
-            model,
-            generatedAt: new Date(),
-            ollama: {
-              totalDuration: responseWithStats.total_duration,
-              loadDuration: responseWithStats.load_duration,
-              promptEvalCount: responseWithStats.prompt_eval_count,
-              promptEvalDuration: responseWithStats.prompt_eval_duration,
-              evalCount: responseWithStats.eval_count,
-              evalDuration: responseWithStats.eval_duration,
-            },
-          }
+          provider: 'ollama',
+          model,
+          generatedAt: new Date(),
+          ollama: {
+            totalDuration: responseWithStats.total_duration,
+            loadDuration: responseWithStats.load_duration,
+            promptEvalCount: responseWithStats.prompt_eval_count,
+            promptEvalDuration: responseWithStats.prompt_eval_duration,
+            evalCount: responseWithStats.eval_count,
+            evalDuration: responseWithStats.eval_duration,
+          },
+        }
         : undefined;
 
       // Log statistics extraction for debugging

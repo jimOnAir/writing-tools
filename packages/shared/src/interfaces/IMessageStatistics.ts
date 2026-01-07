@@ -25,32 +25,32 @@ export interface IMessageStatistics {
     /**
      * Total duration in nanoseconds
      */
-    totalDuration?: number;
+    totalDuration?: number,
 
     /**
      * Model load duration in nanoseconds
      */
-    loadDuration?: number;
+    loadDuration?: number,
 
     /**
      * Number of tokens in the prompt (input)
      */
-    promptEvalCount?: number;
+    promptEvalCount?: number,
 
     /**
      * Time taken to evaluate the prompt in nanoseconds
      */
-    promptEvalDuration?: number;
+    promptEvalDuration?: number,
 
     /**
      * Number of tokens generated (output)
      */
-    evalCount?: number;
+    evalCount?: number,
 
     /**
      * Time taken to generate output tokens in nanoseconds
      */
-    evalDuration?: number;
+    evalDuration?: number,
   };
 
   /**
@@ -60,16 +60,16 @@ export interface IMessageStatistics {
     /**
      * Number of tokens in the prompt
      */
-    promptTokens?: number;
+    promptTokens?: number,
 
     /**
      * Number of tokens in the completion
      */
-    completionTokens?: number;
+    completionTokens?: number,
 
     /**
      * Total tokens (prompt + completion)
      */
-    totalTokens?: number;
+    totalTokens?: number,
   };
 }

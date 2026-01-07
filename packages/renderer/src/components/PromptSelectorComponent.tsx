@@ -2,7 +2,7 @@ import type { IPreconfiguredPrompt } from '@writing-tools/shared';
 import React, { useState, useEffect } from 'react';
 
 import type { PromptSelectorService } from '../domains/prompt-selector';
-import { ButtonStyles, InputStyles, BackgroundStyles, TypographyStyles, CardStyles, LayoutStyles, ColorPalette } from '../styles/Styles';
+import { ButtonStyles, ButtonSizeStyles, InputStyles, BackgroundStyles, TypographyStyles, CardStyles, LayoutStyles, ColorPalette } from '../styles/Styles';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
 interface PromptSelectorComponentProps {
@@ -116,7 +116,7 @@ const PromptSelectorComponent: React.FC<PromptSelectorComponentProps> = ({ promp
             void handleCustomPromptSubmit();
           }}
           disabled={customPrompt.trim() === ''}
-          className={`${ButtonStyles.base} ${
+          className={`${ButtonStyles.base} ${ButtonSizeStyles.default} ${
             customPrompt.trim() === ''
               ? ButtonStyles.disabled
               : ButtonStyles.primary

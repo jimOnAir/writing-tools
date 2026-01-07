@@ -2,7 +2,7 @@ import type { IChatMessage } from '@writing-tools/shared';
 import React, { useState, useEffect, useRef } from 'react';
 
 import type { ChatService } from '../domains/chat';
-import { ButtonStyles, MessageStyles, InputStyles, NotificationStyles, LoadingStyles, BackgroundStyles, LayoutStyles, SpinnerIcon, ColorPalette, TypographyStyles } from '../styles/Styles';
+import { ButtonStyles, ButtonSizeStyles, MessageStyles, InputStyles, NotificationStyles, LoadingStyles, BackgroundStyles, LayoutStyles, SpinnerIcon, ColorPalette, TypographyStyles } from '../styles/Styles';
 import { formatStatistics } from '../utils/formatStatistics';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
@@ -231,13 +231,13 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
                   </div>
                   {!isStreamingMessage && (
                     <div
-                      className={`flex gap-1 ${message.role === 'user' ? 'justify-end' : 'justify-start'} opacity-0 transition-opacity duration-150 group-hover:opacity-100`}
+                      className={`flex gap-2 ${message.role === 'user' ? 'justify-end' : 'justify-start'} opacity-0 transition-opacity duration-150 group-hover:opacity-100`}
                     >
                       {message.role === 'assistant' && message.statistics !== undefined && (
                         <Tooltip content={formatStatistics(message.statistics)}>
                           <button
                             type="button"
-                            className={`${ButtonStyles.base} ${ButtonStyles.ghost} px-1 py-0.5 whitespace-nowrap`}
+                            className={`${ButtonStyles.base} ${ButtonSizeStyles.small} ${ButtonStyles.ghost} whitespace-nowrap`}
                             aria-label="Show message statistics"
                           >
                             <span
@@ -252,7 +252,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
                       <Tooltip content="Copy message">
                         <button
                           type="button"
-                          className={`${ButtonStyles.base} ${ButtonStyles.ghost} px-1 py-0.5 whitespace-nowrap`}
+                          className={`${ButtonStyles.base} ${ButtonSizeStyles.small} ${ButtonStyles.ghost} whitespace-nowrap`}
                           onClick={() => {
                             void handleCopyMessage(message.id, message.content);
                           }}
@@ -337,7 +337,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
             void handleSendMessage();
           }}
           disabled={isLoading || !inputValue.trim()}
-          className={`${ButtonStyles.base} ${
+          className={`${ButtonStyles.base} ${ButtonSizeStyles.default} ${
             isLoading || !inputValue.trim()
               ? ButtonStyles.disabled
               : ButtonStyles.primary

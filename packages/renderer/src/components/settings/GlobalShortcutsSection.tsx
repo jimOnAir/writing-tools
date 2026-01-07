@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { ButtonStyles, InputStyles, BackgroundStyles, TypographyStyles, LayoutStyles, ColorPalette } from '../../styles/Styles';
+import { ButtonStyles, ButtonSizeStyles, InputStyles, BackgroundStyles, TypographyStyles, LayoutStyles, ColorPalette } from '../../styles/Styles';
 import { CloseIcon } from '../icons';
 
 export interface GlobalShortcutsSectionProps {
@@ -33,7 +33,7 @@ export const GlobalShortcutsSection: React.FC<GlobalShortcutsSectionProps> = ({
         />
         <button
           onClick={onSetShortcut}
-          className={`${ButtonStyles.base} ${ButtonStyles.primary} whitespace-nowrap`}
+          className={`${ButtonStyles.base} ${ButtonSizeStyles.default} ${ButtonStyles.primary} whitespace-nowrap`}
         >
           Set Shortcut
         </button>

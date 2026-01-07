@@ -1,7 +1,7 @@
 import type { IPreconfiguredPrompt } from '@writing-tools/shared';
 import React from 'react';
 
-import { ButtonStyles, TypographyStyles, LayoutStyles, BackgroundStyles } from '../../styles/Styles';
+import { ButtonStyles, ButtonSizeStyles, TypographyStyles, LayoutStyles, BackgroundStyles } from '../../styles/Styles';
 
 import { PreconfiguredPromptItem } from './PreconfiguredPromptItem';
 
@@ -44,7 +44,7 @@ export const PreconfiguredPromptsSection: React.FC<PreconfiguredPromptsSectionPr
         })}
         <button
           onClick={onAdd}
-          className={`${ButtonStyles.base} ${ButtonStyles.primary} w-full whitespace-nowrap`}
+          className={`${ButtonStyles.base} ${ButtonSizeStyles.default} ${ButtonStyles.primary} w-full whitespace-nowrap`}
         >
           Add Prompt
         </button>
