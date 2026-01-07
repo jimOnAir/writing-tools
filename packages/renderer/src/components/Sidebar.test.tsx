@@ -9,6 +9,9 @@ import { Sidebar } from './Sidebar';
 // Mock getNativeStyles and getPlatform
 jest.mock('../styles/NativeStyles', () => ({
   getNativeStyles: jest.fn(() => ({
+    button: {
+      settings: 'settings-button',
+    },
     sidebar: {
       background: 'sidebar-bg',
       border: 'sidebar-border',
@@ -38,6 +41,7 @@ describe('Sidebar', () => {
   let mockMultiChatService: jest.Mocked<MultiChatService>;
   let onChatSelect: jest.Mock;
   let onCreateNewTab: jest.Mock;
+  let onOpenSettings: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -57,6 +61,7 @@ describe('Sidebar', () => {
 
     onChatSelect = jest.fn();
     onCreateNewTab = jest.fn();
+    onOpenSettings = jest.fn();
   });
 
   it('renders sidebar in expanded state by default', async () => {
@@ -66,6 +71,7 @@ describe('Sidebar', () => {
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
+        onOpenSettings={onOpenSettings}
       />,
     );
 
@@ -74,6 +80,7 @@ describe('Sidebar', () => {
     });
 
     expect(screen.getByText('New Chat')).toBeInTheDocument();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
   it('toggles sidebar when toggle button is clicked', async () => {
@@ -83,6 +90,7 @@ describe('Sidebar', () => {
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
+        onOpenSettings={onOpenSettings}
       />,
     );
 
@@ -104,6 +112,7 @@ describe('Sidebar', () => {
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
+        onOpenSettings={onOpenSettings}
       />,
     );
 
@@ -124,6 +133,7 @@ describe('Sidebar', () => {
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
+        onOpenSettings={onOpenSettings}
       />,
     );
 
@@ -144,6 +154,7 @@ describe('Sidebar', () => {
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
+        onOpenSettings={onOpenSettings}
       />,
     );
 
@@ -159,6 +170,7 @@ describe('Sidebar', () => {
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
+        onOpenSettings={onOpenSettings}
       />,
     );
 
@@ -167,5 +179,48 @@ describe('Sidebar', () => {
     });
 
     expect(screen.getByLabelText('New Chat')).toBeInTheDocument();
+    expect(screen.getByLabelText('Open settings')).toBeInTheDocument();
+  });
+
+  it('calls onOpenSettings when "Settings" button is clicked', async () => {
+    render(
+      <Sidebar
+        chatListService={mockChatListService}
+        multiChatService={mockMultiChatService}
+        onChatSelect={onChatSelect}
+        onCreateNewTab={onCreateNewTab}
+        onOpenSettings={onOpenSettings}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Open settings')).toBeInTheDocument();
+    });
+
+    const settingsButton = screen.getByLabelText('Open settings');
+    fireEvent.click(settingsButton);
+
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides settings button when collapsed', async () => {
+    render(
+      <Sidebar
+        chatListService={mockChatListService}
+        multiChatService={mockMultiChatService}
+        onChatSelect={onChatSelect}
+        onCreateNewTab={onCreateNewTab}
+        onOpenSettings={onOpenSettings}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Collapse sidebar')).toBeInTheDocument();
+    });
+
+    const toggleButton = screen.getByLabelText('Collapse sidebar');
+    fireEvent.click(toggleButton);
+
+    expect(screen.queryByLabelText('Open settings')).not.toBeInTheDocument();
   });
 });

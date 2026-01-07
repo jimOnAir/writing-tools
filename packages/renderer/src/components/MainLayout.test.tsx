@@ -21,7 +21,14 @@ jest.mock('./PromptSelectorComponent', () => ({
 }));
 
 jest.mock('./Sidebar', () => ({
-  Sidebar: jest.fn(() => <div>Sidebar</div>),
+  Sidebar: jest.fn(({ onOpenSettings }: { onOpenSettings: () => void }) => (
+    <div>
+      Sidebar
+      <button type="button" onClick={onOpenSettings} aria-label="Open settings">
+        Settings
+      </button>
+    </div>
+  )),
 }));
 
 jest.mock('./tabs', () => ({

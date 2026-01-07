@@ -6,16 +6,17 @@ import { getNativeStyles } from '../styles/NativeStyles';
 import { getPlatform } from '../utils/platformDetection';
 
 import ChatListComponent from './ChatListComponent';
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from './icons';
+import { ChevronLeftIcon, ChevronRightIcon, GearIcon, PlusIcon } from './icons';
 
 interface SidebarProps {
   readonly chatListService: ChatListService;
   readonly multiChatService: MultiChatService;
   readonly onChatSelect: (chatId: number) => void;
   readonly onCreateNewTab: () => void;
+  readonly onOpenSettings: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ chatListService, multiChatService, onChatSelect, onCreateNewTab }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ chatListService, multiChatService, onChatSelect, onCreateNewTab, onOpenSettings }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [platform, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
 
@@ -68,8 +69,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ chatListService, multiChatServ
         )}
       </div>
       {isExpanded && (
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-auto">
           <ChatListComponent chatListService={chatListService} multiChatService={multiChatService} onChatSelect={onChatSelect} />
+        </div>
+      )}
+      {isExpanded && (
+        <div className="sticky bottom-0 p-3 border-t border-gray-700/30">
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className={`${nativeStyles.button.settings} w-full whitespace-nowrap flex items-center justify-center gap-2`}
+            aria-label="Open settings"
+          >
+            <GearIcon size={18} />
+            <span>Settings</span>
+          </button>
         </div>
       )}
     </div>

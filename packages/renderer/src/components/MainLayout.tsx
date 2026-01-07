@@ -10,7 +10,6 @@ import { getPlatform } from '../utils/platformDetection';
 import { isErrorResponse } from '../utils/responseTypeGuards';
 
 import ChatComponent from './ChatComponent';
-import { SettingsIcon } from './icons';
 import PromptSelectorComponent from './PromptSelectorComponent';
 import { SettingsModal } from './SettingsModal';
 import { Sidebar } from './Sidebar';
@@ -135,22 +134,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   return (
     <div className={`flex h-screen w-screen overflow-hidden ${BackgroundStyles.main}`}>
-      <Sidebar chatListService={chatListService} multiChatService={multiChatService} onChatSelect={handleChatSelect} onCreateNewTab={handleCreateNewTab} />
+      <Sidebar
+        chatListService={chatListService}
+        multiChatService={multiChatService}
+        onChatSelect={handleChatSelect}
+        onCreateNewTab={handleCreateNewTab}
+        onOpenSettings={() => {
+          setIsSettingsOpen(true);
+        }}
+      />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className={`${nativeStyles.header.background} ${nativeStyles.header.border} flex items-center justify-between px-6 py-3`}>
-          <div className="flex-1" />
-          <button
-            type="button"
-            onClick={() => {
-              setIsSettingsOpen(true);
-            }}
-            className={`${nativeStyles.button.settings} flex items-center gap-2`}
-            aria-label="Open settings"
-          >
-            <SettingsIcon size={18} />
-            <span>Settings</span>
-          </button>
-        </div>
         <TabBar multiChatService={multiChatService} />
         <div className={`flex-1 overflow-hidden p-6 ${BackgroundStyles.main}`}>
           {(() => {
