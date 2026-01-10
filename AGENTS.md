@@ -410,21 +410,11 @@ public async processData(data: string): Promise<void> {
 ```typescript
 // ✅ Good: Service initialization logging
 export class EntityService implements IEntityService {
-  public constructor(repository: IEntityRepository, logger: ILogger) {
-    this.logger = logger;
-    this.repository = repository;
+  public constructor(
+    private readonly repository: IEntityRepository,
+    private readonly logger: ILogger
+    ) {
     this.logger.info('EntityService initialized');
-  }
-
-  public async initialize(): Promise<void> {
-    try {
-      await this.repository.initialize();
-      this.logger.info('EntityService ready');
-    } catch (error: unknown) {
-      const errorText = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to initialize EntityService: %s', errorText);
-      throw error;
-    }
   }
 }
 ```
@@ -437,9 +427,10 @@ export class EntityService implements IEntityService {
   private readonly logger: ILogger;
   private readonly repository: IEntityRepository;
 
-  public constructor(repository: IEntityRepository, logger: ILogger) {
-    this.logger = logger;
-    this.repository = repository;
+  public constructor(
+    private readonly repository: IEntityRepository,
+    private readonly logger: ILogger
+    ) {
     this.logger.info('EntityService initialized');
   }
 
@@ -651,7 +642,6 @@ export type TIpcEventPayloadMap = {
   [EIpcEvent.CHAT_LIST_CHATS]: TChatListChatsPayload,
   [EIpcEvent.CHAT_LOAD_MESSAGES]: TChatLoadMessagesPayload,
   [EIpcEvent.CHAT_OPEN]: TChatOpenPayload,
-  [EIpcEvent.CHAT_SEND_MESSAGE]: TChatSendMessagePayload,
   [EIpcEvent.ENV_GET]: TEnvGetPayload,
   [EIpcEvent.MODEL_LIST]: TModelListPayload,
   [EIpcEvent.PROMPT_SELECT]: TPromptSelectPayload,
@@ -2435,8 +2425,6 @@ describe('ChatRepository', () => {
   beforeEach(async () => {
     testDbPath = path.join(__dirname, 'test-chat.db');
     repository = new ChatRepository();
-    // Override database path for testing
-    await repository.initialize();
   });
 
   afterEach(async () => {

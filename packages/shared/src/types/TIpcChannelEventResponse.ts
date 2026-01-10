@@ -26,8 +26,6 @@ export type TChatSendMessageSuccessResponse = { response: string };
 
 export type TChatSendMessageFailedResponse = { error: string };
 
-export type TChatSendMessageResponse = TChatSendMessageSuccessResponse | TChatSendMessageFailedResponse;
-
 export type TChatCreateSessionSuccessResponse = { chatId: number };
 
 export type TChatCreateSessionFailedResponse = { error: string };
@@ -87,16 +85,15 @@ export type TChatSendMessageStreamFailedResponse = { error: string, started: fal
 export type TChatSendMessageStreamResponse = TChatSendMessageStreamSuccessResponse | TChatSendMessageStreamFailedResponse;
 
 export type TIpcResponsePayloadMap = {
-  [EIpcEvent.CHAT_CREATE_SESSION]: TChatCreateSessionResponse,
+  [EIpcEvent.CHAT_CREATE]: TChatCreateSessionResponse,
   [EIpcEvent.CHAT_DELETE]: TChatDeleteResponse,
   [EIpcEvent.CHAT_GET]: TChatGetResponse,
-  [EIpcEvent.CHAT_LIST_CHATS]: TChatListChatsResponse,
-  [EIpcEvent.CHAT_LOAD_MESSAGES]: TChatLoadMessagesResponse,
-  [EIpcEvent.CHAT_LOAD_TABS]: TChatLoadTabsResponse,
+  [EIpcEvent.CHAT_LIST]: TChatListChatsResponse,
+  [EIpcEvent.MESSAGES_LOAD]: TChatLoadMessagesResponse,
+  [EIpcEvent.TABS_LOAD]: TChatLoadTabsResponse,
   [EIpcEvent.CHAT_OPEN]: TChatOpenResponse,
-  [EIpcEvent.CHAT_SAVE_TABS]: TChatSaveTabsResponse,
-  [EIpcEvent.CHAT_SEND_MESSAGE]: TChatSendMessageResponse,
-  [EIpcEvent.CHAT_SEND_MESSAGE_STREAM]: TChatSendMessageStreamResponse,
+  [EIpcEvent.TABS_SAVE]: TChatSaveTabsResponse,
+  [EIpcEvent.MESSAGE_SEND_STREAM]: TChatSendMessageStreamResponse,
   [EIpcEvent.ENV_GET]: TEnvGetResponse,
   [EIpcEvent.MODEL_LIST]: TModelListResponse,
   [EIpcEvent.PROMPT_SELECT]: TPromptSelectResponse,

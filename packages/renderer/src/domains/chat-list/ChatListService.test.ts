@@ -85,7 +85,7 @@ describe('ChatListService', () => {
       expect(mockIpcAdapter.invoke).toHaveBeenCalledWith(
         EIpcChannel.CHAT,
         expect.objectContaining({
-          event: EIpcEvent.CHAT_LIST_CHATS,
+          event: EIpcEvent.CHAT_LIST,
         }),
       );
       expect(onChatsChange).toHaveBeenCalledWith(mockChats);
@@ -244,7 +244,7 @@ describe('ChatListService', () => {
         2,
         EIpcChannel.CHAT,
         expect.objectContaining({
-          event: EIpcEvent.CHAT_LIST_CHATS,
+          event: EIpcEvent.CHAT_LIST,
         }),
       );
     });

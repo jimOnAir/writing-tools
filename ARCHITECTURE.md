@@ -544,13 +544,13 @@ export class ChatListService {
     this.setError(null);
 
     try {
-      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS> = {
+      const message: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS> = {
         channel: EIpcChannel.CHAT,
         event: EIpcEvent.CHAT_LIST_CHATS,
         payload: {},
       };
 
-      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+      const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isErrorResponse(response)) {
         throw new Error(response.error);
@@ -710,7 +710,7 @@ Always use these type guards instead of direct property checks to ensure type sa
 // ✅ Good: Using type guards from utils
 import { isErrorResponse, isFailedResponse } from '../utils/responseTypeGuards';
 
-const response = await ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+const response = await ipcAdapter.invoke(message.channel, message);
 
 if (isErrorResponse(response)) {
   throw new Error(response.error);
@@ -892,13 +892,13 @@ export class ChatListService {
     this.setError(null);
 
     try {
-      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS> = {
+      const message: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS> = {
         channel: EIpcChannel.CHAT,
         event: EIpcEvent.CHAT_LIST_CHATS,
         payload: {},
       };
 
-      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+      const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isErrorResponse(response)) {
         throw new Error(response.error);
@@ -984,10 +984,6 @@ export class ChatRepository implements IChatRepository {
     this.dbConnection = dbConnection;
   }
 
-  public async initialize(): Promise<void> {
-    // Initialize database connection
-  }
-
   public createChat(title: string, provider: string, model: string): number {
     // Create chat in database
   }
@@ -1005,18 +1001,15 @@ The application uses a shared `DatabaseConnection` instance:
 ```typescript
 // packages/main/src/infrastructure/database/DatabaseConnection.ts
 export class DatabaseConnection {
-  private readonly logger: ILogger;
-  private readonly dbPath: string;
   private db: Database | null = null;
 
-  public constructor(logger: ILogger, appPath: string) {
-    this.logger = logger;
-    this.dbPath = path.join(appPath, 'chats.db');
+  public constructor(
+    private readonly logger: ILogger,
+    private readonly appPath: string
+    ) {
+    this.dbPath = path.join(this.appPath, 'chats.db');
   }
 
-  public async initialize(): Promise<void> {
-    // Initialize SQLite database connection
-  }
 
   public getDatabase(): Database {
     if (this.db === null) {

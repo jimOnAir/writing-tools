@@ -11,13 +11,11 @@ import * as schema from './schema';
 export class DatabaseConnection {
   private db: Database.Database | null = null;
   private drizzleDb: BetterSQLite3Database<typeof schema> | null = null;
-  private readonly appPath: string;
-  private readonly logger: ILogger;
 
-  public constructor(logger: ILogger, appPath: string) {
-    this.logger = logger;
-    this.appPath = appPath;
-  }
+  public constructor(
+    private readonly logger: ILogger,
+    private readonly appPath: string,
+  ) {}
 
   public async initialize(): Promise<void> {
     try {

@@ -32,66 +32,72 @@ function getPreloadPath(): string {
 }
 
 export class WindowService implements IWindowService {
-  private chatListWindow: Electron.BrowserWindow | null = null;
+  private mainWindow: Electron.BrowserWindow | null = null;
 
   public async getMainWindow(): Promise<WindowCreationResult> {
     // First check our tracked window
-    if (this.chatListWindow && !this.chatListWindow.isDestroyed()) {
-      this.chatListWindow.show();
-      this.chatListWindow.focus();
+    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+      this.mainWindow.show();
+      this.mainWindow.focus();
 
-      return { created: false, window: this.chatListWindow };
+      return { created: false, window: this.mainWindow };
     }
 
     // If tracked window is null or destroyed, try to find existing window
     const existingWindow = this.findExistingMainWindow();
     if (existingWindow) {
       // Re-track the window
-      this.chatListWindow = existingWindow;
+      this.mainWindow = existingWindow;
       // Re-register closed handler
-      this.chatListWindow.on('closed', () => {
-        this.chatListWindow = null;
+      this.mainWindow.on('closed', () => {
+        this.mainWindow = null;
       });
-      this.chatListWindow.show();
-      this.chatListWindow.focus();
+      this.mainWindow.show();
+      this.mainWindow.focus();
 
-      return { created: false, window: this.chatListWindow };
+      return { created: false, window: this.mainWindow };
     }
 
-    this.chatListWindow = new BrowserWindow({
+    this.mainWindow = new BrowserWindow({
       ...this.getNativeWindowOptions(),
       height: 900,
       width: 1400,
-      title: 'Chat List',
+      title: 'Writing tools',
       resizable: true,
       maximizable: true,
       minimizable: true,
       minWidth: 600,
       minHeight: 400,
     });
-    this.chatListWindow.setMenu(null);
+    this.mainWindow.setMenu(null);
 
     const rendererUrl = this.getRendererUrl();
 
     // Wait for window to be ready before showing to prevent white flash
-    this.chatListWindow.once('ready-to-show', () => {
-      if (this.chatListWindow) {
-        this.chatListWindow.show();
-        this.chatListWindow.focus();
+    this.mainWindow.once('ready-to-show', () => {
+      if (this.mainWindow) {
+        this.mainWindow.show();
+        this.mainWindow.focus();
       }
     });
 
-    await this.chatListWindow.loadURL(rendererUrl);
+    await this.mainWindow.loadURL(rendererUrl);
 
     if (isDev) {
-      this.chatListWindow.webContents.openDevTools({ mode: 'detach' });
+      this.mainWindow.webContents.openDevTools({ mode: 'detach' });
     }
 
-    this.chatListWindow.on('closed', () => {
-      this.chatListWindow = null;
+    this.mainWindow.on('closed', () => {
+      this.mainWindow = null;
     });
 
-    return { window: this.chatListWindow, created: true };
+    await new Promise<void>((resolve) => {
+      this.mainWindow!.once('ready-to-show', () => {
+        resolve();
+      });
+    });
+
+    return { window: this.mainWindow, created: true };
   }
 
   /**

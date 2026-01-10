@@ -11,19 +11,11 @@ import type { IOllamaModelService } from './IOllamaModelService';
  * Implements IModelService by delegating to provider-specific services
  */
 export class ModelService implements IModelService {
-  private readonly lmStudioModelService: ILMStudioModelService;
-  private readonly ollamaModelService: IOllamaModelService;
-  private readonly settingsService: ISettingsService;
-
   public constructor(
-    settingsService: ISettingsService,
-    ollamaModelService: IOllamaModelService,
-    lmStudioModelService: ILMStudioModelService,
-  ) {
-    this.lmStudioModelService = lmStudioModelService;
-    this.ollamaModelService = ollamaModelService;
-    this.settingsService = settingsService;
-  }
+    private readonly settingsService: ISettingsService,
+    private readonly ollamaModelService: IOllamaModelService,
+    private readonly lmStudioModelService: ILMStudioModelService,
+  ) {}
 
   public fetchModels = async (provider: 'ollama' | 'lmstudio'): Promise<{ models: string[] } | { error: string, models: string[] }> => {
     switch (provider) {
@@ -37,35 +29,30 @@ export class ModelService implements IModelService {
   };
 
   public sendMessages = async (messages: Message[], options?: { maxTokens?: number }): Promise<LLMChatResponse> => {
-    const settings = await this.settingsService.loadSettings();
-    const provider = settings.provider;
+    const provider = await this.getProvider();
 
-    switch (provider) {
-      case 'lmstudio':
-        return this.lmStudioModelService.sendMessages(messages, options);
-      case 'ollama':
-        return this.ollamaModelService.sendMessages(messages, options);
-      default:
-        throw new Error(`Unknown provider: ${String(provider)}`);
-    }
+    return provider.sendMessages(messages, options);
   };
 
   public sendMessagesStream = async function* (
     this: ModelService,
     messages: Message[],
   ): AsyncGenerator<LLMStreamChunk, void> {
-    const settings = await this.settingsService.loadSettings();
-    const provider = settings.provider;
+    const provider = await this.getProvider();
 
+    yield* provider.sendMessagesStream(messages);
+  };
+
+  private async getProvider(preferredProvider?: 'ollama' | 'lmstudio') {
+    const settings = await this.settingsService.loadSettings();
+    const provider = preferredProvider ?? settings.provider;
     switch (provider) {
       case 'lmstudio':
-        yield* this.lmStudioModelService.sendMessagesStream(messages);
-        break;
+        return this.lmStudioModelService;
       case 'ollama':
-        yield* this.ollamaModelService.sendMessagesStream(messages);
-        break;
+        return this.ollamaModelService;
       default:
         throw new Error(`Unknown provider: ${String(provider)}`);
     }
-  };
+  }
 }

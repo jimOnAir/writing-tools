@@ -12,8 +12,6 @@ export type TSettingsLoadPayload = Record<string, never>;
 
 export type TModelListPayload = { provider: 'ollama' | 'lmstudio' };
 
-export type TChatSendMessagePayload = { chatId: number, messages: IChatMessage[] };
-
 export type TChatCreateSessionPayload = Record<string, never>;
 
 export type TChatLoadMessagesPayload = { chatId: number };
@@ -41,16 +39,15 @@ export type TPromptSelectPayload = {
 export type TChatSendMessageStreamPayload = { chatId: number, messages: IChatMessage[] };
 
 export type TIpcEventPayloadMap = {
-  [EIpcEvent.CHAT_CREATE_SESSION]: TChatCreateSessionPayload,
+  [EIpcEvent.CHAT_CREATE]: TChatCreateSessionPayload,
   [EIpcEvent.CHAT_DELETE]: TChatDeletePayload,
   [EIpcEvent.CHAT_GET]: TChatGetPayload,
-  [EIpcEvent.CHAT_LIST_CHATS]: TChatListChatsPayload,
-  [EIpcEvent.CHAT_LOAD_MESSAGES]: TChatLoadMessagesPayload,
-  [EIpcEvent.CHAT_LOAD_TABS]: TChatLoadTabsPayload,
+  [EIpcEvent.CHAT_LIST]: TChatListChatsPayload,
+  [EIpcEvent.MESSAGES_LOAD]: TChatLoadMessagesPayload,
+  [EIpcEvent.TABS_LOAD]: TChatLoadTabsPayload,
   [EIpcEvent.CHAT_OPEN]: TChatOpenPayload,
-  [EIpcEvent.CHAT_SAVE_TABS]: TChatSaveTabsPayload,
-  [EIpcEvent.CHAT_SEND_MESSAGE]: TChatSendMessagePayload,
-  [EIpcEvent.CHAT_SEND_MESSAGE_STREAM]: TChatSendMessageStreamPayload,
+  [EIpcEvent.TABS_SAVE]: TChatSaveTabsPayload,
+  [EIpcEvent.MESSAGE_SEND_STREAM]: TChatSendMessageStreamPayload,
   [EIpcEvent.ENV_GET]: TEnvGetPayload,
   [EIpcEvent.MODEL_LIST]: TModelListPayload,
   [EIpcEvent.PROMPT_SELECT]: TPromptSelectPayload,

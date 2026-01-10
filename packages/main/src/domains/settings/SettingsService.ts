@@ -4,11 +4,9 @@ import type { ISettingsRepository } from './ISettingsRepository';
 import type { ISettingsService } from './ISettingsService';
 
 export class SettingsService implements ISettingsService {
-  private readonly repository: ISettingsRepository;
-
-  public constructor(repository: ISettingsRepository) {
-    this.repository = repository;
-  }
+  public constructor(
+    private readonly repository: ISettingsRepository,
+  ) {}
 
   public loadSettings = async (): Promise<ISettings> => {
     return this.repository.loadSettings();

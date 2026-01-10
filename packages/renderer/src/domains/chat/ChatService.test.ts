@@ -88,62 +88,6 @@ describe('ChatService', () => {
     });
   });
 
-  describe('sendMessage', () => {
-    it('sends message successfully', async () => {
-      const mockResponse = { response: 'Test response' };
-      mockIpcAdapter.invoke.mockResolvedValue(mockResponse);
-
-      // Mock createNewChatSession to return a chatId
-      const chatId = 1;
-      mockIpcAdapter.invoke.mockResolvedValueOnce({ chatId });
-
-      const onMessagesChange = jest.fn();
-      chatService.setCallbacks({ onMessagesChange });
-
-      const result = await chatService.sendMessage('Hello');
-
-      expect(result).toBeNull();
-      expect(mockIpcAdapter.invoke).toHaveBeenCalled();
-      expect(onMessagesChange).toHaveBeenCalled();
-    });
-
-    it('returns null for empty message', async () => {
-      const result = await chatService.sendMessage('   ');
-
-      expect(result).toBeNull();
-      expect(mockIpcAdapter.invoke).not.toHaveBeenCalled();
-    });
-
-    it('handles errors when sending message', async () => {
-      mockIpcAdapter.invoke
-        .mockResolvedValueOnce({ chatId: 1 })
-        .mockRejectedValueOnce(new Error('Send failed'));
-
-      const onErrorChange = jest.fn();
-      chatService.setCallbacks({ onErrorChange });
-
-      const result = await chatService.sendMessage('Hello');
-
-      expect(result).toBe('Send failed');
-      expect(onErrorChange).toHaveBeenCalledWith('Failed to send message: Send failed');
-    });
-
-    it('creates new chat session if chatId is null', async () => {
-      mockIpcAdapter.invoke
-        .mockResolvedValueOnce({ chatId: 1 })
-        .mockResolvedValueOnce({ response: 'Response' });
-
-      await chatService.sendMessage('Hello');
-
-      expect(mockIpcAdapter.invoke).toHaveBeenCalledWith(
-        EIpcChannel.CHAT,
-        expect.objectContaining({
-          event: EIpcEvent.CHAT_CREATE_SESSION,
-        }),
-      );
-    });
-  });
-
   describe('loadChatMessages', () => {
     it('loads messages for a chat', async () => {
       const mockMessages: IChatMessage[] = [
@@ -163,9 +107,9 @@ describe('ChatService', () => {
       await chatService.loadChatMessages(1);
 
       expect(mockIpcAdapter.invoke).toHaveBeenCalledWith(
-        EIpcChannel.CHAT,
+        EIpcChannel.MESSAGE,
         expect.objectContaining({
-          event: EIpcEvent.CHAT_LOAD_MESSAGES,
+          event: EIpcEvent.MESSAGES_LOAD,
         }),
       );
     });

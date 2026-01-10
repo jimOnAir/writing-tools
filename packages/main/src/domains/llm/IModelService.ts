@@ -1,4 +1,3 @@
-import type { IMessageStatistics } from '@writing-tools/shared';
 import type { Message } from 'ollama';
 
 import type { LMStudioChatResponse, LMStudioStreamChunk } from './LMStudioClient';

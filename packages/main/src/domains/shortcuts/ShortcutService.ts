@@ -9,25 +9,13 @@ import type { IGlobalShortcut } from './IGlobalShortcut';
 import type { IShortcutService } from './IShortcutService';
 
 export class ShortcutService implements IShortcutService {
-  private readonly globalShortcut: IGlobalShortcut;
-  private readonly logger: ILogger;
-  private readonly settingsService: ISettingsService;
-  private readonly textSelectionService: ITextSelectionService;
-  private readonly windowService: IWindowService;
-
   public constructor(
-    settingsService: ISettingsService,
-    textSelectionService: ITextSelectionService,
-    windowService: IWindowService,
-    logger: ILogger,
-    globalShortcut: IGlobalShortcut,
-  ) {
-    this.logger = logger;
-    this.settingsService = settingsService;
-    this.textSelectionService = textSelectionService;
-    this.windowService = windowService;
-    this.globalShortcut = globalShortcut;
-  }
+    private readonly settingsService: ISettingsService,
+    private readonly textSelectionService: ITextSelectionService,
+    private readonly windowService: IWindowService,
+    private readonly logger: ILogger,
+    private readonly globalShortcut: IGlobalShortcut,
+  ) {}
 
   public async registerGlobalShortcuts(): Promise<void> {
     const settings = await this.settingsService.loadSettings();

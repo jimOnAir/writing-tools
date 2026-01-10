@@ -60,7 +60,7 @@ export class SettingsService {
         payload: {},
       };
 
-      const loadedSettings = await this.ipcAdapter.invoke(EIpcChannel.SETTINGS, message);
+      const loadedSettings = await this.ipcAdapter.invoke(message.channel, message);
       this.setSettings(loadedSettings);
       this.setOriginalSettings(loadedSettings);
 
@@ -90,7 +90,7 @@ export class SettingsService {
         payload: this.settings,
       };
 
-      const result = await this.ipcAdapter.invoke(EIpcChannel.SETTINGS, message);
+      const result = await this.ipcAdapter.invoke(message.channel, message);
 
       if (result.success) {
         this.setOriginalSettings(this.settings);
@@ -132,22 +132,19 @@ export class SettingsService {
     this.setError(null);
 
     try {
-      const payload: TIpcEvent<EIpcChannel.MODEL, EIpcEvent.MODEL_LIST> = {
+      const message: TIpcEvent<EIpcChannel.MODEL, EIpcEvent.MODEL_LIST> = {
         channel: EIpcChannel.MODEL,
         event: EIpcEvent.MODEL_LIST,
         payload: { provider },
       };
 
-      const result = await this.ipcAdapter.invoke(EIpcChannel.MODEL, payload);
+      const result = await this.ipcAdapter.invoke(message.channel, message);
 
-      // Models property is always present in both success and error responses
-      if (result !== null && result !== undefined && typeof result === 'object' && 'models' in result && Array.isArray(result.models)) {
-        this.setAvailableModels(result.models);
-      }
-
-      if (result !== null && result !== undefined && isErrorResponse(result)) {
+      if (isErrorResponse(result)) {
         // Even on error, models array is always present (empty array)
         throw new Error(result.error);
+      } else {
+        this.setAvailableModels(result.models);
       }
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);

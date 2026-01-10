@@ -182,9 +182,9 @@ describe('OllamaClient', () => {
     it('streams chat responses successfully', async () => {
       // Create async iterator mock for streaming
       const mockStreamResponse = (async function* () {
-        yield { message: { content: 'Hello' }, done: false };
-        yield { message: { content: ' world' }, done: false };
-        yield { message: { content: '!' }, done: true };
+        yield Promise.resolve({ message: { content: 'Hello' }, done: false });
+        yield Promise.resolve({ message: { content: ' world' }, done: false });
+        yield Promise.resolve({ message: { content: '!' }, done: true });
       })();
 
       mockOllamaInstance.chat.mockResolvedValue(mockStreamResponse);

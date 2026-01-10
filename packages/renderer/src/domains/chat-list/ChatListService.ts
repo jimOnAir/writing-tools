@@ -82,13 +82,13 @@ export class ChatListService {
     this.setError(null);
 
     try {
-      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST_CHATS> = {
+      const message: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST> = {
         channel: EIpcChannel.CHAT,
-        event: EIpcEvent.CHAT_LIST_CHATS,
+        event: EIpcEvent.CHAT_LIST,
         payload: {},
       };
 
-      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+      const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isErrorResponse(response)) {
         throw new Error(response.error);
@@ -113,13 +113,13 @@ export class ChatListService {
    */
   public async openChat(chatId: number): Promise<void> {
     try {
-      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_OPEN> = {
+      const message: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_OPEN> = {
         channel: EIpcChannel.CHAT,
         event: EIpcEvent.CHAT_OPEN,
         payload: { chatId },
       };
 
-      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+      const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isFailedResponse(response)) {
         throw new Error(response.error);
@@ -138,13 +138,13 @@ export class ChatListService {
     this.setDeletingChatId(chatId);
 
     try {
-      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_DELETE> = {
+      const message: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_DELETE> = {
         channel: EIpcChannel.CHAT,
         event: EIpcEvent.CHAT_DELETE,
         payload: { chatId },
       };
 
-      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+      const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isFailedResponse(response)) {
         throw new Error(response.error);

@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 import type { IChatMessage, TChatResponse, TIpcEvent, IChatInfo, IChatStreamChunk, IChatStreamEnd, IMessageStatistics } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
 
@@ -341,14 +340,14 @@ export class ChatService {
     this.streamingContent = '';
     this.setStreaming(true);
 
-    const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SEND_MESSAGE_STREAM> = {
-      channel: EIpcChannel.CHAT,
-      event: EIpcEvent.CHAT_SEND_MESSAGE_STREAM,
+    const message: TIpcEvent<EIpcChannel.MESSAGE, EIpcEvent.MESSAGE_SEND_STREAM> = {
+      channel: EIpcChannel.MESSAGE,
+      event: EIpcEvent.MESSAGE_SEND_STREAM,
       payload: { chatId, messages: this.messages.slice(0, -1) }, // Exclude the placeholder message
     };
 
     try {
-      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+      const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if ('error' in response && response.error !== undefined) {
         throw new Error(response.error);
@@ -482,13 +481,13 @@ export class ChatService {
    */
   public async getChatInfo(chatId: number): Promise<IChatInfo | null> {
     try {
-      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_GET> = {
+      const message: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_GET> = {
         channel: EIpcChannel.CHAT,
         event: EIpcEvent.CHAT_GET,
         payload: { chatId },
       };
 
-      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+      const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isErrorResponse(response)) {
         logger.error('Failed to get chat info: %s', response.error);
@@ -510,13 +509,13 @@ export class ChatService {
    */
   public async loadChatMessages(chatId: number): Promise<void> {
     try {
-      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LOAD_MESSAGES> = {
-        channel: EIpcChannel.CHAT,
-        event: EIpcEvent.CHAT_LOAD_MESSAGES,
+      const message: TIpcEvent<EIpcChannel.MESSAGE, EIpcEvent.MESSAGES_LOAD> = {
+        channel: EIpcChannel.MESSAGE,
+        event: EIpcEvent.MESSAGES_LOAD,
         payload: { chatId },
       };
 
-      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+      const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isErrorResponse(response)) {
         logger.error('Failed to load messages: %s', response.error);
@@ -547,13 +546,13 @@ export class ChatService {
    */
   public async deleteChat(chatId: number): Promise<string | null> {
     try {
-      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_DELETE> = {
+      const message: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_DELETE> = {
         channel: EIpcChannel.CHAT,
         event: EIpcEvent.CHAT_DELETE,
         payload: { chatId },
       };
 
-      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+      const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isErrorResponse(response)) {
         logger.error('Failed to delete chat: %s', response.error);
@@ -581,13 +580,13 @@ export class ChatService {
    */
   private async createNewChatSession(): Promise<number | null> {
     try {
-      const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_CREATE_SESSION> = {
+      const message: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_CREATE> = {
         channel: EIpcChannel.CHAT,
-        event: EIpcEvent.CHAT_CREATE_SESSION,
+        event: EIpcEvent.CHAT_CREATE,
         payload: {},
       };
 
-      const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+      const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isErrorResponse(response)) {
         logger.error('Failed to create chat session: %s', response.error);

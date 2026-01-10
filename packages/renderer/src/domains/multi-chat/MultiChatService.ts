@@ -132,7 +132,7 @@ export class MultiChatService {
         if (data.chatId !== undefined) {
           tab.chatId = data.chatId;
           // Save tabs when chatId is set
-          void this.saveTabsIfNotRestoring();
+          this.saveTabsIfNotRestoring();
           // Load messages for this chat (the main process already saved them)
           void tab.chatService.loadChatMessages(data.chatId);
         }
@@ -313,7 +313,7 @@ export class MultiChatService {
     tab.chatId = chatId;
 
     // Save tabs to database (chatId is now set)
-    void this.saveTabsIfNotRestoring();
+    this.saveTabsIfNotRestoring();
 
     // Load messages for this chat
     const tabChatService = tab.chatService;
@@ -325,7 +325,7 @@ export class MultiChatService {
             tab.title = chatInfo.title || null;
             this.notifyTabsChange();
             // Save tabs after title is updated
-            void this.saveTabsIfNotRestoring();
+            this.saveTabsIfNotRestoring();
           }
         });
       });
@@ -404,7 +404,7 @@ export class MultiChatService {
     this.notifyActiveTabChange();
 
     // Save tabs to database after active tab change
-    void this.saveTabsIfNotRestoring();
+    this.saveTabsIfNotRestoring();
   }
 
   /**
@@ -439,7 +439,19 @@ export class MultiChatService {
    */
   public async loadTabs(): Promise<{ tabs: TOpenTab[] } | { error: string }> {
     try {
-      const response = await this.ipcAdapter.loadTabs();
+      const payload: TIpcEvent<EIpcChannel.TAB, EIpcEvent.TABS_LOAD> = {
+        channel: EIpcChannel.TAB,
+        event: EIpcEvent.TABS_LOAD,
+        payload: {},
+      };
+
+      const response = await this.ipcAdapter.invoke(payload.channel, payload);
+
+      if ('error' in response) {
+        logger.error('Failed to save tabs: %s', response.error);
+      } else {
+        logger.info('Loaded %d tabs', String(response.tabs.length));
+      }
 
       return response;
     } catch (error: unknown) {
@@ -465,8 +477,19 @@ export class MultiChatService {
           isActive: tab.tabId === this.activeTabId,
         }));
 
-      await this.ipcAdapter.saveTabs(chatTabs);
-      logger.info('Saved %d tabs', String(chatTabs.length));
+      const payload: TIpcEvent<EIpcChannel.TAB, EIpcEvent.TABS_SAVE> = {
+        channel: EIpcChannel.TAB,
+        event: EIpcEvent.TABS_SAVE,
+        payload: { tabs: chatTabs },
+      };
+
+      const response = await this.ipcAdapter.invoke(payload.channel, payload);
+
+      if ('error' in response) {
+        logger.error('Failed to save tabs: %s', response.error);
+      } else {
+        logger.info('Saved %d tabs', String(chatTabs.length));
+      }
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
       logger.error('Failed to save tabs: %s', errorText);
@@ -524,13 +547,13 @@ export class MultiChatService {
         } else {
         // Check if chat exists by trying to get chat info
           try {
-            const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_GET> = {
+            const message: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_GET> = {
               channel: EIpcChannel.CHAT,
               event: EIpcEvent.CHAT_GET,
               payload: { chatId: savedTab.chatId },
             };
 
-            const response = await this.ipcAdapter.invoke(EIpcChannel.CHAT, payload);
+            const response = await this.ipcAdapter.invoke(message.channel, message);
 
             if (isErrorResponse(response)) {
               logger.info('Skipping tab with deleted chatId=%d', String(savedTab.chatId));
@@ -622,7 +645,7 @@ export class MultiChatService {
     this.notifyTabsChange();
 
     // Save tabs to database after reorder
-    void this.saveTabsIfNotRestoring();
+    this.saveTabsIfNotRestoring();
   }
 
   /**
@@ -745,7 +768,7 @@ export class MultiChatService {
    * Save tabs if not currently restoring (to avoid overwriting during restore)
    * Debounced to prevent multiple rapid saves - only the last call in a batch will execute
    */
-  private async saveTabsIfNotRestoring(): Promise<void> {
+  private saveTabsIfNotRestoring() {
     if (this.isRestoringTabs) {
       return;
     }

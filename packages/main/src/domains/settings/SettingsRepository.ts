@@ -7,14 +7,12 @@ import type { ISettingsRepository } from './ISettingsRepository';
 
 export class SettingsRepository implements ISettingsRepository {
   private currentSettings: ISettings | null = null;
-  private readonly appPath: string;
-  private readonly logger: ILogger;
   private settingsLoaded = false;
 
-  public constructor(logger: ILogger, appPath: string) {
-    this.logger = logger;
-    this.appPath = appPath;
-  }
+  public constructor(
+    private readonly logger: ILogger,
+    private readonly appPath: string,
+  ) {}
 
   public async loadSettings(): Promise<ISettings> {
     // If settings are already loaded, return cached version

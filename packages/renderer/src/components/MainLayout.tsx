@@ -4,7 +4,6 @@ import type { ChatListService } from '../domains/chat-list';
 import type { ITabInfo, MultiChatService } from '../domains/multi-chat';
 import type { PromptSelectorService } from '../domains/prompt-selector';
 import type { SettingsService } from '../domains/settings';
-import { getNativeStyles } from '../styles/NativeStyles';
 import { BackgroundStyles } from '../styles/Styles';
 import { getPlatform } from '../utils/platformDetection';
 import { isErrorResponse } from '../utils/responseTypeGuards';
@@ -31,7 +30,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [tabsVersion, setTabsVersion] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [platform, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
+  const [, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
 
   useEffect(() => {
     void getPlatform().then(p => {
@@ -42,7 +41,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       onActiveTabChange: (tabId: string | null) => {
         setActiveTabId(tabId);
       },
-      onTabsChange: (tabs: readonly ITabInfo[]) => {
+      onTabsChange: (_tabs: readonly ITabInfo[]) => {
         // Force re-render when tabs change (e.g., when tab type changes)
         setTabsVersion(prev => prev + 1);
       },
@@ -67,20 +66,23 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         if (response !== undefined && response !== null) {
           if (isErrorResponse(response)) {
             // Error response - create initial tab if none exist
-            if (multiChatService.getAllTabs().length === 0) {
+            const tabs = multiChatService.getAllTabs();
+            if (!tabs || tabs.length === 0) {
               multiChatService.createNewChatTab();
             }
           } else if ('tabs' in response && Array.isArray(response.tabs) && response.tabs.length > 0) {
             await multiChatService.restoreTabs(response.tabs);
           } else {
             // No saved tabs, create initial tab if none exist
-            if (multiChatService.getAllTabs().length === 0) {
+            const tabs = multiChatService.getAllTabs();
+            if (!tabs || tabs.length === 0) {
               multiChatService.createNewChatTab();
             }
           }
         } else {
           // Response is undefined/null - create initial tab if none exist
-          if (multiChatService.getAllTabs().length === 0) {
+          const tabs = multiChatService.getAllTabs();
+          if (!tabs || tabs.length === 0) {
             multiChatService.createNewChatTab();
           }
         }
@@ -89,7 +91,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         console.error('Failed to load tabs: %s', errorText);
         // On error, create initial tab if none exist
         const tabs = multiChatService.getAllTabs();
-        if (tabs === undefined || tabs.length === 0) {
+        if (!tabs || tabs.length === 0) {
           multiChatService.createNewChatTab();
         }
       }
@@ -101,7 +103,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       console.error('Error loading tabs: %s', errorText);
       // On error, create initial tab if none exist
       const tabs = multiChatService.getAllTabs();
-      if (tabs === undefined || tabs.length === 0) {
+      if (!tabs || tabs.length === 0) {
         multiChatService.createNewChatTab();
       }
       setActiveTabId(multiChatService.getActiveTabId());
@@ -130,7 +132,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
     return tab;
   }, [multiChatService, activeTabId, tabsVersion]);
-  const nativeStyles = getNativeStyles(platform);
 
   return (
     <div className={`flex h-screen w-screen overflow-hidden ${BackgroundStyles.main}`}>

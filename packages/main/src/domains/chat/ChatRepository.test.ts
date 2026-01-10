@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 
-import type { IChatInfo, IChatMessage, ILogger } from '@writing-tools/shared';
+import type { IChatInfo, ILogger } from '@writing-tools/shared';
 import * as fs from 'node:fs/promises';
 
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
@@ -107,32 +107,10 @@ describe('ChatRepository', () => {
 
     // Create new repository with mocked DatabaseConnection
     dbConnection = new DatabaseConnection(mockLogger, testAppPath);
-    repository = new ChatRepository(mockLogger, dbConnection);
-  });
-
-  afterEach(() => {
-    repository.close();
-  });
-
-  describe('initialize', () => {
-    it('initializes database connection', async () => {
-      await repository.initialize();
-
-      expect(mockDatabaseConnection.initialize).toHaveBeenCalled();
-    });
-
-    it('handles initialization errors', async () => {
-      mockDatabaseConnection.initialize.mockRejectedValue(new Error('Init failed'));
-
-      await expect(repository.initialize()).rejects.toThrow('Init failed');
-    });
+    repository = new ChatRepository(dbConnection);
   });
 
   describe('createChat', () => {
-    beforeEach(async () => {
-      await repository.initialize();
-    });
-
     it('creates a new chat and returns chat ID', () => {
       const chatId = repository.createChat('Test Chat', 'ollama', 'test-model');
 
@@ -141,7 +119,7 @@ describe('ChatRepository', () => {
     });
 
     it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
+      const uninitializedRepo = new ChatRepository(dbConnection);
       mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
         throw new Error('Database not initialized');
       });
@@ -158,136 +136,7 @@ describe('ChatRepository', () => {
     });
   });
 
-  describe('saveMessage', () => {
-    beforeEach(async () => {
-      await repository.initialize();
-    });
-
-    it('saves a message to a chat', () => {
-      const chatId = 1;
-      const message: IChatMessage = {
-        id: 'msg-1',
-        role: 'user',
-        content: 'Hello',
-        timestamp: new Date(),
-      };
-
-      repository.saveMessage(chatId, message);
-
-      expect(mockDrizzleDb.insert).toHaveBeenCalled();
-      expect(mockDrizzleDb.update).toHaveBeenCalled();
-    });
-
-    it('updates chat updated_at timestamp when saving message', () => {
-      const chatId = 1;
-      const message: IChatMessage = {
-        id: 'msg-1',
-        role: 'user',
-        content: 'Hello',
-        timestamp: new Date(),
-      };
-
-      repository.saveMessage(chatId, message);
-
-      expect(mockDrizzleDb.update).toHaveBeenCalled();
-    });
-
-    it('handles duplicate messages gracefully', () => {
-      const chatId = 1;
-      const message: IChatMessage = {
-        id: 'msg-1',
-        role: 'user',
-        content: 'Hello',
-        timestamp: new Date(),
-      };
-
-      repository.saveMessage(chatId, message);
-      repository.saveMessage(chatId, message); // Save again
-
-      expect(mockDrizzleDb.insert).toHaveBeenCalledTimes(2);
-    });
-
-    it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
-      mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
-        throw new Error('Database not initialized');
-      });
-
-      const message: IChatMessage = {
-        id: 'msg-1',
-        role: 'user',
-        content: 'Hello',
-        timestamp: new Date(),
-      };
-
-      expect(() => {
-        uninitializedRepo.saveMessage(1, message);
-      }).toThrow('Database not initialized');
-    });
-  });
-
-  describe('getChatMessages', () => {
-    beforeEach(async () => {
-      await repository.initialize();
-    });
-
-    it('returns messages in chronological order', () => {
-      const chatId = 1;
-      const mockMessages = [
-        {
-          id: 'msg-1',
-          role: 'user' as const,
-          content: 'First',
-          timestamp: '2024-01-01T00:00:00.000Z',
-        },
-        {
-          id: 'msg-2',
-          role: 'assistant' as const,
-          content: 'Second',
-          timestamp: '2024-01-01T00:01:00.000Z',
-        },
-      ];
-
-      mockDrizzleDb.select.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            orderBy: jest.fn().mockReturnValue({
-              all: jest.fn().mockReturnValue(mockMessages),
-            }),
-          }),
-        }),
-      });
-
-      const messages = repository.getChatMessages(chatId);
-      expect(messages).toHaveLength(2);
-      expect(messages[0].id).toBe('msg-1');
-      expect(messages[1].id).toBe('msg-2');
-    });
-
-    it('returns empty array for chat with no messages', () => {
-      const chatId = 1;
-
-      const messages = repository.getChatMessages(chatId);
-      expect(messages).toEqual([]);
-    });
-
-    it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
-      mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
-        throw new Error('Database not initialized');
-      });
-
-      expect(() => {
-        uninitializedRepo.getChatMessages(1);
-      }).toThrow('Database not initialized');
-    });
-  });
-
   describe('getAllChats', () => {
-    beforeEach(async () => {
-      await repository.initialize();
-    });
-
     it('returns all chats ordered by updated_at DESC', () => {
       const mockChats: IChatInfo[] = [
         {
@@ -326,7 +175,7 @@ describe('ChatRepository', () => {
     });
 
     it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
+      const uninitializedRepo = new ChatRepository(dbConnection);
       mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
         throw new Error('Database not initialized');
       });
@@ -338,10 +187,6 @@ describe('ChatRepository', () => {
   });
 
   describe('getChat', () => {
-    beforeEach(async () => {
-      await repository.initialize();
-    });
-
     it('returns chat when found', () => {
       const chatId = 1;
       const mockChat: IChatInfo = {
@@ -378,7 +223,7 @@ describe('ChatRepository', () => {
     });
 
     it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
+      const uninitializedRepo = new ChatRepository(dbConnection);
       mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
         throw new Error('Database not initialized');
       });
@@ -390,10 +235,6 @@ describe('ChatRepository', () => {
   });
 
   describe('updateChatTitle', () => {
-    beforeEach(async () => {
-      await repository.initialize();
-    });
-
     it('updates chat title', () => {
       const chatId = 1;
 
@@ -411,7 +252,7 @@ describe('ChatRepository', () => {
     });
 
     it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
+      const uninitializedRepo = new ChatRepository(dbConnection);
       mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
         throw new Error('Database not initialized');
       });
@@ -423,10 +264,6 @@ describe('ChatRepository', () => {
   });
 
   describe('deleteChat', () => {
-    beforeEach(async () => {
-      await repository.initialize();
-    });
-
     it('deletes chat and associated messages', () => {
       const chatId = 1;
 
@@ -436,7 +273,7 @@ describe('ChatRepository', () => {
     });
 
     it('throws error when database is not initialized', () => {
-      const uninitializedRepo = new ChatRepository(mockLogger, dbConnection);
+      const uninitializedRepo = new ChatRepository(dbConnection);
       mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
         throw new Error('Database not initialized');
       });
@@ -444,31 +281,6 @@ describe('ChatRepository', () => {
       expect(() => {
         uninitializedRepo.deleteChat(1);
       }).toThrow('Database not initialized');
-    });
-  });
-
-  describe('close', () => {
-    beforeEach(async () => {
-      await repository.initialize();
-    });
-
-    it('closes database connection', () => {
-      repository.close();
-
-      expect(mockDatabaseConnection.close).toHaveBeenCalled();
-
-      // After closing, operations should fail
-      expect(() => {
-        repository.getAllChats();
-      }).toThrow('Database not initialized');
-    });
-
-    it('can be called multiple times safely', () => {
-      repository.close();
-      expect(mockDatabaseConnection.close).toHaveBeenCalledTimes(1);
-
-      repository.close(); // Should not throw
-      expect(mockDatabaseConnection.close).toHaveBeenCalledTimes(1); // Should not call close again
     });
   });
 });

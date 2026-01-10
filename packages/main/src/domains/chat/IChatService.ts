@@ -1,5 +1,4 @@
 import type { IChatInfo } from '@writing-tools/shared/src/interfaces/IChatInfo';
-import type { IChatMessage } from '@writing-tools/shared/src/interfaces/IChatMessage';
 
 /**
  * Interface for chat service operations
@@ -8,24 +7,9 @@ import type { IChatMessage } from '@writing-tools/shared/src/interfaces/IChatMes
  */
 export interface IChatService {
   /**
-   * Initialize the chat service (and underlying repository)
-   */
-  initialize: () => Promise<void>;
-
-  /**
    * Start a new chat session
    */
   startNewChat: (title: string, provider: string, model: string) => number;
-
-  /**
-   * Save a message to a chat
-   */
-  saveMessage: (chatId: number, message: IChatMessage) => void;
-
-  /**
-   * Load messages for a specific chat
-   */
-  loadChatMessages: (chatId: number) => IChatMessage[];
 
   /**
    * Get all chat sessions
@@ -47,9 +31,4 @@ export interface IChatService {
    * All associated messages are automatically deleted via CASCADE foreign key constraint
    */
   deleteChat: (chatId: number) => void;
-
-  /**
-   * Close the chat service (cleanup resources)
-   */
-  close: () => void;
 }

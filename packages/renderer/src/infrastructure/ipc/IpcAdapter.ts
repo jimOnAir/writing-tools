@@ -99,16 +99,6 @@ export interface IIpcAdapter {
   offChatSaveTabsRequest: (listener: TIpcRenderListener) => void;
 
   /**
-   * Save tabs to main process
-   */
-  saveTabs: (tabs: TOpenTab[]) => Promise<{ success: true } | { error: string, success: false }>;
-
-  /**
-   * Load tabs from main process
-   */
-  loadTabs: () => Promise<{ tabs: TOpenTab[] } | { error: string }>;
-
-  /**
    * Register a listener for chat stream chunk events
    */
   onChatStreamChunk: (callback: (data: IChatStreamChunk) => void) => TIpcRenderListener;
@@ -145,7 +135,7 @@ export class ElectronIpcAdapter implements IIpcAdapter {
   }
 
   public offChatWindowData(listener: TIpcRenderListener): void {
-    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatWindowData(listener);
+    this.getElectronAPI().offChatWindowData(listener);
   }
 
   public onOllamaResponse(callback: (data: TChatResponse) => void): TIpcRenderListener {
@@ -153,7 +143,7 @@ export class ElectronIpcAdapter implements IIpcAdapter {
   }
 
   public offOllamaResponse(listener: TIpcRenderListener): void {
-    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offOllamaResponse(listener);
+    this.getElectronAPI().offOllamaResponse(listener);
   }
 
   public onPromptSelectorData(
@@ -163,7 +153,7 @@ export class ElectronIpcAdapter implements IIpcAdapter {
   }
 
   public offPromptSelectorData(listener: TIpcRenderListener): void {
-    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offPromptSelectorData(listener);
+    this.getElectronAPI().offPromptSelectorData(listener);
   }
 
   public onChatTitleUpdated(callback: (data: { chatId: number, title: string }) => void): TIpcRenderListener {
@@ -171,7 +161,7 @@ export class ElectronIpcAdapter implements IIpcAdapter {
   }
 
   public offChatTitleUpdated(listener: TIpcRenderListener): void {
-    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatTitleUpdated(listener);
+    this.getElectronAPI().offChatTitleUpdated(listener);
   }
 
   public onChatLoadMessagesData(callback: (data: { chatId: number, messages: IChatMessage[] }) => void): TIpcRenderListener {
@@ -179,7 +169,7 @@ export class ElectronIpcAdapter implements IIpcAdapter {
   }
 
   public offChatLoadMessagesData(listener: TIpcRenderListener): void {
-    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatLoadMessagesData(listener);
+    this.getElectronAPI().offChatLoadMessagesData(listener);
   }
 
   public onChatCreated(callback: (data: { chatId: number }) => void): TIpcRenderListener {
@@ -187,7 +177,7 @@ export class ElectronIpcAdapter implements IIpcAdapter {
   }
 
   public offChatCreated(listener: TIpcRenderListener): void {
-    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatCreated(listener);
+    this.getElectronAPI().offChatCreated(listener);
   }
 
   public onChatDeleted(callback: (data: { chatId: number }) => void): TIpcRenderListener {
@@ -195,7 +185,7 @@ export class ElectronIpcAdapter implements IIpcAdapter {
   }
 
   public offChatDeleted(listener: TIpcRenderListener): void {
-    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatDeleted(listener);
+    this.getElectronAPI().offChatDeleted(listener);
   }
 
   public onChatSaveTabsRequest(callback: () => void): TIpcRenderListener {
@@ -203,33 +193,17 @@ export class ElectronIpcAdapter implements IIpcAdapter {
   }
 
   public offChatSaveTabsRequest(listener: TIpcRenderListener): void {
-    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatSaveTabsRequest(listener);
-  }
-
-  public async saveTabs(tabs: TOpenTab[]): Promise<{ success: true } | { error: string, success: false }> {
-    const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_SAVE_TABS> = {
-      channel: EIpcChannel.CHAT,
-      event: EIpcEvent.CHAT_SAVE_TABS,
-      payload: { tabs },
-    };
-
-    const response = await this.invoke(EIpcChannel.CHAT, payload);
-
-    if ('error' in response) {
-      return { error: response.error, success: false };
-    }
-
-    return { success: true };
+    this.getElectronAPI().offChatSaveTabsRequest(listener);
   }
 
   public async loadTabs(): Promise<{ tabs: TOpenTab[] } | { error: string }> {
-    const payload: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LOAD_TABS> = {
-      channel: EIpcChannel.CHAT,
-      event: EIpcEvent.CHAT_LOAD_TABS,
+    const payload: TIpcEvent<EIpcChannel.TAB, EIpcEvent.TABS_LOAD> = {
+      channel: EIpcChannel.TAB,
+      event: EIpcEvent.TABS_LOAD,
       payload: {},
     };
 
-    const response = await this.invoke(EIpcChannel.CHAT, payload);
+    const response = await this.invoke(payload.channel, payload);
 
     if ('error' in response) {
       return { error: response.error };
@@ -243,7 +217,7 @@ export class ElectronIpcAdapter implements IIpcAdapter {
   }
 
   public offChatStreamChunk(listener: TIpcRenderListener): void {
-    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatStreamChunk(listener);
+    this.getElectronAPI().offChatStreamChunk(listener);
   }
 
   public onChatStreamEnd(callback: (data: IChatStreamEnd) => void): TIpcRenderListener {
@@ -251,7 +225,7 @@ export class ElectronIpcAdapter implements IIpcAdapter {
   }
 
   public offChatStreamEnd(listener: TIpcRenderListener): void {
-    (window as { electronAPI?: typeof window.electronAPI }).electronAPI?.offChatStreamEnd(listener);
+    this.getElectronAPI().offChatStreamEnd(listener);
   }
 
   private getElectronAPI(): NonNullable<typeof window.electronAPI> {

@@ -9,7 +9,7 @@ const mockElectronAPI = {
   // eslint-disable-next-line @typescript-eslint/require-await
   invoke: jest.fn(async (_channel, data: { event: EIpcEvent }) => {
     // Return appropriate mock responses based on event type
-    if (data.event === EIpcEvent.CHAT_LIST_CHATS) {
+    if (data.event === EIpcEvent.CHAT_LIST) {
       return { chats: [] };
     }
     if (data.event === EIpcEvent.ENV_GET) {
@@ -63,7 +63,7 @@ describe('App', () => {
     // Reset mock to default behavior
     // eslint-disable-next-line @typescript-eslint/require-await
     mockElectronAPI.invoke.mockImplementation(async (_channel, data: { event: EIpcEvent }) => {
-      if (data.event === EIpcEvent.CHAT_LIST_CHATS) {
+      if (data.event === EIpcEvent.CHAT_LIST) {
         return { chats: [] };
       }
       if (data.event === EIpcEvent.ENV_GET) {
@@ -96,7 +96,7 @@ describe('App', () => {
   test('renders with macOS platform', async () => {
     // eslint-disable-next-line @typescript-eslint/require-await
     mockElectronAPI.invoke.mockImplementation(async (_channel, data: { event: EIpcEvent }) => {
-      if (data.event === EIpcEvent.CHAT_LIST_CHATS) {
+      if (data.event === EIpcEvent.CHAT_LIST) {
         return { chats: [] };
       }
       if (data.event === EIpcEvent.ENV_GET) {
@@ -126,7 +126,7 @@ describe('App', () => {
   test('renders with Windows platform', async () => {
     // eslint-disable-next-line @typescript-eslint/require-await
     mockElectronAPI.invoke.mockImplementation(async (_channel, data: { event: EIpcEvent }) => {
-      if (data.event === EIpcEvent.CHAT_LIST_CHATS) {
+      if (data.event === EIpcEvent.CHAT_LIST) {
         return { chats: [] };
       }
       if (data.event === EIpcEvent.ENV_GET) {
@@ -156,7 +156,7 @@ describe('App', () => {
   test('renders with LM Studio provider settings', async () => {
     // eslint-disable-next-line @typescript-eslint/require-await
     mockElectronAPI.invoke.mockImplementation(async (_channel, data: { event: EIpcEvent }) => {
-      if (data.event === EIpcEvent.CHAT_LIST_CHATS) {
+      if (data.event === EIpcEvent.CHAT_LIST) {
         return { chats: [] };
       }
       if (data.event === EIpcEvent.ENV_GET) {
@@ -186,7 +186,7 @@ describe('App', () => {
   test('renders with empty chat list', async () => {
     // eslint-disable-next-line @typescript-eslint/require-await
     mockElectronAPI.invoke.mockImplementation(async (_channel, data: { event: EIpcEvent }) => {
-      if (data.event === EIpcEvent.CHAT_LIST_CHATS) {
+      if (data.event === EIpcEvent.CHAT_LIST) {
         return { chats: [] };
       }
       if (data.event === EIpcEvent.ENV_GET) {
@@ -216,7 +216,7 @@ describe('App', () => {
   test('handles IPC error responses gracefully', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/require-await
     (mockElectronAPI.invoke as jest.Mock).mockImplementation(async (_channel: any, data: { event: EIpcEvent }): Promise<any> => {
-      if (data.event === EIpcEvent.CHAT_LIST_CHATS) {
+      if (data.event === EIpcEvent.CHAT_LIST) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return { error: 'Failed to load chats' } as any;
       }
@@ -248,7 +248,7 @@ describe('App', () => {
   test('handles settings load error gracefully', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/require-await
     (mockElectronAPI.invoke as jest.Mock).mockImplementation(async (_channel: any, data: { event: EIpcEvent }): Promise<any> => {
-      if (data.event === EIpcEvent.CHAT_LIST_CHATS) {
+      if (data.event === EIpcEvent.CHAT_LIST) {
         return { chats: [] };
       }
       if (data.event === EIpcEvent.ENV_GET) {
@@ -274,7 +274,7 @@ describe('App', () => {
   test('handles platform detection error gracefully', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/require-await
     (mockElectronAPI.invoke as jest.Mock).mockImplementation(async (_channel: any, data: { event: EIpcEvent }): Promise<any> => {
-      if (data.event === EIpcEvent.CHAT_LIST_CHATS) {
+      if (data.event === EIpcEvent.CHAT_LIST) {
         return { chats: [] };
       }
       if (data.event === EIpcEvent.ENV_GET) {

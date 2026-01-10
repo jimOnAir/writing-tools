@@ -8,13 +8,10 @@ import type { LMStudioChatResponse, LMStudioStreamChunk } from './LMStudioClient
 import { LMStudioClient } from './LMStudioClient';
 
 export class LMStudioModelService implements ILMStudioModelService {
-  private readonly logger: ILogger;
-  private readonly settingsService: ISettingsService;
-
-  public constructor(settingsService: ISettingsService, logger: ILogger) {
-    this.logger = logger;
-    this.settingsService = settingsService;
-  }
+  public constructor(
+    private readonly settingsService: ISettingsService,
+    private readonly logger: ILogger,
+  ) {}
 
   public fetchModels = async () => {
     const settings = await this.settingsService.loadSettings();

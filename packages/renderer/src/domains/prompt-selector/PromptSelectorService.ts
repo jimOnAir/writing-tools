@@ -69,7 +69,7 @@ export class PromptSelectorService {
   public async selectPrompt(promptObj: IPreconfiguredPrompt): Promise<void> {
     const prompt = this.processPromptTemplate(promptObj.prompt);
 
-    const payload: TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT> = {
+    const message: TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT> = {
       channel: EIpcChannel.PROMPT_SELECTOR,
       event: EIpcEvent.PROMPT_SELECT,
       payload: {
@@ -80,7 +80,7 @@ export class PromptSelectorService {
     };
 
     try {
-      await this.ipcAdapter.invoke(EIpcChannel.PROMPT_SELECTOR, payload);
+      await this.ipcAdapter.invoke(message.channel, message);
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
       this.logger.error('Error selecting prompt: %s', errorText);
@@ -98,7 +98,7 @@ export class PromptSelectorService {
 
     const prompt = this.processPromptTemplate(customPrompt);
 
-    const payload: TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT> = {
+    const message: TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT> = {
       channel: EIpcChannel.PROMPT_SELECTOR,
       event: EIpcEvent.PROMPT_SELECT,
       payload: {
@@ -107,7 +107,7 @@ export class PromptSelectorService {
     };
 
     try {
-      await this.ipcAdapter.invoke(EIpcChannel.PROMPT_SELECTOR, payload);
+      await this.ipcAdapter.invoke(message.channel, message);
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
       this.logger.error('Error selecting prompt: %s', errorText);

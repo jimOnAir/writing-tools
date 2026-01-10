@@ -9,13 +9,10 @@ import type { ITrayService } from './ITrayService';
 
 export class TrayService implements ITrayService {
   private tray: Tray | null = null;
-  private readonly logger: ILogger;
-  private readonly windowService: IWindowService;
-
-  public constructor(windowService: IWindowService, logger: ILogger) {
-    this.logger = logger;
-    this.windowService = windowService;
-  }
+  public constructor(
+    private readonly windowService: IWindowService,
+    private readonly logger: ILogger,
+  ) { }
 
   public createTray(): void {
     this.tray ??= new Tray(getAppIcon());

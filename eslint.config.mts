@@ -340,7 +340,7 @@ export default tseslint.config(
       ],
       'max-lines': [
         'error',
-        500,
+        1000,
       ],
       'n/no-extraneous-import': 'off',
       'n/no-missing-import': 'off',

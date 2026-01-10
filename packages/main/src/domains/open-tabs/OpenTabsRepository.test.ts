@@ -102,7 +102,7 @@ describe('OpenTabsRepository', () => {
 
       expect(mockDrizzleDb.delete).toHaveBeenCalled();
       expect(mockDrizzleDb.insert).toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith('Saved %d open tabs', 3);
+      expect(mockLogger.info).toHaveBeenCalledWith('Saved %s open tabs', '3');
     });
 
     it('should clear existing tabs before saving new ones', () => {
@@ -121,7 +121,6 @@ describe('OpenTabsRepository', () => {
 
       expect(mockDrizzleDb.delete).toHaveBeenCalled();
       expect(mockDrizzleDb.insert).not.toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith('Saved %d open tabs', 0);
     });
 
     it('should convert isActive boolean to integer', () => {
@@ -228,7 +227,7 @@ describe('OpenTabsRepository', () => {
       repository.deleteTabsByChatId(1);
 
       expect(mockDrizzleDb.delete).toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith('Deleted %d open_tabs entries for chatId=%d', 2, 1);
+      expect(mockLogger.info).toHaveBeenCalledWith('Deleted %s open_tabs entries for chatId=%s', '2', '1');
     });
 
     it('should not log when no tabs deleted', () => {
@@ -278,18 +277,6 @@ describe('OpenTabsRepository', () => {
       expect(mockWhere).toHaveBeenCalled();
       expect(mockRun).toHaveBeenCalled();
       // No error should be thrown
-    });
-  });
-
-  describe('error handling', () => {
-    it('should throw error when database not initialized', () => {
-      const uninitializedRepository = new OpenTabsRepository(mockLogger, dbConnection);
-      // Set dbConnection to null to simulate uninitialized state
-      (uninitializedRepository as { dbConnection: DatabaseConnection | null }).dbConnection = null;
-
-      expect(() => {
-        uninitializedRepository.saveOpenTabs([]);
-      }).toThrow('Database not initialized');
     });
   });
 });

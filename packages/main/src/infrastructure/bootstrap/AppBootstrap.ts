@@ -2,11 +2,22 @@ import type { ILogger } from '@writing-tools/shared';
 import { app, globalShortcut } from 'electron';
 import isDev from 'electron-is-dev';
 import * as path from 'node:path';
+import { TitleGenerationService } from 'src/domains/chat/TitleGenerationService';
 
-import type { IChatService } from '../../domains/chat';
+import type { IChatRepository, IChatService } from '../../domains/chat';
 import { ChatRepository, ChatService } from '../../domains/chat';
+import type { IMessageRepository } from '../../domains/chat/IMessageRepository';
+import type { IMessageService } from '../../domains/chat/IMessageService';
+import type { ITitleGenerationService } from '../../domains/chat/ITitleGenerationService';
+import { MessageRepository } from '../../domains/chat/MessageRepository';
+import { MessageService } from '../../domains/chat/MessageService';
+import type { ILMStudioModelService, IModelService, IOllamaModelService } from '../../domains/llm';
 import { LMStudioModelService, ModelService, OllamaModelService } from '../../domains/llm';
+import type { IOpenTabsRepository } from '../../domains/open-tabs';
 import { OpenTabsRepository } from '../../domains/open-tabs';
+import type { IOpenTabsService } from '../../domains/open-tabs/IOpenTabsService';
+import { OpenTabsService } from '../../domains/open-tabs/OpenTabsService';
+import type { ISettingsRepository } from '../../domains/settings';
 import { SettingsRepository, SettingsService } from '../../domains/settings';
 import type { ISettingsService } from '../../domains/settings/ISettingsService';
 import { ShortcutService } from '../../domains/shortcuts';
@@ -18,17 +29,45 @@ import type { ITrayService } from '../../domains/tray/ITrayService';
 import { WindowService } from '../../domains/windows';
 import type { IWindowService } from '../../domains/windows/IWindowService';
 import { DatabaseConnection } from '../database/DatabaseConnection';
-import { IpcHandlers } from '../ipc';
-import type { IIpcHandlers } from '../ipc/IIpcHandlers';
+import type { IIpcChatHandler } from '../ipc/IIpcChatHandler';
+import type { IIpcEnvHandler } from '../ipc/IIpcEnvHandler';
+import type { IIpcMessageHandler } from '../ipc/IIpcMessageHandler';
+import type { IIpcModelHandler } from '../ipc/IIpcModelHandler';
+import type { IIpcPromptSelectorHandler } from '../ipc/IIpcPromptSelectorHandler';
+import type { IIpcSettingsHandler } from '../ipc/IIpcSettingsHandler';
+import type { IIpcTabHandler } from '../ipc/IIpcTabHandler';
+import { IpcChatHandler } from '../ipc/IpcChatHandler';
+import { IpcEnvHandler } from '../ipc/IpcEnvHandler';
+import { IpcMessageHandler } from '../ipc/IpcMessageHandler';
+import { IpcModelHandler } from '../ipc/IpcModelHandler';
+import { IpcPromptSelectorHandler } from '../ipc/IpcPromptSelectorHandler';
+import { IpcSettingsHandler } from '../ipc/IpcSettingsHandlers';
+import { IpcTabHandler } from '../ipc/IpcTabHandler';
 
 export class AppBootstrap {
+  private readonly chatRepository: IChatRepository;
   private readonly chatService: IChatService;
-  private readonly ipcHandlers: IIpcHandlers;
+  private readonly dbConnection: DatabaseConnection;
+  private readonly ipcChatHandler: IIpcChatHandler;
+  private readonly ipcEnvHandler: IIpcEnvHandler;
+  private readonly ipcMessageHandler: IIpcMessageHandler;
+  private readonly ipcModelHandler: IIpcModelHandler;
+  private readonly ipcPromptSelectorHandler: IIpcPromptSelectorHandler;
+  private readonly ipcSettingsHandler: IIpcSettingsHandler;
+  private readonly ipcTabHandler: IIpcTabHandler;
+  private readonly lmStudioModelService: ILMStudioModelService;
   private readonly logger: ILogger;
-  private readonly openTabsRepository: OpenTabsRepository;
+  private readonly messageRepository: IMessageRepository;
+  private readonly messageService: IMessageService;
+  private readonly modelService: IModelService;
+  private readonly ollamaModelService: IOllamaModelService;
+  private readonly openTabsRepository: IOpenTabsRepository;
+  private readonly openTabsService: IOpenTabsService;
+  private readonly settingsRepository: ISettingsRepository;
   private readonly settingsService: ISettingsService;
   private readonly shortcutService: IShortcutService;
   private readonly textSelectionService: ITextSelectionService;
+  private readonly titleGenerationService: ITitleGenerationService;
   private readonly trayService: ITrayService;
   private readonly windowService: IWindowService;
 
@@ -42,13 +81,15 @@ export class AppBootstrap {
     const appPath = isDev
       ? path.resolve(process.cwd(), 'app-data')
       : path.join(app.getPath('appData'), app.getName());
-    const settingsRepository = new SettingsRepository(this.logger, appPath);
-    const dbConnection = new DatabaseConnection(this.logger, appPath);
-    const chatRepository = new ChatRepository(this.logger, dbConnection);
-    this.openTabsRepository = new OpenTabsRepository(this.logger, dbConnection);
+    this.settingsRepository = new SettingsRepository(this.logger, appPath);
+    this.dbConnection = new DatabaseConnection(this.logger, appPath);
+    this.chatRepository = new ChatRepository(this.dbConnection);
+    this.openTabsRepository = new OpenTabsRepository(this.logger, this.dbConnection);
+    this.messageRepository = new MessageRepository(this.logger, this.dbConnection);
 
     // Create services in dependency order
-    this.settingsService = new SettingsService(settingsRepository);
+    this.openTabsService = new OpenTabsService(this.openTabsRepository);
+    this.settingsService = new SettingsService(this.settingsRepository);
     this.windowService = new WindowService();
     this.textSelectionService = new TextSelectionService();
     this.shortcutService = new ShortcutService(
@@ -59,26 +100,69 @@ export class AppBootstrap {
       globalShortcut,
     );
     this.trayService = new TrayService(this.windowService, this.logger);
-    const ollamaModelService = new OllamaModelService(this.settingsService, this.logger);
-    const lmStudioModelService = new LMStudioModelService(this.settingsService, this.logger);
-    const modelService = new ModelService(
+    this.ollamaModelService = new OllamaModelService(this.settingsService, this.logger);
+    this.lmStudioModelService = new LMStudioModelService(this.settingsService, this.logger);
+    this.messageService = new MessageService(this.messageRepository);
+    this.modelService = new ModelService(
       this.settingsService,
-      ollamaModelService,
-      lmStudioModelService,
+      this.ollamaModelService,
+      this.lmStudioModelService,
     );
-    this.chatService = new ChatService(chatRepository, modelService, this.windowService, this.logger, this.openTabsRepository);
-    this.ipcHandlers = new IpcHandlers(
-      this.settingsService,
-      modelService,
+    this.chatService = new ChatService(
+      this.chatRepository,
+    );
+
+    this.ipcEnvHandler = new IpcEnvHandler();
+    this.ipcSettingsHandler = new IpcSettingsHandler(this.settingsService);
+    this.ipcModelHandler = new IpcModelHandler(this.modelService);
+    this.titleGenerationService = new TitleGenerationService(
+      this.chatService,
+      this.modelService,
+      this.messageService,
+      this.logger,
       this.windowService,
+    );
+    this.ipcPromptSelectorHandler = new IpcPromptSelectorHandler(
+      this.chatService,
+      this.settingsService,
+      this.windowService,
+      this.modelService,
+      this.logger,
+      this.messageService,
+      this.titleGenerationService,
+    );
+    this.ipcChatHandler = new IpcChatHandler(
       this.chatService,
       this.logger,
-      this.openTabsRepository,
+      this.openTabsService,
+      this.settingsService,
+      this.windowService,
+      this.messageService,
+    );
+
+    this.ipcTabHandler = new IpcTabHandler(
+      this.openTabsService,
+      this.logger,
+    );
+
+    this.ipcMessageHandler = new IpcMessageHandler(
+      this.logger,
+      this.messageService,
+      this.windowService,
+      this.modelService,
+      this.chatService,
+      this.titleGenerationService,
     );
   }
 
   public initialize(): void {
-    this.ipcHandlers.register();
+    this.ipcEnvHandler.register();
+    this.ipcSettingsHandler.register();
+    this.ipcModelHandler.register();
+    this.ipcPromptSelectorHandler.register();
+    this.ipcChatHandler.register();
+    this.ipcTabHandler.register();
+    this.ipcMessageHandler.register();
 
     app.on('ready', () => {
       // Load settings on startup to initialize the in-memory store
@@ -94,12 +178,13 @@ export class AppBootstrap {
 
         try {
           // Initialize chat database
-          await this.chatService.initialize();
+          await this.dbConnection.initialize();
         } catch (error: unknown) {
           const errorText = error instanceof Error
             ? error.message
             : String(error);
-          this.logger.error('Failed to initialize chat database: %s', errorText);
+          this.logger.error('Failed to initialize database: %s', errorText);
+          throw new Error(`Failed to initialize database:  ${errorText}`);
         }
 
         this.trayService.createTray();
@@ -124,6 +209,10 @@ export class AppBootstrap {
           : String(error);
         this.logger.error(`Can't show window: %s`, errorText);
       });
+    });
+
+    app.on('quit', () => {
+      this.dbConnection.close();
     });
   }
 }

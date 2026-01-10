@@ -71,7 +71,7 @@ describe('ElectronIpcAdapter', () => {
 
       const payload = {
         channel: EIpcChannel.CHAT,
-        event: EIpcEvent.CHAT_LIST_CHATS,
+        event: EIpcEvent.CHAT_LIST,
         payload: {},
       };
 
@@ -87,7 +87,7 @@ describe('ElectronIpcAdapter', () => {
 
       const payload = {
         channel: EIpcChannel.CHAT,
-        event: EIpcEvent.CHAT_LIST_CHATS,
+        event: EIpcEvent.CHAT_LIST,
         payload: {},
       };
 
@@ -102,7 +102,7 @@ describe('ElectronIpcAdapter', () => {
 
       const payload = {
         channel: EIpcChannel.CHAT,
-        event: EIpcEvent.CHAT_LIST_CHATS,
+        event: EIpcEvent.CHAT_LIST,
         payload: {},
       };
 
@@ -140,7 +140,7 @@ describe('ElectronIpcAdapter', () => {
       expect(mockElectronAPI.offChatWindowData).toHaveBeenCalledWith(listener);
     });
 
-    it('does not throw when electronAPI is not available', () => {
+    it('throws when electronAPI is not available', () => {
       delete (globalThis as { electronAPI?: unknown }).electronAPI;
       const freshAdapter = new ElectronIpcAdapter();
 
@@ -148,7 +148,7 @@ describe('ElectronIpcAdapter', () => {
 
       expect(() => {
         freshAdapter.offChatWindowData(listener);
-      }).not.toThrow();
+      }).toThrow('electronAPI is not available');
     });
   });
 
@@ -182,7 +182,7 @@ describe('ElectronIpcAdapter', () => {
       expect(mockElectronAPI.offOllamaResponse).toHaveBeenCalledWith(listener);
     });
 
-    it('does not throw when electronAPI is not available', () => {
+    it('throws when electronAPI is not available', () => {
       delete (globalThis as { electronAPI?: unknown }).electronAPI;
       const freshAdapter = new ElectronIpcAdapter();
 
@@ -190,7 +190,7 @@ describe('ElectronIpcAdapter', () => {
 
       expect(() => {
         freshAdapter.offOllamaResponse(listener);
-      }).not.toThrow();
+      }).toThrow('electronAPI is not available');
     });
   });
 
@@ -224,7 +224,7 @@ describe('ElectronIpcAdapter', () => {
       expect(mockElectronAPI.offPromptSelectorData).toHaveBeenCalledWith(listener);
     });
 
-    it('does not throw when electronAPI is not available', () => {
+    it('throws when electronAPI is not available', () => {
       delete (globalThis as { electronAPI?: unknown }).electronAPI;
       const freshAdapter = new ElectronIpcAdapter();
 
@@ -232,7 +232,7 @@ describe('ElectronIpcAdapter', () => {
 
       expect(() => {
         freshAdapter.offPromptSelectorData(listener);
-      }).not.toThrow();
+      }).toThrow('electronAPI is not available');
     });
   });
 
@@ -266,7 +266,7 @@ describe('ElectronIpcAdapter', () => {
       expect(mockElectronAPI.offChatTitleUpdated).toHaveBeenCalledWith(listener);
     });
 
-    it('does not throw when electronAPI is not available', () => {
+    it('throws when electronAPI is not available', () => {
       delete (globalThis as { electronAPI?: unknown }).electronAPI;
       const freshAdapter = new ElectronIpcAdapter();
 
@@ -274,7 +274,7 @@ describe('ElectronIpcAdapter', () => {
 
       expect(() => {
         freshAdapter.offChatTitleUpdated(listener);
-      }).not.toThrow();
+      }).toThrow('electronAPI is not available');
     });
   });
 
@@ -308,7 +308,7 @@ describe('ElectronIpcAdapter', () => {
       expect(mockElectronAPI.offChatLoadMessagesData).toHaveBeenCalledWith(listener);
     });
 
-    it('does not throw when electronAPI is not available', () => {
+    it('throws when electronAPI is not available', () => {
       delete (globalThis as { electronAPI?: unknown }).electronAPI;
       const freshAdapter = new ElectronIpcAdapter();
 
@@ -316,7 +316,7 @@ describe('ElectronIpcAdapter', () => {
 
       expect(() => {
         freshAdapter.offChatLoadMessagesData(listener);
-      }).not.toThrow();
+      }).toThrow('electronAPI is not available');
     });
   });
 
@@ -350,7 +350,7 @@ describe('ElectronIpcAdapter', () => {
       expect(mockElectronAPI.offChatCreated).toHaveBeenCalledWith(listener);
     });
 
-    it('does not throw when electronAPI is not available', () => {
+    it('throws when electronAPI is not available', () => {
       delete (globalThis as { electronAPI?: unknown }).electronAPI;
       const freshAdapter = new ElectronIpcAdapter();
 
@@ -358,7 +358,7 @@ describe('ElectronIpcAdapter', () => {
 
       expect(() => {
         freshAdapter.offChatCreated(listener);
-      }).not.toThrow();
+      }).toThrow('electronAPI is not available');
     });
   });
 
@@ -392,7 +392,7 @@ describe('ElectronIpcAdapter', () => {
       expect(mockElectronAPI.offChatDeleted).toHaveBeenCalledWith(listener);
     });
 
-    it('does not throw when electronAPI is not available', () => {
+    it('throws when electronAPI is not available', () => {
       delete (globalThis as { electronAPI?: unknown }).electronAPI;
       const freshAdapter = new ElectronIpcAdapter();
 
@@ -400,7 +400,7 @@ describe('ElectronIpcAdapter', () => {
 
       expect(() => {
         freshAdapter.offChatDeleted(listener);
-      }).not.toThrow();
+      }).toThrow('electronAPI is not available');
     });
   });
 
@@ -435,7 +435,7 @@ describe('ElectronIpcAdapter', () => {
       expect(mockElectronAPI.offChatStreamChunk).toHaveBeenCalledWith(listener);
     });
 
-    it('does not throw when electronAPI is not available', () => {
+    it('throws when electronAPI is not available', () => {
       delete (globalThis as { electronAPI?: unknown }).electronAPI;
       const freshAdapter = new ElectronIpcAdapter();
 
@@ -443,7 +443,7 @@ describe('ElectronIpcAdapter', () => {
 
       expect(() => {
         freshAdapter.offChatStreamChunk(listener);
-      }).not.toThrow();
+      }).toThrow('electronAPI is not available');
     });
   });
 
@@ -478,7 +478,7 @@ describe('ElectronIpcAdapter', () => {
       expect(mockElectronAPI.offChatStreamEnd).toHaveBeenCalledWith(listener);
     });
 
-    it('does not throw when electronAPI is not available', () => {
+    it('throws when electronAPI is not available', () => {
       delete (globalThis as { electronAPI?: unknown }).electronAPI;
       const freshAdapter = new ElectronIpcAdapter();
 
@@ -486,7 +486,7 @@ describe('ElectronIpcAdapter', () => {
 
       expect(() => {
         freshAdapter.offChatStreamEnd(listener);
-      }).not.toThrow();
+      }).toThrow('electronAPI is not available');
     });
   });
 });
