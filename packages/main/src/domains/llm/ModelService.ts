@@ -6,6 +6,9 @@ import type { ILMStudioModelService } from './ILMStudioModelService';
 import type { IModelService, LLMChatResponse, LLMStreamChunk } from './IModelService';
 import type { IOllamaModelService } from './IOllamaModelService';
 
+// TODO: Rename to LLMService
+// TODO: Add Transformer.js support
+
 /**
  * Adapter service that selects the appropriate provider service based on settings
  * Implements IModelService by delegating to provider-specific services

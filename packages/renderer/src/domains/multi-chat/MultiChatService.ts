@@ -19,6 +19,8 @@ export interface ITabInfo {
   removeTitleChangeCallback?: () => void;
 }
 
+// TODO: create new chat with CTRL+N
+
 /**
  * Service for managing multiple chat tabs
  * Handles tab creation, switching, closing, and IPC event routing
@@ -34,6 +36,7 @@ export class MultiChatService {
   private promptSelectorService: PromptSelectorService | null = null;
   private isRestoringTabs = false;
   private saveTabsTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private keydownListener: ((event: KeyboardEvent) => void) | null = null;
 
   // Callbacks for component state updates (support multiple subscribers)
   private readonly onTabsChangeCallbacks = new Set<(tabs: ITabInfo[]) => void>();
@@ -185,6 +188,26 @@ export class MultiChatService {
     };
 
     this.chatSaveTabsRequestListener = this.ipcAdapter.onChatSaveTabsRequest(handleChatSaveTabsRequest);
+
+    // Setup keyboard shortcut listener for Ctrl+W/Cmd+W to close current tab
+    const handleKeydown = (event: KeyboardEvent) => {
+      // Check if Ctrl or Cmd is pressed along with W key
+      const isCtrlPressed = event.ctrlKey || event.metaKey;
+      if (isCtrlPressed && event.key === 'w') {
+        event.preventDefault(); // Prevent default browser behavior
+
+        // Only close tab if we have an active tab and at least one chat tab exists
+        const activeTab = this.getActiveTab();
+        if (activeTab !== null && activeTab.type === 'chat' && this.tabs.length > 0) {
+          logger.info('Ctrl+W pressed, closing current active tab');
+          this.closeChatTab(activeTab.tabId);
+        }
+      }
+    };
+
+    // Add the keyboard event listener to document
+    this.keydownListener = handleKeydown;
+    document.addEventListener('keydown', this.keydownListener);
   }
 
   /**
@@ -207,6 +230,13 @@ export class MultiChatService {
       this.ipcAdapter.offPromptSelectorData(this.promptSelectorDataListener);
       this.promptSelectorDataListener = null;
     }
+
+    // Cleanup keyboard listener
+    if (this.keydownListener !== null) {
+      document.removeEventListener('keydown', this.keydownListener);
+      this.keydownListener = null;
+    }
+
     // Clear any pending save operation
     if (this.saveTabsTimeoutId !== null) {
       clearTimeout(this.saveTabsTimeoutId);

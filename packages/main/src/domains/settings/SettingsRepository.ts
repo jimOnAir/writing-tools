@@ -5,6 +5,8 @@ import * as path from 'node:path';
 
 import type { ISettingsRepository } from './ISettingsRepository';
 
+// TODO: save in db
+
 export class SettingsRepository implements ISettingsRepository {
   private currentSettings: ISettings | null = null;
   private settingsLoaded = false;

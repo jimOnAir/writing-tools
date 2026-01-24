@@ -1,7 +1,7 @@
 import { relations } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-export const chats = sqliteTable('chats', {
+export const chats = sqliteTable('chats', { // TODO: add generated chat id on frontend side to guarantee proper update
   id: integer('id').primaryKey({ autoIncrement: true }),
   title: text('title').notNull().default(''),
   provider: text('provider').notNull().default('ollama'),

@@ -17,6 +17,8 @@ interface SettingsProps {
   readonly isModal?: boolean;
 }
 
+// TODO: stick close button. Make it distinct from remove prompt button
+
 const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false }) => {
   const [settings, setSettings] = useState<ISettings>(useMemo(() => ({ ...DefaultSettings }), []));
   // originalSettings is managed via callback in SettingsService, but component doesn't need to track it

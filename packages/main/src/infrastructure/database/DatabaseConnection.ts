@@ -25,6 +25,14 @@ export class DatabaseConnection {
       runInitialMigration(this.db);
       this.drizzleDb = drizzle(this.db, { schema });
       this.logger.info('Database connection initialized at: %s', dbPath);
+
+      // TODO: enable WAL     // db.pragma('journal_mode = WAL');
+      // TODO: enable FK constrains      // db.pragma('foreign_keys = ON');
+      // TODO: enable db.pragma('synchronous = NORMAL'); // Normal synchronous mode for better performance
+      // TODO: enable db.pragma('temp_store = MEMORY'); // Use memory for temporary tables
+      // TODO: enable db.pragma('cache_size = -50000'); // Set page cache size to 50MB (negative value means KB)
+      // TODO: enable db.pragma('mmap_size = 268435456'); // Set memory-mapped file I/O to 256MB
+      // TODO: enable db.pragma('optimize'); // Run internal query planner cleanup
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to initialize database connection: %s', errorText);

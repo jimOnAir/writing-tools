@@ -9,6 +9,7 @@ import { PromptSelectorService } from './domains/prompt-selector';
 import { SettingsService } from './domains/settings';
 import { ElectronIpcAdapter } from './infrastructure/ipc';
 
+// TODO: Rewrite interface with Shadcn
 function App() {
   // Create logger instance
   const logger = useMemo(() => new Logger(), []);

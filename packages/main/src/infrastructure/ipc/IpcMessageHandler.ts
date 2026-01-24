@@ -1,5 +1,5 @@
 import type { IChatMessage, ILogger, IMessageStatistics, TIpcEvent } from '@writing-tools/shared';
-import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
+import { EIpcChannel, EIpcEvent, EIpcRendererEvent } from '@writing-tools/shared';
 import { ipcMain } from 'electron';
 
 import type { IChatService } from '../../domains/chat';
@@ -77,7 +77,7 @@ export class IpcMessageHandler implements IIpcMessageHandler {
     }
   }
 
-  private async streamLLMResponse(
+  private async streamLLMResponse( // TODO: move to separate service
     chatId: number,
     messages: IChatMessage[],
     mainWindow: Electron.BrowserWindow,
@@ -102,7 +102,7 @@ export class IpcMessageHandler implements IIpcMessageHandler {
         }
 
         // Send chunk to renderer with statistics if available
-        mainWindow.webContents.send('CHAT_STREAM_CHUNK', {
+        mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_CHUNK, {
           chatId,
           content: chunk.content,
           done: chunk.done,

@@ -16,7 +16,10 @@ interface ChatListComponentProps {
 }
 
 const SCROLL_TIMEOUT_MS = 500;
-
+// TODO: add no chat placeholder
+// TODO: remove automatic creating new chat, show recent chats preview (summary?) instead
+// TODO: add chat renaming (regenerate title)
+// TODO: add infinite scroll
 const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, multiChatService, onChatSelect }) => {
   const [chats, setChats] = useState<IChatInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);

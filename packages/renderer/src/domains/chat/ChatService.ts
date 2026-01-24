@@ -5,6 +5,9 @@ import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
 import { isErrorResponse } from '../../utils/responseTypeGuards';
 
+// TODO: generate unique chat uuid and use it as idempotency key
+
+
 /**
  * Service for managing chat domain logic
  * Handles message state, IPC communication, and chat operations

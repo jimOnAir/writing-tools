@@ -125,7 +125,7 @@ Title:`;
       // Only send notification if window already existed (created === false)
       // If window was just created (created === true), don't send notification and close it
       if (!mainWindowCreated && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(EIpcRendererEvent.CHAT_TITLE_UPDATED, {
+        mainWindow.webContents.send(EIpcRendererEvent.CHAT_TITLE_UPDATED, { // TODO: Implement notifications through DB triggers
           chatId,
           title,
         });

@@ -13,11 +13,15 @@ interface ChatComponentProps {
   readonly chatId: number | null;
 }
 
+// TODO: Keep chat position when while switching tabs
+// TODO: add model chooser for next message
+// TODO: add edit users message
+// TODO: add resending message
 const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) => {
   const [messages, setMessages] = useState<IChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); // TODO: Proper error handing, now it's just written as message
   const [isHandlingResponse, setIsHandlingResponse] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [chatTitle, setChatTitle] = useState<string | null>(null);
@@ -156,13 +160,13 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
       if (inputRef.current) {
         inputRef.current.focus();
       }
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === 'ArrowUp') { // TODO: only on text start
       e.preventDefault();
       const historyValue = chatService.navigateHistoryUp();
       if (historyValue !== null) {
         setInputValue(historyValue);
       }
-    } else if (e.key === 'ArrowDown') {
+    } else if (e.key === 'ArrowDown') { // TODO: only on text end
       e.preventDefault();
       const historyValue = chatService.navigateHistoryDown();
       if (historyValue !== null) {
@@ -193,6 +197,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
           )}
         </div>
       )}
+      {/* TODO: make responsive */}
       <div className={`flex-1 overflow-y-auto p-4 ${BackgroundStyles.chatContainer} mb-3 rounded`}>
         {messages.length === 0 ? (
           <div className={`text-center ${TypographyStyles.emptyState} mt-8`}>
@@ -216,6 +221,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
                     <div
                       className={`min-w-[200px] max-w-[80%] p-3 ${MessageStyles[message.role]}`}
                     >
+                      {/* TODO: long markdown doesn't fit */}
                       <div
                         className="whitespace-pre-wrap markdown-content markdown-message"
                         dangerouslySetInnerHTML={{
@@ -233,7 +239,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
                     <div
                       className={`flex gap-2 ${message.role === 'user' ? 'justify-end' : 'justify-start'} opacity-0 transition-opacity duration-150 group-hover:opacity-100`}
                     >
-                      {message.role === 'assistant' && message.statistics !== undefined && (
+                      {message.role === 'assistant' && message.statistics !== undefined && ( // TODO: resend button in case of error
                         <Tooltip content={formatStatistics(message.statistics)}>
                           <button
                             type="button"
@@ -288,6 +294,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
                 </div>
               );
             })}
+            {/* TODO: Add follow-up questions links */}
             {isLoading && !isStreaming && (
               <div className="flex justify-start">
                 <div className={`${BackgroundStyles.loadingBubble} ${ColorPalette.text.tertiary} p-3 rounded rounded-l-sm`}>
@@ -346,10 +353,11 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
           {isLoading ? (
             <span className="flex items-center">
               <SpinnerIcon />
+              {/* TODO: Think on better naming  */}
               Sending...
             </span>
           ) : (
-            'Send'
+            'Send' // TODO: replace with icon
           )}
         </button>
       </div>

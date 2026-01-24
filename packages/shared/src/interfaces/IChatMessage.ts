@@ -1,6 +1,6 @@
 import type { IMessageStatistics } from './IMessageStatistics';
 
-export interface IChatMessage {
+export interface IChatMessage { // TODO: add message type: request, response. Add respondTo relation
   id: string;
   role: 'user' | 'assistant';
   content: string;

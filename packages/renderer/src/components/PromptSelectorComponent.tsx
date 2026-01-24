@@ -10,6 +10,7 @@ interface PromptSelectorComponentProps {
   promptSelectorService: PromptSelectorService;
 }
 
+// TODO: Combine with ChatComponent
 const PromptSelectorComponent: React.FC<PromptSelectorComponentProps> = ({ promptSelectorService }) => {
   const [selectedText, setSelectedText] = useState<string>('');
   const [preconfiguredPrompts, setPreconfiguredPrompts] = useState<IPreconfiguredPrompt[]>([]);
