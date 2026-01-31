@@ -3,11 +3,11 @@ import React, { useState, useEffect } from 'react';
 import type { ChatListService } from '../domains/chat-list';
 import type { MultiChatService } from '../domains/multi-chat';
 import { getNativeStyles } from '../styles/NativeStyles';
+import type { IChatListState } from '../types/IChatListState';
 import { getPlatform } from '../utils/platformDetection';
 
 import ChatListComponent from './ChatListComponent';
 import { ChevronLeftIcon, ChevronRightIcon, GearIcon, PlusIcon } from './icons';
-import type { IChatListState } from '../types/IChatListState';
 
 interface SidebarProps {
   readonly chatListService: ChatListService;

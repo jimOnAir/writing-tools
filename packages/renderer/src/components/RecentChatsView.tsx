@@ -1,13 +1,13 @@
 import type { IChatInfo } from '@writing-tools/shared';
 import React, { useMemo, useState, useEffect } from 'react';
 
-import { BackgroundStyles, ButtonStyles, ColorPalette, TypographyStyles } from '../styles/Styles';
 import { getNativeStyles } from '../styles/NativeStyles';
-import { getPlatform } from '../utils/platformDetection';
+import { BackgroundStyles, ButtonStyles, ColorPalette, TypographyStyles } from '../styles/Styles';
+import type { IChatListState } from '../types/IChatListState';
 import { renderMarkdown } from '../utils/markdownRenderer';
+import { getPlatform } from '../utils/platformDetection';
 
 import { PlusIcon } from './icons';
-import type { IChatListState } from '../types/IChatListState';
 
 const RECENT_CHATS_LIMIT = 10;
 

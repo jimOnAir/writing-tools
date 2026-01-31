@@ -69,6 +69,7 @@ describe('Settings', () => {
       addPreconfiguredPrompt: jest.fn(() => undefined),
       updatePreconfiguredPrompt: jest.fn(() => undefined),
       removePreconfiguredPrompt: jest.fn(() => undefined),
+      reorderPreconfiguredPrompts: jest.fn(() => undefined),
       cancelChanges: jest.fn(() => undefined),
       hasUnsavedChanges: jest.fn(() => false),
     } as unknown as jest.Mocked<SettingsService>;

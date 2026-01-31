@@ -319,4 +319,60 @@ describe('SettingsService', () => {
       expect(onSettingsChange).toHaveBeenCalled();
     });
   });
+
+  describe('reorderPreconfiguredPrompts', () => {
+    it('reorders prompts from one index to another', () => {
+      settingsService.addPreconfiguredPrompt();
+      settingsService.addPreconfiguredPrompt();
+      settingsService.addPreconfiguredPrompt();
+      settingsService.updatePreconfiguredPrompt(0, 'title', 'First');
+      settingsService.updatePreconfiguredPrompt(1, 'title', 'Second');
+      settingsService.updatePreconfiguredPrompt(2, 'title', 'Third');
+
+      const onSettingsChange = jest.fn();
+      settingsService.setCallbacks({ onSettingsChange });
+
+      settingsService.reorderPreconfiguredPrompts(0, 2);
+
+      expect(onSettingsChange).toHaveBeenCalled();
+      const updatedSettings = onSettingsChange.mock.calls[0]?.[0];
+      const prompts = updatedSettings.preconfiguredPrompts;
+      expect(prompts[0].title).toBe('Second');
+      expect(prompts[1].title).toBe('Third');
+      expect(prompts[2].title).toBe('First');
+    });
+
+    it('does nothing when fromIndex equals toIndex', () => {
+      settingsService.addPreconfiguredPrompt();
+
+      const onSettingsChange = jest.fn();
+      settingsService.setCallbacks({ onSettingsChange });
+
+      settingsService.reorderPreconfiguredPrompts(1, 1);
+
+      expect(onSettingsChange).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when fromIndex is negative', () => {
+      settingsService.addPreconfiguredPrompt();
+
+      const onSettingsChange = jest.fn();
+      settingsService.setCallbacks({ onSettingsChange });
+
+      settingsService.reorderPreconfiguredPrompts(-1, 0);
+
+      expect(onSettingsChange).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when toIndex is negative', () => {
+      settingsService.addPreconfiguredPrompt();
+
+      const onSettingsChange = jest.fn();
+      settingsService.setCallbacks({ onSettingsChange });
+
+      settingsService.reorderPreconfiguredPrompts(0, -1);
+
+      expect(onSettingsChange).not.toHaveBeenCalled();
+    });
+  });
 });

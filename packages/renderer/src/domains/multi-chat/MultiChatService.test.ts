@@ -1,7 +1,4 @@
-/* eslint-disable max-lines */
-import type { IChatWindowData } from '@writing-tools/shared';
-
-import type { ILogger } from '@writing-tools/shared';
+import type { IChatWindowData, ILogger } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';

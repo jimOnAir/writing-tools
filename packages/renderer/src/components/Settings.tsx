@@ -17,8 +17,6 @@ interface SettingsProps {
   readonly isModal?: boolean;
 }
 
-// TODO: Sort prompts with drag and drop
-
 const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false }) => {
   const [settings, setSettings] = useState<ISettings>(useMemo(() => ({ ...DefaultSettings }), []));
   // originalSettings is managed via callback in SettingsService, but component doesn't need to track it
@@ -111,6 +109,11 @@ const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false })
     settingsService.removePreconfiguredPrompt(index);
   };
 
+  // Handle reordering preconfigured prompts
+  const handleReorderPreconfiguredPrompt = (fromIndex: number, toIndex: number) => {
+    settingsService.reorderPreconfiguredPrompts(fromIndex, toIndex);
+  };
+
   // Handle updating a preconfigured prompt
   const handleUpdatePreconfiguredPrompt = (index: number, field: keyof IPreconfiguredPrompt, value: string) => {
     settingsService.updatePreconfiguredPrompt(index, field, value);
@@ -201,9 +204,10 @@ const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false })
           settings={settings}
           availableModels={availableModels}
           onAdd={handleAddPreconfiguredPrompt}
-          onUpdate={handleUpdatePreconfiguredPrompt}
           onIconUpload={handleIconUpload}
           onRemove={handleRemovePreconfiguredPrompt}
+          onReorder={handleReorderPreconfiguredPrompt}
+          onUpdate={handleUpdatePreconfiguredPrompt}
         />
 
         <GlobalShortcutsSection

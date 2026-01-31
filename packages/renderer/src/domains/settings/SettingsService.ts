@@ -344,6 +344,24 @@ export class SettingsService {
   }
 
   /**
+   * Reorder preconfigured prompts
+   */
+  public reorderPreconfiguredPrompts(fromIndex: number, toIndex: number): void {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) {
+      return;
+    }
+
+    const newPrompts = [...this.settings.preconfiguredPrompts];
+    const [removed] = newPrompts.splice(fromIndex, 1);
+    newPrompts.splice(toIndex, 0, removed);
+
+    this.setSettings({
+      ...this.settings,
+      preconfiguredPrompts: newPrompts,
+    });
+  }
+
+  /**
    * Update a preconfigured prompt
    */
   public updatePreconfiguredPrompt(index: number, field: keyof IPreconfiguredPrompt, value: string): void {

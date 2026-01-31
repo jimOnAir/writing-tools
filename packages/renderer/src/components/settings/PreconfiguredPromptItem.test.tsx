@@ -42,6 +42,7 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        platform="linux"
         settings={mockSettings}
         availableModels={mockAvailableModels}
         onUpdate={onUpdate}
@@ -59,6 +60,7 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        platform="linux"
         settings={mockSettings}
         availableModels={mockAvailableModels}
         onUpdate={onUpdate}
@@ -78,6 +80,7 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        platform="linux"
         settings={mockSettings}
         availableModels={mockAvailableModels}
         onUpdate={onUpdate}
@@ -104,6 +107,7 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        platform="linux"
         settings={mockSettings}
         availableModels={mockAvailableModels}
         onUpdate={onUpdate}
@@ -134,6 +138,7 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={promptWithIcon}
         index={0}
+        platform="linux"
         settings={mockSettings}
         availableModels={mockAvailableModels}
         onUpdate={onUpdate}
@@ -157,6 +162,7 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={promptWithIcon}
         index={0}
+        platform="linux"
         settings={mockSettings}
         availableModels={mockAvailableModels}
         onUpdate={onUpdate}
@@ -173,6 +179,7 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        platform="linux"
         settings={mockSettings}
         availableModels={mockAvailableModels}
         onUpdate={onUpdate}
@@ -201,6 +208,7 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        platform="linux"
         settings={settingsWithOnlyOllama}
         availableModels={mockAvailableModels}
         onUpdate={onUpdate}
@@ -221,6 +229,7 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        platform="linux"
         settings={mockSettings}
         availableModels={mockAvailableModels}
         onUpdate={onUpdate}
@@ -240,6 +249,7 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        platform="linux"
         settings={mockSettings}
         availableModels={mockAvailableModels}
         onUpdate={onUpdate}
@@ -259,6 +269,7 @@ describe('PreconfiguredPromptItem', () => {
       <PreconfiguredPromptItem
         prompt={mockPrompt}
         index={0}
+        platform="linux"
         settings={mockSettings}
         availableModels={mockAvailableModels}
         onUpdate={onUpdate}
@@ -272,5 +283,36 @@ describe('PreconfiguredPromptItem', () => {
 
     expect(titleInput).toHaveAttribute('id', 'prompt-title-0');
     expect(promptTextarea).toHaveAttribute('id', 'prompt-content-0');
+  });
+
+  it('renders drag handle and passes drag handlers when provided', () => {
+    const onDragStart = jest.fn();
+    const onDragOver = jest.fn();
+    const onDrop = jest.fn();
+    const onDragEnd = jest.fn();
+
+    render(
+      <PreconfiguredPromptItem
+        prompt={mockPrompt}
+        index={0}
+        platform="linux"
+        settings={mockSettings}
+        availableModels={mockAvailableModels}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onDragEnd={onDragEnd}
+        onUpdate={onUpdate}
+        onIconUpload={onIconUpload}
+        onRemove={onRemove}
+      />,
+    );
+
+    const dragHandle = screen.getByTestId('prompt-drag-handle');
+    expect(dragHandle).toBeInTheDocument();
+    expect(dragHandle).toHaveAttribute('draggable', 'true');
+
+    fireEvent.dragStart(dragHandle);
+    expect(onDragStart).toHaveBeenCalled();
   });
 });

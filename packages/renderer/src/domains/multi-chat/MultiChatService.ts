@@ -402,10 +402,10 @@ export class MultiChatService {
   public async saveTabs(): Promise<void> {
     try {
       const chatTabs = this.tabs.map((tab, index) => ({
-          chatId: tab.chatId,
-          tabOrder: index,
-          isActive: tab.tabId === this.activeTabId,
-        }));
+        chatId: tab.chatId,
+        tabOrder: index,
+        isActive: tab.tabId === this.activeTabId,
+      }));
 
       const payload: TIpcEvent<EIpcChannel.TAB, EIpcEvent.TABS_SAVE> = {
         channel: EIpcChannel.TAB,

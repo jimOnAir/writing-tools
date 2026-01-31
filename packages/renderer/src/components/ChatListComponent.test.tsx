@@ -675,6 +675,5 @@ describe('ChatListComponent', () => {
       expect(chat1Element).not.toBeNull();
       expect(chat1Element?.className).not.toContain('border-l-4');
     });
-
   });
 });

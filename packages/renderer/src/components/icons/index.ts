@@ -1,6 +1,7 @@
 export { ChevronLeftIcon } from './ChevronLeftIcon';
 export { ChevronRightIcon } from './ChevronRightIcon';
 export { CloseIcon } from './CloseIcon';
+export { GripIcon } from './GripIcon';
 export { GearIcon } from './GearIcon';
 export { LoadingIcon } from './LoadingIcon';
 export { PlusIcon } from './PlusIcon';
