@@ -18,6 +18,8 @@ interface SettingsProps {
 }
 
 // TODO: stick close button. Make it distinct from remove prompt button
+// TODO: Fix editing title, it looses focus on keyup
+// TODO: Sort prompts with drag and drop
 
 const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false }) => {
   const [settings, setSettings] = useState<ISettings>(useMemo(() => ({ ...DefaultSettings }), []));
