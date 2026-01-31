@@ -19,6 +19,7 @@ export interface ILMStudioModelService {
 
   /**
    * Send messages to LM Studio and get streaming response
+   * @param options.model - Override model; when omitted, uses settings
    */
-  sendMessagesStream: (messages: Message[]) => AsyncGenerator<LMStudioStreamChunk, void>;
+  sendMessagesStream: (messages: Message[], options?: { model?: string }) => AsyncGenerator<LMStudioStreamChunk, void>;
 }

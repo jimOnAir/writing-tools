@@ -48,9 +48,11 @@ export class LMStudioModelService implements ILMStudioModelService {
   public sendMessagesStream = async function* (
     this: LMStudioModelService,
     messages: Message[],
+    options?: { model?: string },
   ): AsyncGenerator<LMStudioStreamChunk, void> {
     const settings = await this.settingsService.loadSettings();
-    const { address, model, apiKey } = settings.lmstudio;
+    const { address, model: settingsModel, apiKey } = settings.lmstudio;
+    const model = options?.model ?? settingsModel;
 
     if (!model) {
       throw new Error('Model not specified');

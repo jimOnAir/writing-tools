@@ -149,6 +149,7 @@ export class SettingsService {
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
       const providerName = provider === 'lmstudio' ? 'LM Studio' : 'Ollama';
+      this.setAvailableModels([]);
       this.setError(`Failed to fetch available models from ${providerName}. Please check the address and ensure ${providerName} is running.`);
       logger.error('Failed to fetch models: %s', errorText);
     } finally {

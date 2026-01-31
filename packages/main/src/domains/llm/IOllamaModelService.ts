@@ -19,6 +19,7 @@ export interface IOllamaModelService {
 
   /**
    * Send messages to Ollama and get streaming response
+   * @param options.model - Override model; when omitted, uses settings
    */
-  sendMessagesStream: (messages: Message[]) => AsyncGenerator<OllamaStreamChunk, void>;
+  sendMessagesStream: (messages: Message[], options?: { model?: string }) => AsyncGenerator<OllamaStreamChunk, void>;
 }

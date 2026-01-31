@@ -40,10 +40,11 @@ export class ModelService implements IModelService {
   public sendMessagesStream = async function* (
     this: ModelService,
     messages: Message[],
+    options?: { model?: string, provider?: 'ollama' | 'lmstudio' },
   ): AsyncGenerator<LLMStreamChunk, void> {
-    const provider = await this.getProvider();
+    const provider = await this.getProvider(options?.provider);
 
-    yield* provider.sendMessagesStream(messages);
+    yield* provider.sendMessagesStream(messages, options);
   };
 
   private async getProvider(preferredProvider?: 'ollama' | 'lmstudio') {

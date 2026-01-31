@@ -42,9 +42,11 @@ export class OllamaModelService implements IOllamaModelService {
   public sendMessagesStream = async function* (
     this: OllamaModelService,
     messages: Message[],
+    options?: { model?: string },
   ): AsyncGenerator<OllamaStreamChunk, void> {
     const settings = await this.settingsService.loadSettings();
-    const { address, model, apiKey } = settings.ollama;
+    const { address, model: settingsModel, apiKey } = settings.ollama;
+    const model = options?.model ?? settingsModel;
 
     if (!model) {
       throw new Error('Model not specified');

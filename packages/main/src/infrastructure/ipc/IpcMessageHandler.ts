@@ -86,12 +86,16 @@ export class IpcMessageHandler implements IIpcMessageHandler {
     let statistics: IMessageStatistics | undefined;
 
     try {
+      const chat = this.chatService.getChat(chatId);
+      const streamOptions = chat
+        ? { model: chat.model, provider: chat.provider as 'ollama' | 'lmstudio' }
+        : undefined;
       const streamGenerator = this.modelService.sendMessagesStream(messages.map((message => {
         return {
           role: message.role,
           content: message.content,
         };
-      })));
+      })), streamOptions);
 
       for await (const chunk of streamGenerator) {
         fullContent += chunk.content;

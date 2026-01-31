@@ -128,12 +128,17 @@ export class IpcPromptSelectorHandler implements IIpcPromptSelectorHandler {
     let statistics: IMessageStatistics | undefined;
 
     try {
+      const chat = this.chatService.getChat(chatId);
+
       const messages = [{
         role: 'user',
         content: prompt,
       }];
 
-      const streamGenerator = this.modelService.sendMessagesStream(messages);
+      const streamOptions = chat
+        ? { model: chat.model, provider: chat.provider as 'ollama' | 'lmstudio' }
+        : undefined;
+      const streamGenerator = this.modelService.sendMessagesStream(messages, streamOptions);
 
       for await (const chunk of streamGenerator) {
         fullContent += chunk.content;

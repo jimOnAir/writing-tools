@@ -11,7 +11,6 @@ interface PromptSelectorComponentProps {
 }
 
 // TODO: Combine with ChatComponent
-// TODO: Prompts with custom models doesn't use it
 
 const PromptSelectorComponent: React.FC<PromptSelectorComponentProps> = ({ promptSelectorService }) => {
   const [selectedText, setSelectedText] = useState<string>('');

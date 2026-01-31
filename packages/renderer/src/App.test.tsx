@@ -86,10 +86,11 @@ describe('App', () => {
   test('renders chat interface by default', async () => {
     render(<App />);
 
-    // Wait for async operations to complete (loading chats, getting platform)
+    // Wait for async operations to complete (loading chats, getting platform, loading tabs)
+    // With no tabs, RecentChatsView is shown
     await waitFor(() => {
-      const chatPlaceholder = screen.getByPlaceholderText('Type your message...');
-      expect(chatPlaceholder).toBeInTheDocument();
+      const heading = screen.getByRole('heading', { name: 'Recent chats' });
+      expect(heading).toBeInTheDocument();
     });
   });
 
@@ -118,8 +119,8 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      const chatPlaceholder = screen.getByPlaceholderText('Type your message...');
-      expect(chatPlaceholder).toBeInTheDocument();
+      const heading = screen.getByRole('heading', { name: 'Recent chats' });
+      expect(heading).toBeInTheDocument();
     });
   });
 
@@ -148,8 +149,8 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      const chatPlaceholder = screen.getByPlaceholderText('Type your message...');
-      expect(chatPlaceholder).toBeInTheDocument();
+      const heading = screen.getByRole('heading', { name: 'Recent chats' });
+      expect(heading).toBeInTheDocument();
     });
   });
 
@@ -178,8 +179,8 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      const chatPlaceholder = screen.getByPlaceholderText('Type your message...');
-      expect(chatPlaceholder).toBeInTheDocument();
+      const heading = screen.getByRole('heading', { name: 'Recent chats' });
+      expect(heading).toBeInTheDocument();
     });
   });
 
@@ -208,8 +209,8 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      const chatPlaceholder = screen.getByPlaceholderText('Type your message...');
-      expect(chatPlaceholder).toBeInTheDocument();
+      const heading = screen.getByRole('heading', { name: 'Recent chats' });
+      expect(heading).toBeInTheDocument();
     });
   });
 
@@ -238,10 +239,10 @@ describe('App', () => {
 
     render(<App />);
 
-    // Component should still render even if chat list fails to load
+    // Component should still render even if chat list fails to load (shows error + New Chat button)
     await waitFor(() => {
-      const chatPlaceholder = screen.getByPlaceholderText('Type your message...');
-      expect(chatPlaceholder).toBeInTheDocument();
+      const newChatButton = screen.getByRole('button', { name: /new chat/i });
+      expect(newChatButton).toBeInTheDocument();
     });
   });
 
@@ -266,8 +267,8 @@ describe('App', () => {
 
     // Component should still render even if settings fail to load
     await waitFor(() => {
-      const chatPlaceholder = screen.getByPlaceholderText('Type your message...');
-      expect(chatPlaceholder).toBeInTheDocument();
+      const heading = screen.getByRole('heading', { name: 'Recent chats' });
+      expect(heading).toBeInTheDocument();
     });
   });
 
@@ -298,8 +299,8 @@ describe('App', () => {
 
     // Component should still render even if platform detection fails
     await waitFor(() => {
-      const chatPlaceholder = screen.getByPlaceholderText('Type your message...');
-      expect(chatPlaceholder).toBeInTheDocument();
+      const heading = screen.getByRole('heading', { name: 'Recent chats' });
+      expect(heading).toBeInTheDocument();
     });
   });
 });
