@@ -381,14 +381,6 @@ export class MultiChatService {
     const wasActive = this.activeTabId === tabId;
     const isLastTab = this.tabs.length === 1;
 
-    // If this was the last tab, create a new empty chat FIRST to ensure we never have 0 tabs
-    // This prevents the window from closing when tabs become empty
-    let newTab: ITabInfo | null = null;
-    if (isLastTab) {
-      logger.info('Last tab detected, creating new tab before removal');
-      newTab = this.createNewChatTab();
-    }
-
     // Cleanup services
     if (tab.chatService) {
       tab.chatService.cleanupListeners();
@@ -400,24 +392,18 @@ export class MultiChatService {
       tab.promptSelectorService.cleanupListeners();
     }
 
-    // Remove tab from array AFTER creating new tab (if it was the last one)
-    // This ensures we never have 0 tabs, preventing window from closing
     this.tabs.splice(tabIndex, 1);
     logger.info('Tab removed. Remaining tabs: %s', String(this.tabs.length));
 
-    // If this was the last tab, switch to the new tab we created
-    if (isLastTab && newTab) {
-      this.switchToTab(newTab.tabId);
+    if (isLastTab) {
+      this.activeTabId = null;
+      this.notifyActiveTabChange();
     } else if (wasActive) {
-      // Switch to the previous tab (index - 1), or the first tab if we closed the first one
       const newIndex = Math.max(0, tabIndex - 1);
       logger.info('Switching to tab at index: %s', String(newIndex));
       this.switchToTab(this.tabs[newIndex].tabId);
-    } else {
-      // Tab was not active and not the last tab - no tab switching needed
     }
 
-    // Always notify of tabs change
     this.notifyTabsChange();
   }
 

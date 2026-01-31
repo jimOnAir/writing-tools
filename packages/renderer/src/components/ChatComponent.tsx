@@ -182,9 +182,9 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
   const displayTitle = chatTitle !== null && chatTitle.trim() !== '' ? chatTitle : null;
 
   return (
-    <div className={`flex flex-col h-full w-full ${LayoutStyles.container}`}>
+    <div className={`flex flex-col flex-1 min-h-0 overflow-hidden w-full ${LayoutStyles.container}`}>
       {hasActiveChat && (
-        <div className="mb-4 pb-4">
+        <div className="mb-4 pb-4 flex-shrink-0">
           {displayTitle === null ? (
             <div className={`${TypographyStyles.h2} ${ColorPalette.text.muted}`}>
               New Chat
@@ -198,7 +198,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
         </div>
       )}
       {/* TODO: make responsive */}
-      <div className={`flex-1 overflow-y-auto p-4 ${BackgroundStyles.chatContainer} mb-3 rounded`}>
+      <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 ${BackgroundStyles.chatContainer} mb-3 rounded`}>
         {messages.length === 0 ? (
           <div className={`text-center ${TypographyStyles.emptyState} mt-8`}>
             <p className="text-sm">No messages yet</p>
@@ -312,12 +312,12 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
       </div>
 
       {error && (
-        <div className={`${NotificationStyles.errorInline} mb-3`}>
+        <div className={`${NotificationStyles.errorInline} mb-3 flex-shrink-0`}>
           {error}
         </div>
       )}
 
-      <div className={LayoutStyles.inputGroup}>
+      <div className={`${LayoutStyles.inputGroup} flex-shrink-0`}>
         <textarea
           value={inputValue}
           ref={inputRef}

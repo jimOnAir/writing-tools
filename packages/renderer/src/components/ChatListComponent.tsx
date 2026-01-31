@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { ChatListService } from '../domains/chat-list';
 import type { ITabInfo, MultiChatService } from '../domains/multi-chat';
 import { BackgroundStyles, TypographyStyles, ColorPalette } from '../styles/Styles';
+import type { IChatListState } from '../types/IChatListState';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
 import { CloseIcon, LoadingIcon } from './icons';
@@ -11,22 +12,27 @@ import { Tooltip } from './Tooltip';
 
 interface ChatListComponentProps {
   readonly chatListService: ChatListService;
+  readonly chatListState?: IChatListState;
   readonly multiChatService?: MultiChatService;
   readonly onChatSelect: (chatId: number) => void;
 }
 
 const SCROLL_TIMEOUT_MS = 500;
-// TODO: add no chat placeholder
-// TODO: remove automatic creating new chat, show recent chats preview (summary?) instead
 // TODO: add chat renaming (regenerate title)
 // TODO: add infinite scroll
-const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, multiChatService, onChatSelect }) => {
-  const [chats, setChats] = useState<IChatInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [deletingChatId, setDeletingChatId] = useState<number | null>(null);
+const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, chatListState, multiChatService, onChatSelect }) => {
+  const [uncontrolledChats, setUncontrolledChats] = useState<IChatInfo[]>([]);
+  const [uncontrolledLoading, setUncontrolledLoading] = useState(true);
+  const [uncontrolledError, setUncontrolledError] = useState<string | null>(null);
+  const [uncontrolledDeletingChatId, setUncontrolledDeletingChatId] = useState<number | null>(null);
   const [tabs, setTabs] = useState<readonly ITabInfo[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const isControlled = chatListState !== undefined;
+  const chats: IChatInfo[] = isControlled ? chatListState.chats : uncontrolledChats;
+  const isLoading: boolean = isControlled ? chatListState.isLoading : uncontrolledLoading;
+  const error: string | null = isControlled ? chatListState.error : uncontrolledError;
+  const deletingChatId: number | null = isControlled ? chatListState.deletingChatId : uncontrolledDeletingChatId;
 
   // Extract opened chat IDs from tabs
   const openedChatIds = useMemo(() => {
@@ -44,29 +50,25 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
     return chatIds;
   }, [multiChatService, tabs]);
 
-  // Register callbacks
+  // When uncontrolled, subscribe to ChatListService for state
   useEffect(() => {
-    chatListService.setCallbacks({
-      onChatsChange: setChats,
-      onLoadingChange: setIsLoading,
-      onErrorChange: setError,
-      onDeletingChatIdChange: setDeletingChatId,
-    });
-  }, [chatListService]);
+    if (isControlled) {
+      return;
+    }
 
-  // Initialize listeners
-  useEffect(() => {
+    chatListService.setCallbacks({
+      onChatsChange: setUncontrolledChats,
+      onDeletingChatIdChange: setUncontrolledDeletingChatId,
+      onErrorChange: setUncontrolledError,
+      onLoadingChange: setUncontrolledLoading,
+    });
     chatListService.initializeListeners();
+    void chatListService.loadChats();
 
     return () => {
       chatListService.cleanupListeners();
     };
-  }, [chatListService]);
-
-  // Load chats on mount
-  useEffect(() => {
-    void chatListService.loadChats();
-  }, [chatListService]);
+  }, [chatListService, isControlled]);
 
   // Subscribe to tab changes from MultiChatService
   useEffect(() => {
@@ -186,13 +188,15 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
               const isDeleting = deletingChatId === chat.id;
               const isOpened = openedChatIds.has(chat.id);
 
+              const openedBorder = isOpened ? `border-l-4 ${ColorPalette.border.accent}` : '';
+              const baseCard
+                = `${BackgroundStyles.cardHover} p-3 rounded-xl cursor-pointer flex items-center justify-between w-full transition-all duration-300`;
+              const cardClassName = `${baseCard} ${openedBorder}`;
+              const titleClassName
+                = `${TypographyStyles.h3} ${ColorPalette.text.primary} truncate markdown-content chat-title mb-1 min-w-0 overflow-hidden`;
+
               return (
-                <div
-                  key={chat.id}
-                  className={`${BackgroundStyles.cardHover} p-3 rounded-xl cursor-pointer flex items-center justify-between w-full transition-all duration-300 ${
-                    isOpened ? `border-l-4 ${ColorPalette.border.accent}` : ''
-                  }`}
-                >
+                <div key={chat.id} className={cardClassName}>
                   <Tooltip content={displayTitle}>
                     <button
                       type="button"
@@ -203,7 +207,7 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
                       aria-label={`Open chat: ${displayTitle}`}
                     >
                       <div
-                        className={`${TypographyStyles.h3} ${ColorPalette.text.primary} truncate markdown-content chat-title mb-1 min-w-0 overflow-hidden`}
+                        className={titleClassName}
                         dangerouslySetInnerHTML={{ __html: renderMarkdown(displayTitle) }}
                       />
                       <div className={`text-xs ${ColorPalette.text.muted} mt-0.5`}>

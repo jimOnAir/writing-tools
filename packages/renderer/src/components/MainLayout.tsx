@@ -1,3 +1,4 @@
+import type { IChatInfo } from '@writing-tools/shared';
 import React, { useState, useEffect, useMemo } from 'react';
 
 import type { ChatListService } from '../domains/chat-list';
@@ -5,14 +6,18 @@ import type { ITabInfo, MultiChatService } from '../domains/multi-chat';
 import type { PromptSelectorService } from '../domains/prompt-selector';
 import type { SettingsService } from '../domains/settings';
 import { BackgroundStyles } from '../styles/Styles';
+import type { IChatListState } from '../types/IChatListState';
 import { getPlatform } from '../utils/platformDetection';
 import { isErrorResponse } from '../utils/responseTypeGuards';
 
 import ChatComponent from './ChatComponent';
 import PromptSelectorComponent from './PromptSelectorComponent';
+import { RecentChatsView } from './RecentChatsView';
 import { SettingsModal } from './SettingsModal';
 import { Sidebar } from './Sidebar';
 import { TabBar } from './tabs';
+
+export type { IChatListState };
 
 interface MainLayoutProps {
   readonly multiChatService: MultiChatService;
@@ -29,8 +34,28 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [tabsVersion, setTabsVersion] = useState(0);
+  const [chats, setChats] = useState<IChatInfo[]>([]);
+  const [chatListError, setChatListError] = useState<string | null>(null);
+  const [chatListLoading, setChatListLoading] = useState(true);
+  const [deletingChatId, setDeletingChatId] = useState<number | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
+
+  // Own chat list state and subscribe to ChatListService (single source of truth for sidebar and recent chats view)
+  useEffect(() => {
+    chatListService.setCallbacks({
+      onChatsChange: setChats,
+      onDeletingChatIdChange: setDeletingChatId,
+      onErrorChange: setChatListError,
+      onLoadingChange: setChatListLoading,
+    });
+    chatListService.initializeListeners();
+    void chatListService.loadChats();
+
+    return () => {
+      chatListService.cleanupListeners();
+    };
+  }, [chatListService]);
 
   useEffect(() => {
     void getPlatform().then(p => {
@@ -58,54 +83,23 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     // Initialize prompt selector service listener
     promptSelectorService.initializeListeners();
 
-    // Load saved tabs on mount (before creating initial tab)
+    // Load saved tabs on mount; do not auto-create a tab when none exist
     (async () => {
       try {
         const response = await multiChatService.loadTabs();
 
-        if (response !== undefined && response !== null) {
-          if (isErrorResponse(response)) {
-            // Error response - create initial tab if none exist
-            const tabs = multiChatService.getAllTabs();
-            if (!tabs || tabs.length === 0) {
-              multiChatService.createNewChatTab();
-            }
-          } else if ('tabs' in response && Array.isArray(response.tabs) && response.tabs.length > 0) {
-            await multiChatService.restoreTabs(response.tabs);
-          } else {
-            // No saved tabs, create initial tab if none exist
-            const tabs = multiChatService.getAllTabs();
-            if (!tabs || tabs.length === 0) {
-              multiChatService.createNewChatTab();
-            }
-          }
-        } else {
-          // Response is undefined/null - create initial tab if none exist
-          const tabs = multiChatService.getAllTabs();
-          if (!tabs || tabs.length === 0) {
-            multiChatService.createNewChatTab();
-          }
+        if (response !== undefined && response !== null && !isErrorResponse(response) && 'tabs' in response && Array.isArray(response.tabs) && response.tabs.length > 0) {
+          await multiChatService.restoreTabs(response.tabs);
         }
       } catch (error: unknown) {
         const errorText = error instanceof Error ? error.message : String(error);
         console.error('Failed to load tabs: %s', errorText);
-        // On error, create initial tab if none exist
-        const tabs = multiChatService.getAllTabs();
-        if (!tabs || tabs.length === 0) {
-          multiChatService.createNewChatTab();
-        }
       }
 
-      // Set initial active tab
       setActiveTabId(multiChatService.getActiveTabId());
     })().catch((error: unknown) => {
       const errorText = error instanceof Error ? error.message : String(error);
       console.error('Error loading tabs: %s', errorText);
-      // On error, create initial tab if none exist
-      const tabs = multiChatService.getAllTabs();
-      if (!tabs || tabs.length === 0) {
-        multiChatService.createNewChatTab();
-      }
       setActiveTabId(multiChatService.getActiveTabId());
     });
 
@@ -133,10 +127,21 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     return tab;
   }, [multiChatService, activeTabId, tabsVersion]);
 
+  const chatListState: IChatListState = useMemo(
+    () => ({
+      chats,
+      deletingChatId,
+      error: chatListError,
+      isLoading: chatListLoading,
+    }),
+    [chats, chatListError, chatListLoading, deletingChatId],
+  );
+
   return (
     <div className={`flex h-screen w-screen overflow-hidden ${BackgroundStyles.main}`}>
       <Sidebar
         chatListService={chatListService}
+        chatListState={chatListState}
         multiChatService={multiChatService}
         onChatSelect={handleChatSelect}
         onCreateNewTab={handleCreateNewTab}
@@ -144,16 +149,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           setIsSettingsOpen(true);
         }}
       />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <TabBar multiChatService={multiChatService} />
-        <div className={`flex-1 overflow-hidden p-6 ${BackgroundStyles.main}`}>
+        <div className={`flex flex-col flex-1 min-h-0 overflow-hidden p-6 ${BackgroundStyles.main}`}>
           {(() => {
             if (!activeTab) {
               return (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                  <p className="text-base mb-2">No active chat</p>
-                  <p className="text-sm">Create a new chat to get started</p>
-                </div>
+                <RecentChatsView
+                  chatListState={chatListState}
+                  onChatSelect={handleChatSelect}
+                  onCreateNewChat={handleCreateNewTab}
+                />
               );
             }
 

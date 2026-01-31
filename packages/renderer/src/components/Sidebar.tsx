@@ -7,16 +7,18 @@ import { getPlatform } from '../utils/platformDetection';
 
 import ChatListComponent from './ChatListComponent';
 import { ChevronLeftIcon, ChevronRightIcon, GearIcon, PlusIcon } from './icons';
+import type { IChatListState } from '../types/IChatListState';
 
 interface SidebarProps {
   readonly chatListService: ChatListService;
+  readonly chatListState: IChatListState;
   readonly multiChatService: MultiChatService;
   readonly onChatSelect: (chatId: number) => void;
   readonly onCreateNewTab: () => void;
   readonly onOpenSettings: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ chatListService, multiChatService, onChatSelect, onCreateNewTab, onOpenSettings }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ chatListService, chatListState, multiChatService, onChatSelect, onCreateNewTab, onOpenSettings }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [platform, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
 
@@ -70,7 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ chatListService, multiChatServ
       </div>
       {isExpanded && (
         <div className="flex-1 overflow-auto">
-          <ChatListComponent chatListService={chatListService} multiChatService={multiChatService} onChatSelect={onChatSelect} />
+          <ChatListComponent chatListService={chatListService} chatListState={chatListState} multiChatService={multiChatService} onChatSelect={onChatSelect} />
         </div>
       )}
       {isExpanded && (

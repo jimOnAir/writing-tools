@@ -200,7 +200,7 @@ describe('MultiChatService', () => {
       expect(mockIpcAdapter.invoke).toHaveBeenCalled();
     });
 
-    it('creates a new empty chat tab when closing last tab', () => {
+    it('allows zero tabs when closing last tab', () => {
       const tab = multiChatService.createNewChatTab();
       const originalTabId = tab.tabId;
 
@@ -210,17 +210,14 @@ describe('MultiChatService', () => {
 
       multiChatService.closeChatTab(tab.tabId);
 
-      // A new tab should be created and set as active
+      // No new tab is created; active tab is null and tabs are empty
       const activeTabId = multiChatService.getActiveTabId();
-      expect(activeTabId).not.toBeNull();
-      expect(activeTabId).not.toBe(originalTabId);
-      expect(onActiveTabChange).toHaveBeenCalledWith(activeTabId);
+      expect(activeTabId).toBeNull();
+      expect(onActiveTabChange).toHaveBeenCalledWith(null);
       expect(onTabsChange).toHaveBeenCalled();
 
-      // Verify there's exactly one tab (the newly created one)
       const tabs = multiChatService.getAllTabs();
-      expect(tabs).toHaveLength(1);
-      expect(tabs[0]?.tabId).toBe(activeTabId);
+      expect(tabs).toHaveLength(0);
     });
 
     it('cleans up chat service listeners when closing tab', () => {
@@ -861,48 +858,17 @@ describe('MultiChatService', () => {
     });
 
     it('does not crash when Ctrl+W is pressed on the last tab', async () => {
-      const initialTabCount = multiChatService.getAllTabs().length;
+      // Test case: When there's only one tab, closing it should not crash; we end up with 0 tabs
+      const tab = multiChatService.createNewChatTab();
+      const activeTabId = multiChatService.getActiveTabId();
 
-      // Test case: When there's only one tab, closing it should still work (should create a new empty chat)
-      // This tests that our implementation handles the "last tab" logic correctly
+      expect(activeTabId).not.toBeNull();
+      expect(() => {
+        multiChatService.closeChatTab(tab.tabId);
+      }).not.toThrow();
 
-      try {
-        // The actual Ctrl+W handler would trigger this
-        const tabsBefore = multiChatService.getAllTabs();
-
-        if (tabsBefore.length === 1 && tabsBefore[0].type === 'chat' && tabsBefore[0]?.chatId === null) {
-          // This represents the last tab with no chat - we should be able to close it without crash
-          const activeTabId = multiChatService.getActiveTabId();
-
-          if (activeTabId) {
-            expect(() => {
-              multiChatService.closeChatTab(activeTabId);
-            }).not.toThrow();
-
-            // Should create a new empty tab after closing the last one
-            expect(multiChatService.getAllTabs()).toHaveLength(1);
-          }
-        } else {
-          // Create a chat tab to test this scenario
-          const tab = multiChatService.createNewChatTab();
-
-          if (tab && tab.chatId === null) {
-            const activeTabId = multiChatService.getActiveTabId();
-
-            if (activeTabId) {
-              expect(() => {
-                multiChatService.closeChatTab(activeTabId);
-              }).not.toThrow();
-
-              // Should create a new empty tab after closing
-              expect(multiChatService.getAllTabs()).toHaveLength(1);
-            }
-          }
-        }
-      } catch (error) {
-        // Expected behavior - test is designed to not crash even with edge cases
-        expect(error).toBeNull();
-      }
+      expect(multiChatService.getAllTabs()).toHaveLength(0);
+      expect(multiChatService.getActiveTabId()).toBeNull();
     });
 
     it('handles keyboard shortcuts without affecting prompt selector tabs', async () => {
@@ -1032,9 +998,9 @@ describe('MultiChatService', () => {
       // Call removeEmptyTabs - this should remove the empty tab
       (multiChatService as any).removeEmptyTabs(true); // allow removing last tab
 
-      // After removal, we still have 1 tab because createNewChatTab() ensures at least one tab exists
+      // After removal we have 0 tabs (no auto-creation of new tab)
       const tabs = multiChatService.getAllTabs();
-      expect(tabs.length).toBe(1);
+      expect(tabs.length).toBe(0);
     });
   });
 

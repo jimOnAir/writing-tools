@@ -60,7 +60,7 @@ const PromptSelectorComponent: React.FC<PromptSelectorComponentProps> = ({ promp
   };
 
   return (
-    <div className={`flex flex-col h-full p-4 w-full ${BackgroundStyles.main}`}>
+    <div className={`flex flex-col flex-1 min-h-0 overflow-hidden p-4 w-full ${BackgroundStyles.main}`}>
       <h1 className={TypographyStyles.h1}>Select a Prompt</h1>
 
       <div className={`mb-3 p-3 ${BackgroundStyles.card} flex-1 overflow-y-auto min-h-[100px] rounded`}>

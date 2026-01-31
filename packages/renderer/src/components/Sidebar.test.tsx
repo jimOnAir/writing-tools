@@ -36,6 +36,13 @@ jest.mock('./ChatListComponent', () => ({
   default: jest.fn(() => <div>ChatListComponent</div>),
 }));
 
+const defaultChatListState = {
+  chats: [],
+  deletingChatId: null as number | null,
+  error: null as string | null,
+  isLoading: false,
+};
+
 describe('Sidebar', () => {
   let mockChatListService: jest.Mocked<ChatListService>;
   let mockMultiChatService: jest.Mocked<MultiChatService>;
@@ -68,6 +75,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        chatListState={defaultChatListState}
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
@@ -87,6 +95,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        chatListState={defaultChatListState}
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
@@ -109,6 +118,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        chatListState={defaultChatListState}
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
@@ -130,6 +140,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        chatListState={defaultChatListState}
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
@@ -151,6 +162,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        chatListState={defaultChatListState}
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
@@ -167,6 +179,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        chatListState={defaultChatListState}
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
@@ -186,6 +199,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        chatListState={defaultChatListState}
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}
@@ -207,6 +221,7 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         chatListService={mockChatListService}
+        chatListState={defaultChatListState}
         multiChatService={mockMultiChatService}
         onChatSelect={onChatSelect}
         onCreateNewTab={onCreateNewTab}

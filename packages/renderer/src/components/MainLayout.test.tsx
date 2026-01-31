@@ -39,6 +39,10 @@ jest.mock('./SettingsModal', () => ({
   SettingsModal: jest.fn(({ isOpen }) => (isOpen ? <div>SettingsModal</div> : null)),
 }));
 
+jest.mock('./RecentChatsView', () => ({
+  RecentChatsView: jest.fn(() => <div>RecentChatsView</div>),
+}));
+
 jest.mock('../styles/NativeStyles', () => ({
   getNativeStyles: jest.fn(() => ({
     header: {
@@ -194,8 +198,11 @@ describe('MainLayout', () => {
     });
   });
 
-  it('creates initial tab if none exist', async () => {
+  it('does not create initial tab when none exist (shows recent chats view instead)', async () => {
     mockMultiChatService.getAllTabs.mockReturnValue([]);
+    (mockMultiChatService.loadTabs as jest.Mock).mockResolvedValue({ tabs: [] });
+    mockMultiChatService.getActiveTabId.mockReturnValue(null);
+    mockMultiChatService.getActiveTab.mockReturnValue(null);
 
     render(
       <MainLayout
@@ -207,8 +214,10 @@ describe('MainLayout', () => {
     );
 
     await waitFor(() => {
-      expect(createNewChatTabMock).toHaveBeenCalledTimes(1);
+      expect(mockMultiChatService.loadTabs).toHaveBeenCalled();
     });
+
+    expect(createNewChatTabMock).not.toHaveBeenCalled();
   });
 
   it('opens settings modal when settings button is clicked', async () => {
@@ -269,7 +278,7 @@ describe('MainLayout', () => {
     });
   });
 
-  it('shows empty state when no active tab', async () => {
+  it('shows recent chats view when no active tab', async () => {
     mockMultiChatService.getActiveTab.mockReturnValue(null);
 
     render(
@@ -282,7 +291,7 @@ describe('MainLayout', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/No active chat/)).toBeInTheDocument();
+      expect(screen.getByText('RecentChatsView')).toBeInTheDocument();
     });
   });
 
@@ -408,7 +417,7 @@ describe('MainLayout', () => {
       expect(mockMultiChatService.saveTabs).not.toHaveBeenCalled();
     });
 
-    it('handles no saved tabs gracefully (uses defaults)', async () => {
+    it('handles no saved tabs gracefully (does not auto-create tab)', async () => {
       (mockMultiChatService.loadTabs as jest.Mock).mockResolvedValue({ tabs: [] });
       mockMultiChatService.getAllTabs.mockReturnValue([]);
 
@@ -423,8 +432,9 @@ describe('MainLayout', () => {
 
       await waitFor(() => {
         expect(mockMultiChatService.loadTabs).toHaveBeenCalled();
-        expect(createNewChatTabMock).toHaveBeenCalled();
       });
+
+      expect(createNewChatTabMock).not.toHaveBeenCalled();
     });
 
     it('restores tabs before creating initial tab', async () => {
@@ -453,7 +463,7 @@ describe('MainLayout', () => {
       expect(createNewChatTabMock).not.toHaveBeenCalled();
     });
 
-    it('handles loadTabs error gracefully', async () => {
+    it('handles loadTabs error gracefully (does not auto-create tab)', async () => {
       (mockMultiChatService.loadTabs as jest.Mock).mockRejectedValue(new Error('Load failed'));
       mockMultiChatService.getAllTabs.mockReturnValue([]);
 
@@ -467,11 +477,13 @@ describe('MainLayout', () => {
       );
 
       await waitFor(() => {
-        expect(createNewChatTabMock).toHaveBeenCalled();
+        expect(mockMultiChatService.loadTabs).toHaveBeenCalled();
       });
+
+      expect(createNewChatTabMock).not.toHaveBeenCalled();
     });
 
-    it('handles error response from loadTabs', async () => {
+    it('handles error response from loadTabs (does not auto-create tab)', async () => {
       (mockMultiChatService.loadTabs as jest.Mock).mockResolvedValue({ error: 'Load failed' });
       mockMultiChatService.getAllTabs.mockReturnValue([]);
 
@@ -485,8 +497,10 @@ describe('MainLayout', () => {
       );
 
       await waitFor(() => {
-        expect(createNewChatTabMock).toHaveBeenCalled();
+        expect(mockMultiChatService.loadTabs).toHaveBeenCalled();
       });
+
+      expect(createNewChatTabMock).not.toHaveBeenCalled();
     });
   });
 });
