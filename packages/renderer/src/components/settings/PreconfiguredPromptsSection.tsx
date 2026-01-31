@@ -37,7 +37,7 @@ export const PreconfiguredPromptsSection: React.FC<PreconfiguredPromptsSectionPr
 
           return (
             <PreconfiguredPromptItem
-              key={`${prompt.title}-${indexStr}`}
+              key={indexStr}
               prompt={prompt}
               index={index}
               settings={settings}
