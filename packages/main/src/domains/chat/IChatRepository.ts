@@ -26,6 +26,11 @@ export interface IChatRepository {
   updateChatTitle: (chatId: number, title: string) => void;
 
   /**
+   * Update the model and provider of a chat (for last-used model persistence)
+   */
+  updateChatModel: (chatId: number, model: string, provider: string) => void;
+
+  /**
    * Delete a chat permanently (hard delete)
    * All associated messages are automatically deleted via CASCADE foreign key constraint
    */

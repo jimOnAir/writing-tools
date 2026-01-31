@@ -70,6 +70,13 @@ export class IpcMessageHandler implements IIpcMessageHandler {
         }
       }
 
+      // Persist model override to chat for restore on reopen
+      if (override.model !== undefined && override.model !== '') {
+        const settings = await this.settingsService.loadSettings();
+        const provider = override.provider ?? (settings.provider ?? 'ollama');
+        this.chatService.updateChatModel(chatId, override.model, provider);
+      }
+
       // Get the main window to send stream events
       const { window: mainWindow } = await this.windowService.getMainWindow();
 

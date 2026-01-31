@@ -263,6 +263,27 @@ describe('ChatRepository', () => {
     });
   });
 
+  describe('updateChatModel', () => {
+    it('updates chat model and provider', () => {
+      const chatId = 1;
+
+      repository.updateChatModel(chatId, 'new-model', 'lmstudio');
+
+      expect(mockDrizzleDb.update).toHaveBeenCalled();
+    });
+
+    it('throws error when database is not initialized', () => {
+      const uninitializedRepo = new ChatRepository(dbConnection);
+      mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
+        throw new Error('Database not initialized');
+      });
+
+      expect(() => {
+        uninitializedRepo.updateChatModel(1, 'model', 'ollama');
+      }).toThrow('Database not initialized');
+    });
+  });
+
   describe('deleteChat', () => {
     it('deletes chat and associated messages', () => {
       const chatId = 1;

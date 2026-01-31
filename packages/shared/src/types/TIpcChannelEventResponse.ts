@@ -56,7 +56,10 @@ export type TChatDeleteFailedResponse = { error: string, success: false };
 
 export type TChatDeleteResponse = TChatDeleteSuccessResponse | TChatDeleteFailedResponse;
 
-export type TChatLoadTabsSuccessResponse = { tabs: TOpenTab[] };
+export type TChatLoadTabsSuccessResponse = {
+  scrollPositionsByChatId?: Record<number, number>,
+  tabs: TOpenTab[],
+};
 
 export type TChatLoadTabsFailedResponse = { error: string };
 

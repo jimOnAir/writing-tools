@@ -196,7 +196,7 @@ export class ElectronIpcAdapter implements IIpcAdapter {
     this.getElectronAPI().offChatSaveTabsRequest(listener);
   }
 
-  public async loadTabs(): Promise<{ tabs: TOpenTab[] } | { error: string }> {
+  public async loadTabs(): Promise<{ scrollPositionsByChatId?: Record<number, number>, tabs: TOpenTab[] } | { error: string }> {
     const payload: TIpcEvent<EIpcChannel.TAB, EIpcEvent.TABS_LOAD> = {
       channel: EIpcChannel.TAB,
       event: EIpcEvent.TABS_LOAD,
@@ -209,7 +209,10 @@ export class ElectronIpcAdapter implements IIpcAdapter {
       return { error: response.error };
     }
 
-    return { tabs: response.tabs };
+    return {
+      scrollPositionsByChatId: response.scrollPositionsByChatId,
+      tabs: response.tabs,
+    };
   }
 
   public onChatStreamChunk(callback: (data: IChatStreamChunk) => void): TIpcRenderListener {

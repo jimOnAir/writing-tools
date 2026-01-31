@@ -26,6 +26,10 @@ export class ChatService implements IChatService {
     this.chatRepository.updateChatTitle(chatId, title);
   }
 
+  public updateChatModel(chatId: number, model: string, provider: string): void {
+    this.chatRepository.updateChatModel(chatId, model, provider);
+  }
+
   public deleteChat(chatId: number): void {
     this.chatRepository.deleteChat(chatId);
   }

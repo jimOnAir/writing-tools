@@ -22,36 +22,51 @@ export class OpenTabsRepository implements IOpenTabsRepository {
     if (tabs.length === 0) {
       return;
     }
-    // Insert new tabs
+    // Insert open tabs (tabOrder >= 0) and scroll-only rows (tabOrder === -1) for closed chats
     db.insert(openTabs)
       .values(
         tabs.map(tab => ({
           chatId: tab.chatId,
-          tabOrder: tab.tabOrder,
-          isActive: tab.isActive ? 1 : 0,
           createdAt: now,
+          isActive: tab.isActive ? 1 : 0,
+          scrollPosition: tab.scrollPosition ?? 0,
+          tabOrder: tab.tabOrder,
         })),
       ).run();
 
     this.logger.info('Saved %s open tabs', tabs.length.toString());
   }
 
-  public loadOpenTabs(): TOpenTab[] {
+  public loadOpenTabs(): { openTabs: TOpenTab[], scrollPositionsByChatId: Record<number, number> } {
     const db = this.dbConnection.getDatabase();
 
     const rows = db.select({
       chatId: openTabs.chatId,
-      tabOrder: openTabs.tabOrder,
       isActive: openTabs.isActive,
+      scrollPosition: openTabs.scrollPosition,
+      tabOrder: openTabs.tabOrder,
     }).from(openTabs)
-      .orderBy(asc(openTabs.tabOrder))
       .all();
 
-    return rows.map(row => ({
-      chatId: row.chatId,
-      tabOrder: row.tabOrder,
-      isActive: row.isActive === 1,
-    }));
+    const openTabsList: TOpenTab[] = [];
+    const scrollPositionsByChatId: Record<number, number> = {};
+
+    for (const row of rows) {
+      if (row.tabOrder >= 0) {
+        openTabsList.push({
+          chatId: row.chatId,
+          isActive: row.isActive === 1,
+          scrollPosition: row.scrollPosition,
+          tabOrder: row.tabOrder,
+        });
+      } else if (row.chatId !== null) {
+        scrollPositionsByChatId[row.chatId] = row.scrollPosition;
+      }
+    }
+
+    openTabsList.sort((a, b) => a.tabOrder - b.tabOrder);
+
+    return { openTabs: openTabsList, scrollPositionsByChatId };
   }
 
   public clearOpenTabs(): void {

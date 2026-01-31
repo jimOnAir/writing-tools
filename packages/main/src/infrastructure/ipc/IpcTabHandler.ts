@@ -1,4 +1,4 @@
-import type { ILogger, TIpcEvent } from '@writing-tools/shared';
+import type { ILogger, TIpcEvent, TOpenTab } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 import { ipcMain } from 'electron';
 import type { IOpenTabsService } from 'src/domains/open-tabs/IOpenTabsService';
@@ -31,9 +31,9 @@ export class IpcTabHandler implements IIpcTabHandler {
 
   private handleChatLoadTabs() {
     try {
-      const tabs = this.openTabsService.loadOpenTabs();
+      const { openTabs, scrollPositionsByChatId } = this.openTabsService.loadOpenTabs();
 
-      return { tabs };
+      return { scrollPositionsByChatId, tabs: openTabs };
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to load tabs: %s', errorText);
@@ -42,7 +42,7 @@ export class IpcTabHandler implements IIpcTabHandler {
     }
   }
 
-  private handleChatSaveTabs(tabs: Array<{ chatId: number | null, tabOrder: number, isActive: boolean }>) {
+  private handleChatSaveTabs(tabs: TOpenTab[]) {
     try {
       this.openTabsService.saveOpenTabs(tabs);
 

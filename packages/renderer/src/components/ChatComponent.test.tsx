@@ -47,15 +47,20 @@ const createMockChatService = (): jest.Mocked<ChatService> => {
     getHistoryIndex: jest.fn().mockReturnValue(-1),
     getIsHandlingResponse: jest.fn().mockReturnValue(false),
     getIsLoading: jest.fn().mockReturnValue(false),
+    getModelOverride: jest.fn().mockReturnValue(null),
     getMessages: jest.fn().mockReturnValue([]),
     getPreconfiguredPrompts: jest.fn().mockReturnValue([]),
+    getScrollPosition: jest.fn().mockReturnValue(0),
     getSelectedText: jest.fn().mockReturnValue(''),
     initializeListeners: jest.fn(),
     loadChatMessages: jest.fn().mockResolvedValue(undefined),
     navigateHistoryDown: jest.fn().mockReturnValue(null),
     navigateHistoryUp: jest.fn().mockReturnValue(null),
+    seedModelOverrideFromChatInfo: jest.fn(),
     sendMessage: jest.fn().mockResolvedValue(null),
     setCallbacks: jest.fn(),
+    setModelOverride: jest.fn(),
+    setScrollPosition: jest.fn(),
   } as unknown as jest.Mocked<ChatService>;
 };
 
@@ -550,7 +555,7 @@ describe('ChatComponent', () => {
     expect((textarea as HTMLTextAreaElement).value).toBe('Message that fails');
   });
 
-  test('scrolls to bottom on new messages when not handling response', () => {
+  test('preserves scroll position when loading messages (no auto-scroll)', () => {
     const mockMessages: IChatMessage[] = [
       {
         id: '1',
@@ -572,7 +577,7 @@ describe('ChatComponent', () => {
 
     render(<ChatComponent chatId={null} chatService={mockChatService} settingsService={mockSettingsService} />);
 
-    // When not handling response, new messages should trigger scrollIntoView
+    // Scroll to bottom only during streaming - not when loading messages
     if (onMessagesChange) {
       const callback = onMessagesChange;
       act(() => {
@@ -580,11 +585,12 @@ describe('ChatComponent', () => {
       });
     }
 
-    expect(scrollSpy).toHaveBeenCalled();
+    // No scroll when not streaming (preserves scroll position on tab switch)
+    expect(scrollSpy).not.toHaveBeenCalled();
 
     scrollSpy.mockClear();
 
-    // When handling response, new messages should not trigger scrollIntoView
+    // When streaming, new messages should trigger scrollIntoView
     if (onHandlingResponseChange) {
       const callback = onHandlingResponseChange;
       act(() => {
@@ -607,6 +613,7 @@ describe('ChatComponent', () => {
       });
     }
 
+    // Still no scroll when not streaming (scroll only happens during isStreaming)
     expect(scrollSpy).not.toHaveBeenCalled();
   });
 

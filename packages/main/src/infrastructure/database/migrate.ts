@@ -77,10 +77,20 @@ export function runInitialMigration(db: Database.Database): void {
       chat_id INTEGER,
       tab_order INTEGER NOT NULL,
       is_active INTEGER NOT NULL DEFAULT 0,
+      scroll_position INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE
     )
   `);
+
+  // Add scroll_position column to existing open_tabs table if it doesn't exist
+  try {
+    db.exec(`
+      ALTER TABLE open_tabs ADD COLUMN scroll_position INTEGER NOT NULL DEFAULT 0
+    `);
+  } catch {
+    // Column already exists, ignore error
+  }
 
   // Create index for faster queries
   db.exec(`

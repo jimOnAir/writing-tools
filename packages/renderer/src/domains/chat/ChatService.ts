@@ -6,7 +6,6 @@ import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
 import { isErrorResponse } from '../../utils/responseTypeGuards';
 
 // TODO: generate unique chat uuid and use it as idempotency key
-// TODO: last model must be saved to chat session
 /**
  * Service for managing chat domain logic
  * Handles message state, IPC communication, and chat operations
@@ -31,6 +30,10 @@ export class ChatService {
   private chatStreamEndListener: TIpcRenderListener | null = null;
   private currentChatId: number | null = null;
 
+  // UI state persisted across tab switches (and restored on reopen)
+  private modelOverride: { model: string, provider: 'ollama' | 'lmstudio' } | null = null;
+  private scrollPosition = 0;
+
   // Prompt-selector state (pushed by MultiChatService via setPromptSelectorData)
   private selectedText = '';
   private preconfiguredPrompts: IPreconfiguredPrompt[] = [];
@@ -41,6 +44,7 @@ export class ChatService {
   private onErrorChange?: (error: string | null) => void;
   private onHistoryIndexChange?: (index: number) => void;
   private onHandlingResponseChange?: (isHandling: boolean) => void;
+  private onModelOverrideChange?: (override: { model: string, provider: 'ollama' | 'lmstudio' } | null) => void;
   private onTitleChange?: (title: string) => void;
   private onStreamingChange?: (isStreaming: boolean) => void;
   private onSelectedTextChange?: (text: string) => void;
@@ -62,6 +66,7 @@ export class ChatService {
     onErrorChange?: (error: string | null) => void,
     onHistoryIndexChange?: (index: number) => void,
     onHandlingResponseChange?: (isHandling: boolean) => void,
+    onModelOverrideChange?: (override: { model: string, provider: 'ollama' | 'lmstudio' } | null) => void,
     onTitleChange?: (title: string) => void,
     onStreamingChange?: (isStreaming: boolean) => void,
     onSelectedTextChange?: (text: string) => void,
@@ -72,6 +77,7 @@ export class ChatService {
     this.onErrorChange = callbacks.onErrorChange;
     this.onHistoryIndexChange = callbacks.onHistoryIndexChange;
     this.onHandlingResponseChange = callbacks.onHandlingResponseChange;
+    this.onModelOverrideChange = callbacks.onModelOverrideChange;
     this.onTitleChange = callbacks.onTitleChange;
     this.onStreamingChange = callbacks.onStreamingChange;
     this.onSelectedTextChange = callbacks.onSelectedTextChange;
@@ -536,6 +542,61 @@ export class ChatService {
    */
   public getPreconfiguredPrompts(): IPreconfiguredPrompt[] {
     return this.preconfiguredPrompts;
+  }
+
+  /**
+   * Get model override (persisted across tab switches)
+   */
+  public getModelOverride(): { model: string, provider: 'ollama' | 'lmstudio' } | null {
+    return this.modelOverride;
+  }
+
+  /**
+   * Set model override (persisted across tab switches)
+   */
+  public setModelOverride(override: { model: string, provider: 'ollama' | 'lmstudio' } | null): void {
+    this.modelOverride = override;
+    this.onModelOverrideChange?.(override);
+  }
+
+  /**
+   * Seed model override from chat info when loading (for reopen - uses last saved model from DB)
+   * Only sets if modelOverride is null and chatInfo has a valid model
+   */
+  public seedModelOverrideFromChatInfo(chatInfo: IChatInfo): void {
+    if (this.modelOverride !== null) {
+      return;
+    }
+    const model = chatInfo.model ?? '';
+    const provider = chatInfo.provider === 'lmstudio' ? 'lmstudio' : 'ollama';
+    if (model !== '') {
+      this.setModelOverride({ model, provider });
+    }
+  }
+
+  /**
+   * Get scroll position (persisted across tab switches)
+   */
+  public getScrollPosition(): number {
+    // #region agent log
+    if (typeof globalThis.fetch === 'function') {
+      globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ChatService.ts:getScrollPosition', message: 'getScrollPosition', data: { scrollPosition: this.scrollPosition, currentChatId: this.currentChatId }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H5' }) }).catch(() => {});
+    }
+
+    // #endregion
+    return this.scrollPosition;
+  }
+
+  /**
+   * Set scroll position (persisted across tab switches)
+   */
+  public setScrollPosition(position: number): void {
+    // #region agent log
+    if (typeof globalThis.fetch === 'function') {
+      globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ChatService.ts:setScrollPosition', message: 'setScrollPosition', data: { position, currentChatId: this.currentChatId }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H5' }) }).catch(() => {});
+    }
+    // #endregion
+    this.scrollPosition = Math.max(0, position);
   }
 
   /**

@@ -15,7 +15,6 @@ interface ChatComponentProps {
   readonly settingsService: SettingsService;
 }
 
-// TODO: Keep chat position when while switching tabs
 // TODO: add edit users message
 // TODO: add resending message
 const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, settingsService }) => {
@@ -31,12 +30,14 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
   const [selectedText, setSelectedText] = useState<string>('');
   const [preconfiguredPrompts, setPreconfiguredPrompts] = useState<IPreconfiguredPrompt[]>([]);
   const [customPrompt, setCustomPrompt] = useState<string>('');
-  const [modelOverride, setModelOverride] = useState<{ model: string, provider: 'ollama' | 'lmstudio' } | null>(null);
+  const [modelOverride, setModelOverride] = useState<{ model: string, provider: 'ollama' | 'lmstudio' } | null>(() => chatService.getModelOverride());
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [settings, setSettings] = useState<ISettings | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const hasRestoredScrollRef = useRef(false);
   const isSendingRef = useRef<boolean>(false);
   const isComposingRef = useRef<boolean>(false);
 
@@ -47,6 +48,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
       onHandlingResponseChange: setIsHandlingResponse,
       onLoadingChange: setIsLoading,
       onMessagesChange: setMessages,
+      onModelOverrideChange: setModelOverride,
       onPromptsChange: setPreconfiguredPrompts,
       onSelectedTextChange: setSelectedText,
       onStreamingChange: setIsStreaming,
@@ -54,19 +56,55 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
     });
   }, [chatService]);
 
-  // Seed prompt-selector state from service
+  // Seed prompt-selector state and model override from service
   useEffect(() => {
     setSelectedText(chatService.getSelectedText());
     setPreconfiguredPrompts(chatService.getPreconfiguredPrompts());
+    setModelOverride(chatService.getModelOverride());
   }, [chatService]);
 
-  // Note: Listeners are initialized by MultiChatService when creating tabs
-  // We only clean them up when the component unmounts (but MultiChatService handles cleanup when tabs close)
-  // This cleanup is a safety measure in case component unmounts without tab closing
+  // Restore scroll position after messages render; save on scroll (debounced) and unmount
   useEffect(() => {
+    const scrollEl = scrollContainerRef.current;
+    const pos = chatService.getScrollPosition();
+    // #region agent log
+    if (typeof globalThis.fetch === 'function') {
+      globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ChatComponent.tsx:restoreScroll', message: 'restore scroll effect', data: { chatId, hasScrollEl: scrollEl !== null, messagesLength: messages.length, hasRestoredRef: hasRestoredScrollRef.current, scrollPositionFromService: pos, willApply: scrollEl !== null && messages.length > 0 && !hasRestoredScrollRef.current }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2-H4' }) }).catch(() => {});
+    }
+    // #endregion
+    if (scrollEl !== null && messages.length > 0 && !hasRestoredScrollRef.current) {
+      hasRestoredScrollRef.current = true;
+      scrollEl.scrollTop = pos;
+      // #region agent log
+      if (typeof globalThis.fetch === 'function') {
+        globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ChatComponent.tsx:restoreScrollApplied', message: 'scroll applied', data: { chatId, scrollTopSet: pos, scrollHeight: scrollEl.scrollHeight }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
+      }
+      // #endregion
+    }
+  }, [chatService, messages.length, chatId]);
+
+  useEffect(() => {
+    hasRestoredScrollRef.current = false;
+  }, [chatId]);
+
+  useEffect(() => {
+    const scrollEl = scrollContainerRef.current;
+
+    const handleScroll = (): void => {
+      const el = scrollContainerRef.current;
+      if (el !== null) {
+        chatService.setScrollPosition(el.scrollTop);
+      }
+    };
+
+    scrollEl?.addEventListener('scroll', handleScroll, { passive: true });
+
     return () => {
-      // Only cleanup if this is not being handled by MultiChatService
-      // In practice, MultiChatService handles cleanup, but this is a safety measure
+      const el = scrollContainerRef.current;
+      if (el !== null) {
+        chatService.setScrollPosition(el.scrollTop);
+      }
+      scrollEl?.removeEventListener('scroll', handleScroll);
     };
   }, [chatService]);
 
@@ -88,16 +126,13 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
     void settingsService.fetchAvailableModels();
   }, [settingsService]);
 
-  // Scroll to bottom when messages change
-  // During streaming, use auto-scroll to keep the latest content visible
+  // Scroll to bottom only during streaming to keep the latest content visible
+  // Do not scroll when switching tabs or loading messages (preserves user's scroll position)
   useEffect(() => {
     if (isStreaming) {
-      // During streaming, scroll immediately without smooth animation for better UX
       messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-    } else if (!isHandlingResponse) {
-      scrollToBottom();
     }
-  }, [messages, isHandlingResponse, isStreaming]);
+  }, [messages, isStreaming]);
 
   // Fetch title and chatInfo when chatId or messages change
   useEffect(() => {
@@ -120,19 +155,11 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
 
       setChatTitle(info.title);
       setChatInfo(info);
+      chatService.seedModelOverrideFromChatInfo(info);
     };
 
     void fetchTitle();
   }, [chatService, chatId, messages]);
-
-  // Auto-scroll when messages change
-  useEffect(() => {
-    // Scroll behavior is handled in the earlier useEffect
-  }, [messages, isStreaming]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   const handleCopyMessage = async (messageId: string, content: string): Promise<void> => {
     if (!navigator.clipboard || !navigator.clipboard.writeText) {
@@ -397,7 +424,10 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
         </div>
       )}
       {/* TODO: make responsive */}
-      <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 ${BackgroundStyles.chatContainer} mb-3 rounded`}>
+      <div
+        ref={scrollContainerRef}
+        className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 ${BackgroundStyles.chatContainer} mb-3 rounded`}
+      >
         {messages.length === 0 ? (
           <div className={`text-center ${TypographyStyles.emptyState} mt-8`}>
             <p className="text-sm">No messages yet</p>
@@ -525,8 +555,8 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
           value={effectiveModel}
           onChange={(e) => {
             const selectedModel = e.target.value;
-            const provider = (settings?.provider ?? 'ollama');
-            setModelOverride(selectedModel !== '' ? { model: selectedModel, provider } : null);
+            const provider = (settings?.provider ?? 'ollama') as 'ollama' | 'lmstudio';
+            chatService.setModelOverride(selectedModel !== '' ? { model: selectedModel, provider } : null);
           }}
           className={InputStyles}
           disabled={loadingModels}

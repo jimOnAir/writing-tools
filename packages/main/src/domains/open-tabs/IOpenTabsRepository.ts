@@ -1,7 +1,8 @@
 export interface TOpenTab {
   readonly chatId: number | null;
-  readonly tabOrder: number;
   readonly isActive: boolean;
+  readonly scrollPosition?: number;
+  readonly tabOrder: number;
 }
 
 /**
@@ -16,9 +17,9 @@ export interface IOpenTabsRepository {
   saveOpenTabs: (tabs: TOpenTab[]) => void;
 
   /**
-   * Load saved tabs (returns array sorted by tab_order)
+   * Load saved tabs (open tabs with tabOrder >= 0) and scroll positions for closed chats (tabOrder === -1)
    */
-  loadOpenTabs: () => TOpenTab[];
+  loadOpenTabs: () => { openTabs: TOpenTab[], scrollPositionsByChatId: Record<number, number> };
 
   /**
    * Clear all saved tabs

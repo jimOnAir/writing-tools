@@ -147,62 +147,59 @@ describe('OpenTabsRepository', () => {
   });
 
   describe('loadOpenTabs', () => {
-    it('should load tabs from database in correct order', () => {
+    it('should load open tabs and scroll-only rows', () => {
       const mockRows = [
-        { chatId: 1, tabOrder: 0, isActive: 1 },
-        { chatId: 2, tabOrder: 1, isActive: 0 },
-        { chatId: null, tabOrder: 2, isActive: 0 },
+        { chatId: 1, tabOrder: 0, isActive: 1, scrollPosition: 0 },
+        { chatId: 2, tabOrder: 1, isActive: 0, scrollPosition: 100 },
+        { chatId: null, tabOrder: 2, isActive: 0, scrollPosition: 0 },
+        { chatId: 3, tabOrder: -1, isActive: 0, scrollPosition: 200 },
       ];
 
       mockDrizzleDb.select.mockReturnValue({
         from: jest.fn().mockReturnValue({
-          orderBy: jest.fn().mockReturnValue({
-            all: jest.fn().mockReturnValue(mockRows),
-          }),
+          all: jest.fn().mockReturnValue(mockRows),
         }),
       });
 
-      const tabs = repository.loadOpenTabs();
+      const result = repository.loadOpenTabs();
 
-      expect(tabs).toEqual([
-        { chatId: 1, tabOrder: 0, isActive: true },
-        { chatId: 2, tabOrder: 1, isActive: false },
-        { chatId: null, tabOrder: 2, isActive: false },
+      expect(result.openTabs).toEqual([
+        { chatId: 1, tabOrder: 0, isActive: true, scrollPosition: 0 },
+        { chatId: 2, tabOrder: 1, isActive: false, scrollPosition: 100 },
+        { chatId: null, tabOrder: 2, isActive: false, scrollPosition: 0 },
       ]);
+      expect(result.scrollPositionsByChatId).toEqual({ 3: 200 });
     });
 
-    it('should return empty array when no tabs saved', () => {
+    it('should return empty arrays when no tabs saved', () => {
       mockDrizzleDb.select.mockReturnValue({
         from: jest.fn().mockReturnValue({
-          orderBy: jest.fn().mockReturnValue({
-            all: jest.fn().mockReturnValue([]),
-          }),
+          all: jest.fn().mockReturnValue([]),
         }),
       });
 
-      const tabs = repository.loadOpenTabs();
+      const result = repository.loadOpenTabs();
 
-      expect(tabs).toEqual([]);
+      expect(result.openTabs).toEqual([]);
+      expect(result.scrollPositionsByChatId).toEqual({});
     });
 
     it('should convert isActive integer to boolean', () => {
       const mockRows = [
-        { chatId: 1, tabOrder: 0, isActive: 1 },
-        { chatId: 2, tabOrder: 1, isActive: 0 },
+        { chatId: 1, tabOrder: 0, isActive: 1, scrollPosition: 0 },
+        { chatId: 2, tabOrder: 1, isActive: 0, scrollPosition: 0 },
       ];
 
       mockDrizzleDb.select.mockReturnValue({
         from: jest.fn().mockReturnValue({
-          orderBy: jest.fn().mockReturnValue({
-            all: jest.fn().mockReturnValue(mockRows),
-          }),
+          all: jest.fn().mockReturnValue(mockRows),
         }),
       });
 
-      const tabs = repository.loadOpenTabs();
+      const result = repository.loadOpenTabs();
 
-      expect(tabs[0].isActive).toBe(true);
-      expect(tabs[1].isActive).toBe(false);
+      expect(result.openTabs[0].isActive).toBe(true);
+      expect(result.openTabs[1].isActive).toBe(false);
     });
   });
 

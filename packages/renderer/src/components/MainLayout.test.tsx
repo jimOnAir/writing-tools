@@ -325,7 +325,7 @@ describe('MainLayout', () => {
       );
 
       await waitFor(() => {
-        expect(mockMultiChatService.restoreTabs).toHaveBeenCalledWith(savedTabs);
+        expect(mockMultiChatService.restoreTabs).toHaveBeenCalledWith(savedTabs, undefined);
       });
     });
 
@@ -389,7 +389,7 @@ describe('MainLayout', () => {
       );
 
       await waitFor(() => {
-        expect(mockMultiChatService.restoreTabs).toHaveBeenCalledWith(savedTabs);
+        expect(mockMultiChatService.restoreTabs).toHaveBeenCalledWith(savedTabs, undefined);
       });
 
       // Should not create new tab if tabs were restored

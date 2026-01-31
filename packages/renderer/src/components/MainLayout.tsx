@@ -73,12 +73,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     multiChatService.initializeListeners();
 
     // Load saved tabs on mount; do not auto-create a tab when none exist
+    // Only restore from DB when we have no in-memory tabs (avoids overwriting tabs user opened before loadTabs returned)
     (async () => {
       try {
         const response = await multiChatService.loadTabs();
 
-        if (response !== undefined && response !== null && !isErrorResponse(response) && 'tabs' in response && Array.isArray(response.tabs) && response.tabs.length > 0) {
-          await multiChatService.restoreTabs(response.tabs);
+        const hasTabsFromDb = response !== undefined && response !== null && !isErrorResponse(response) && 'tabs' in response && Array.isArray(response.tabs) && response.tabs.length > 0;
+        const hasTabsInMemory = multiChatService.getAllTabs().length > 0;
+
+        if (hasTabsFromDb && !hasTabsInMemory) {
+          await multiChatService.restoreTabs(response.tabs, response.scrollPositionsByChatId);
         }
       } catch (error: unknown) {
         const errorText = error instanceof Error ? error.message : String(error);

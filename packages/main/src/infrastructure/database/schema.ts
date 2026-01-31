@@ -32,9 +32,10 @@ export const messagesRelations = relations(messages, ({ one }) => ({
 }));
 
 export const openTabs = sqliteTable('open_tabs', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
   chatId: integer('chat_id').references(() => chats.id, { onDelete: 'cascade' }),
-  tabOrder: integer('tab_order').notNull(),
-  isActive: integer('is_active').notNull().default(0),
   createdAt: text('created_at').notNull(),
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  isActive: integer('is_active').notNull().default(0),
+  scrollPosition: integer('scroll_position').notNull().default(0),
+  tabOrder: integer('tab_order').notNull(),
 });

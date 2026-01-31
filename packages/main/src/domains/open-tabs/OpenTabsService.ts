@@ -12,7 +12,7 @@ export class OpenTabsService implements IOpenTabsService {
     this.openTabsRepository.saveOpenTabs(tabs);
   }
 
-  public loadOpenTabs() {
+  public loadOpenTabs(): { openTabs: TOpenTab[], scrollPositionsByChatId: Record<number, number> } {
     return this.openTabsRepository.loadOpenTabs();
   }
 

@@ -74,6 +74,19 @@ export class ChatRepository implements IChatRepository {
       .run();
   }
 
+  public updateChatModel(chatId: number, model: string, provider: string): void {
+    const db = this.dbConnection.getDatabase();
+
+    db.update(chats)
+      .set({
+        model,
+        provider,
+        updated_at: new Date().toISOString(),
+      })
+      .where(eq(chats.id, chatId))
+      .run();
+  }
+
   public deleteChat(chatId: number): void {
     const db = this.dbConnection.getDatabase();
 

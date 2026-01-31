@@ -69,12 +69,17 @@ describe('MultiChatService', () => {
       getChatInfo: jest.fn().mockResolvedValue(null),
       getCurrentChatId: jest.fn().mockReturnValue(null),
       getMessages: jest.fn().mockReturnValue([]),
+      getModelOverride: jest.fn().mockReturnValue(null),
       getPreconfiguredPrompts: jest.fn().mockReturnValue([]),
+      getScrollPosition: jest.fn().mockReturnValue(0),
       getSelectedText: jest.fn().mockReturnValue(''),
       initializeListeners: jest.fn(),
       loadChatMessages: jest.fn().mockResolvedValue(undefined),
+      seedModelOverrideFromChatInfo: jest.fn(),
       setCallbacks: jest.fn(),
+      setModelOverride: jest.fn(),
       setPromptSelectorData: jest.fn(),
+      setScrollPosition: jest.fn(),
       sendMessage: jest.fn().mockResolvedValue(null),
     } as unknown as jest.Mocked<ChatService>;
 
@@ -495,8 +500,8 @@ describe('MultiChatService', () => {
         event: 'TABS_SAVE',
         payload: {
           tabs: [
-            { chatId: 1, tabOrder: 0, isActive: true },
-            { chatId: 2, tabOrder: 1, isActive: false },
+            { chatId: 1, isActive: true, scrollPosition: 0, tabOrder: 0 },
+            { chatId: 2, isActive: false, scrollPosition: 0, tabOrder: 1 },
           ],
         },
       });
@@ -516,7 +521,7 @@ describe('MultiChatService', () => {
         event: 'TABS_SAVE',
         payload: {
           tabs: [
-            { chatId: 1, tabOrder: 0, isActive: true },
+            { chatId: 1, isActive: true, scrollPosition: 0, tabOrder: 0 },
           ],
         },
       });
@@ -846,7 +851,7 @@ describe('MultiChatService', () => {
         payload: {},
       });
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         tabs: [
           { chatId: 1, tabOrder: 0, isActive: true },
           { chatId: 2, tabOrder: 1, isActive: false },
@@ -884,7 +889,7 @@ describe('MultiChatService', () => {
         event: 'TABS_SAVE',
         payload: {
           tabs: [
-            { chatId: 1, tabOrder: 0, isActive: true },
+            { chatId: 1, isActive: true, scrollPosition: 0, tabOrder: 0 },
           ],
         },
       });
@@ -904,7 +909,7 @@ describe('MultiChatService', () => {
         event: 'TABS_SAVE',
         payload: {
           tabs: [
-            { chatId: 1, tabOrder: 0, isActive: true },
+            { chatId: 1, isActive: true, scrollPosition: 0, tabOrder: 0 },
           ],
         },
       });

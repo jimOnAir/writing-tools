@@ -8,9 +8,9 @@ export interface IOpenTabsService {
   saveOpenTabs: (tabs: TOpenTab[]) => void;
 
   /**
-     * Load saved tabs (returns array sorted by tab_order)
+     * Load saved tabs and scroll positions for closed chats
      */
-  loadOpenTabs: () => TOpenTab[];
+  loadOpenTabs: () => { openTabs: TOpenTab[], scrollPositionsByChatId: Record<number, number> };
 
   /**
      * Clear all saved tabs

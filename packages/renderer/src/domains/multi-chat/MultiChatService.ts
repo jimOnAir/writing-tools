@@ -35,6 +35,8 @@ export class MultiChatService {
   private isRestoringTabs = false;
   private saveTabsTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private keydownListener: ((event: KeyboardEvent) => void) | null = null;
+  /** Scroll position per chatId when tab was closed; restored when same chat is reopened */
+  private readonly scrollPositionByChatId = new Map<number, number>();
 
   // Callbacks for component state updates (support multiple subscribers)
   private readonly onTabsChangeCallbacks = new Set<(tabs: ITabInfo[]) => void>();
@@ -103,21 +105,10 @@ export class MultiChatService {
       const activeTab = this.getActiveTab();
       // CHAT_WINDOW_DATA is only sent from prompt-select (IpcPromptSelectorHandler); always reuse active tab when present
       let tab: ITabInfo;
-      // #region agent log
-      const wouldReuse = activeTab?.chatService !== undefined;
-      fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MultiChatService.ts:handleChatWindowData',message:'CHAT_WINDOW_DATA received (post-fix)',data:{chatId:data.chatId,activeTabId:this.activeTabId,activeTabChatId:activeTab?.chatId ?? null,tabsLength:this.tabs.length,wouldReuse},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A-B-D-E'})}).catch(()=>{});
-      // #endregion
       if (activeTab?.chatService !== undefined) {
         tab = activeTab;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MultiChatService.ts:handleChatWindowData',message:'reusing active tab',data:{tabId:tab.tabId},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A-B-D-E'})}).catch(()=>{});
-        // #endregion
       } else {
         tab = this.createNewChatTab();
-        // #region agent log
-        const reason = activeTab == null ? 'noActiveTab' : 'noChatService';
-        fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MultiChatService.ts:handleChatWindowData',message:'created new tab (no active tab)',data:{reason},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A-B-D-E'})}).catch(()=>{});
-        // #endregion
       }
 
       tab.chatId = data.chatId;
@@ -140,10 +131,6 @@ export class MultiChatService {
       const promptsCount = String(data.preconfiguredPrompts.length);
       this.logger.info('MultiChatService received PROMPT_SELECTOR_DATA: selectedText=%s, promptsCount=%s', selectedTextStatus, promptsCount);
 
-      // #region agent log
-      const activeTab = this.getActiveTab();
-      fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MultiChatService.ts:handlePromptSelectorData',message:'PROMPT_SELECTOR_DATA received, always creating new tab',data:{tabsLength:this.tabs.length,activeTabId:this.activeTabId,activeTabChatId:activeTab?.chatId ?? null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       const newTab = this.createNewChatTab();
       newTab.chatService.setPromptSelectorData(data);
     };
@@ -279,6 +266,18 @@ export class MultiChatService {
     const tab = this.createNewChatTab();
     tab.chatId = chatId;
 
+    const savedScroll = this.scrollPositionByChatId.get(chatId);
+    if (savedScroll !== undefined) {
+      tab.chatService.setScrollPosition(savedScroll);
+      this.scrollPositionByChatId.delete(chatId);
+    }
+
+    // #region agent log
+    if (typeof globalThis.fetch === 'function') {
+      globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MultiChatService.ts:openChatTab', message: 'openChatTab new tab', data: { chatId, scrollPositionOnNewService: tab.chatService.getScrollPosition() }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H5' }) }).catch(() => {});
+    }
+    // #endregion
+
     // Save tabs to database (chatId is now set)
     this.saveTabsIfNotRestoring();
 
@@ -318,6 +317,17 @@ export class MultiChatService {
     const wasActive = this.activeTabId === tabId;
     const isLastTab = this.tabs.length === 1;
 
+    if (tab.chatId !== null) {
+      this.scrollPositionByChatId.set(tab.chatId, tab.chatService.getScrollPosition());
+    }
+
+    // #region agent log
+    const closedScroll = tab.chatService?.getScrollPosition?.() ?? -1;
+    if (typeof globalThis.fetch === 'function') {
+      globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MultiChatService.ts:closeChatTab', message: 'closeChatTab before splice', data: { tabId, chatId: tab.chatId, closedScrollPosition: closedScroll }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H5' }) }).catch(() => {});
+    }
+    // #endregion
+
     if (tab.chatService !== undefined) {
       tab.chatService.cleanupListeners();
     }
@@ -338,6 +348,7 @@ export class MultiChatService {
     }
 
     this.notifyTabsChange();
+    void this.saveTabs();
   }
 
   /**
@@ -386,7 +397,7 @@ export class MultiChatService {
   /**
    * Load tabs from main process
    */
-  public async loadTabs(): Promise<{ tabs: TOpenTab[] } | { error: string }> {
+  public async loadTabs(): Promise<{ scrollPositionsByChatId?: Record<number, number>, tabs: TOpenTab[] } | { error: string }> {
     try {
       const payload: TIpcEvent<EIpcChannel.TAB, EIpcEvent.TABS_LOAD> = {
         channel: EIpcChannel.TAB,
@@ -397,7 +408,7 @@ export class MultiChatService {
       const response = await this.ipcAdapter.invoke(payload.channel, payload);
 
       if ('error' in response) {
-        this.logger.error('Failed to save tabs: %s', response.error);
+        this.logger.error('Failed to load tabs: %s', response.error);
       } else {
         this.logger.info('Loaded %d tabs', String(response.tabs.length));
       }
@@ -412,20 +423,35 @@ export class MultiChatService {
   }
 
   /**
-   * Save current tabs to main process
+   * Save current tabs to main process (open tabs plus scroll-only rows for closed chats, tabOrder -1)
    */
   public async saveTabs(): Promise<void> {
     try {
+      const openChatIds = new Set(
+        this.tabs
+          .filter((tab): tab is ITabInfo & { chatId: number } => tab.chatId !== null)
+          .map(tab => tab.chatId),
+      );
       const chatTabs = this.tabs.map((tab, index) => ({
         chatId: tab.chatId,
-        tabOrder: index,
         isActive: tab.tabId === this.activeTabId,
+        scrollPosition: tab.chatService.getScrollPosition(),
+        tabOrder: index,
       }));
+      const scrollOnlyTabs: TOpenTab[] = [...this.scrollPositionByChatId.entries()]
+        .filter(([chatId]) => !openChatIds.has(chatId))
+        .map(([chatId, scrollPosition]) => ({
+          chatId,
+          isActive: false,
+          scrollPosition,
+          tabOrder: -1,
+        }));
+      const tabs = [...chatTabs, ...scrollOnlyTabs];
 
       const payload: TIpcEvent<EIpcChannel.TAB, EIpcEvent.TABS_SAVE> = {
         channel: EIpcChannel.TAB,
         event: EIpcEvent.TABS_SAVE,
-        payload: { tabs: chatTabs },
+        payload: { tabs },
       };
 
       const response = await this.ipcAdapter.invoke(payload.channel, payload);
@@ -433,7 +459,7 @@ export class MultiChatService {
       if ('error' in response) {
         this.logger.error('Failed to save tabs: %s', response.error);
       } else {
-        this.logger.info('Saved %d tabs', String(chatTabs.length));
+        this.logger.info('Saved %d tabs', String(tabs.length));
       }
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
@@ -446,8 +472,25 @@ export class MultiChatService {
    * Skips tabs with deleted chatIds
    * Only restores chat tabs
    * Restores tab order and active tab
+   * Merges scrollPositionsByChatId (from DB scroll-only rows) into in-memory cache for reopen
    */
-  public async restoreTabs(savedTabs: TOpenTab[]): Promise<void> {
+  public async restoreTabs(
+    savedTabs: TOpenTab[],
+    scrollPositionsByChatId?: Record<number, number>,
+  ): Promise<void> {
+    if (scrollPositionsByChatId !== undefined) {
+      for (const [chatId, scrollPosition] of Object.entries(scrollPositionsByChatId)) {
+        this.scrollPositionByChatId.set(Number(chatId), scrollPosition);
+      }
+    }
+
+    // Do not overwrite in-memory tabs (e.g. user opened a chat before loadTabs returned)
+    if (this.tabs.length > 0) {
+      this.logger.info('Skipping restore: already have %d tabs in memory', String(this.tabs.length));
+
+      return;
+    }
+
     // Prevent concurrent restore operations
     if (this.isRestoringTabs) {
       this.logger.info('Restore already in progress, skipping duplicate call');
@@ -514,6 +557,14 @@ export class MultiChatService {
         }
       }
 
+      // Do not clear if user opened a tab while we were validating (async above)
+      if (this.tabs.length > 0) {
+        this.logger.info('Skipping restore: user opened tabs during validation (%d tabs)', String(this.tabs.length));
+        this.isRestoringTabs = false;
+
+        return;
+      }
+
       // Clear existing tabs
       // Actually, we should keep existing tabs and just restore the saved ones
       // But the plan says to restore tabs, so let's clear all and restore
@@ -532,12 +583,20 @@ export class MultiChatService {
         if (savedTab.chatId === null) {
           // Create empty chat tab
           const tab = this.createNewChatTab();
+          tab.chatService.setScrollPosition((savedTab as { scrollPosition?: number }).scrollPosition ?? 0);
           if (savedTab.isActive) {
             activeTabId = tab.tabId;
           }
         } else {
           // Open existing chat in tab
           const tab = this.openChatTab(savedTab.chatId);
+          const restoredScroll = (savedTab as { scrollPosition?: number }).scrollPosition ?? 0;
+          tab.chatService.setScrollPosition(restoredScroll);
+          // #region agent log
+          if (typeof globalThis.fetch === 'function') {
+            globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MultiChatService.ts:restoreTabs', message: 'restoreTabs setScrollPosition', data: { chatId: savedTab.chatId, restoredScroll }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
+          }
+          // #endregion
           if (savedTab.isActive) {
             activeTabId = tab.tabId;
           }
