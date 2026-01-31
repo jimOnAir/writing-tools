@@ -367,6 +367,39 @@ describe('ChatService', () => {
       expect(onMessagesChange).toHaveBeenCalled();
     });
 
+    it('does not add duplicate assistant message when last message is already assistant (prompt select race)', () => {
+      chatService.initializeListeners();
+
+      const onMessagesChange = jest.fn();
+      chatService.setCallbacks({ onMessagesChange });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const messagesCallback = (mockIpcAdapter.onChatLoadMessagesData as jest.Mock).mock.calls[0]?.[0] as (
+        data: { chatId: number, messages: IChatMessage[] },
+      ) => void;
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const responseCallback = (mockIpcAdapter.onOllamaResponse as jest.Mock).mock.calls[0]?.[0] as (response?: TChatResponse) => void;
+
+      // Simulate loadChatMessages returning [user, assistant] (e.g. second call after streaming completed)
+      const messages: IChatMessage[] = [
+        { id: '1', role: 'user', content: 'Hello', timestamp: new Date() },
+        { id: '2', role: 'assistant', content: 'Hi there!', timestamp: new Date() },
+      ];
+      messagesCallback({ chatId: 1, messages });
+
+      const callCountBeforeResponse = onMessagesChange.mock.calls.length;
+
+      // OLLAMA_RESPONSE arrives (duplicate - we already have assistant from loadChatMessages)
+      responseCallback({ result: 'Hi there!', chatId: 1 });
+
+      jest.advanceTimersByTime(100);
+
+      // Should not add another message (onMessagesChange called once for setMessages, not again for addMessage)
+      expect(onMessagesChange).toHaveBeenCalledTimes(callCountBeforeResponse);
+      expect(chatService.getMessages()).toHaveLength(2);
+    });
+
     it('handles chat title updated event', () => {
       chatService.initializeListeners();
 

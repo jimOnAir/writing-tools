@@ -7,7 +7,6 @@ import { isErrorResponse } from '../../utils/responseTypeGuards';
 
 // TODO: generate unique chat uuid and use it as idempotency key
 
-
 /**
  * Service for managing chat domain logic
  * Handles message state, IPC communication, and chat operations
@@ -141,6 +140,20 @@ export class ChatService {
 
       // Handle successful response
       if ('result' in response) {
+        // Skip adding if we already have the assistant message (e.g. from a late loadChatMessages call).
+        // loadChatMessages can be called twice (MultiChatService + ChatComponent useEffect), and the
+        // second call may return [user, assistant] after streaming completes. Adding here would duplicate.
+        const lastMessage = this.messages.at(-1);
+        if (lastMessage !== undefined && lastMessage.role === 'assistant') {
+          this.logger.info('Skipping duplicate assistant message: last message is already assistant');
+          this.setLoading(false);
+          setTimeout(() => {
+            this.setHandlingResponse(false);
+          }, 100);
+
+          return;
+        }
+
         const assistantMessage: IChatMessage = {
           id: `${Date.now().toString()}-response`,
           role: 'assistant',
