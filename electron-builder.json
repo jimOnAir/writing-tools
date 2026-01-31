@@ -1,6 +1,7 @@
 {
   "appId": "com.writingtools.app",
-  "asar": false,
+  "asar": true,
+  "asarUnpack": ["**/*.node"],
   "directories": {
     "output": "release",
     "buildResources": "resources"
