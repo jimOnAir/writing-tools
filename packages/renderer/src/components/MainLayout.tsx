@@ -3,7 +3,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 
 import type { ChatListService } from '../domains/chat-list';
 import type { ITabInfo, MultiChatService } from '../domains/multi-chat';
-import type { PromptSelectorService } from '../domains/prompt-selector';
 import type { SettingsService } from '../domains/settings';
 import { BackgroundStyles } from '../styles/Styles';
 import type { IChatListState } from '../types/IChatListState';
@@ -11,7 +10,6 @@ import { getPlatform } from '../utils/platformDetection';
 import { isErrorResponse } from '../utils/responseTypeGuards';
 
 import ChatComponent from './ChatComponent';
-import PromptSelectorComponent from './PromptSelectorComponent';
 import { RecentChatsView } from './RecentChatsView';
 import { SettingsModal } from './SettingsModal';
 import { Sidebar } from './Sidebar';
@@ -20,17 +18,15 @@ import { TabBar } from './tabs';
 export type { IChatListState };
 
 interface MainLayoutProps {
-  readonly multiChatService: MultiChatService;
   readonly chatListService: ChatListService;
+  readonly multiChatService: MultiChatService;
   readonly settingsService: SettingsService;
-  readonly promptSelectorService: PromptSelectorService;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
-  multiChatService,
   chatListService,
+  multiChatService,
   settingsService,
-  promptSelectorService,
 }) => {
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [tabsVersion, setTabsVersion] = useState(0);
@@ -74,14 +70,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
     multiChatService.setCallbacks(callbacks);
 
-    // Set prompt selector service for MultiChatService
-    multiChatService.setPromptSelectorService(promptSelectorService);
-
-    // Initialize listeners (this will set up prompt selector data handling and save tabs request)
     multiChatService.initializeListeners();
-
-    // Initialize prompt selector service listener
-    promptSelectorService.initializeListeners();
 
     // Load saved tabs on mount; do not auto-create a tab when none exist
     (async () => {
@@ -108,9 +97,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       // Tabs are saved via window close event handler instead
       multiChatService.removeCallbacks(callbacks);
       multiChatService.cleanupListeners();
-      promptSelectorService.cleanupListeners();
     };
-  }, [multiChatService, promptSelectorService]);
+  }, [multiChatService]);
 
   const handleCreateNewTab = (): void => {
     multiChatService.createNewChatTab();
@@ -153,7 +141,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         <TabBar multiChatService={multiChatService} />
         <div className={`flex flex-col flex-1 min-h-0 overflow-hidden p-6 ${BackgroundStyles.main}`}>
           {(() => {
-            if (!activeTab) {
+            if (activeTab === null) {
               return (
                 <RecentChatsView
                   chatListState={chatListState}
@@ -163,19 +151,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               );
             }
 
-            if (activeTab.type === 'prompt-selector' && activeTab.promptSelectorService) {
-              return <PromptSelectorComponent key={`${activeTab.tabId}-prompt-selector`} promptSelectorService={activeTab.promptSelectorService} />;
-            }
-
-            if (activeTab.type === 'chat' && activeTab.chatService) {
-              return <ChatComponent key={`${activeTab.tabId}-chat`} chatService={activeTab.chatService} chatId={activeTab.chatId} />;
-            }
-
-            return (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                <p className="text-base">Invalid tab type</p>
-              </div>
-            );
+            return <ChatComponent key={activeTab.tabId} chatService={activeTab.chatService} chatId={activeTab.chatId} />;
           })()}
         </div>
       </div>

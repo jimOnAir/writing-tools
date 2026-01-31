@@ -2,9 +2,12 @@ import { createEvent } from '@testing-library/dom';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 
-import type { MultiChatService, ITabInfo } from '../../domains/multi-chat';
+import type { ChatService } from '../../domains/chat';
+import type { ITabInfo, MultiChatService } from '../../domains/multi-chat';
 
 import { TabBar } from './TabBar';
+
+const mockChatServiceForTab = {} as unknown as ChatService;
 
 // Mock getNativeStyles and getPlatform
 jest.mock('../../styles/NativeStyles', () => ({
@@ -43,17 +46,16 @@ describe('TabBar', () => {
     mockReorderTabs = jest.fn();
 
     mockMultiChatService = {
-      setCallbacks: mockSetCallbacks,
-      removeCallbacks: mockRemoveCallbacks,
-      getAllTabs: jest.fn().mockReturnValue([]),
-      getActiveTabId: jest.fn().mockReturnValue(null),
-      switchToTab: mockSwitchToTab,
       closeChatTab: mockCloseChatTab,
-      reorderTabs: mockReorderTabs,
       createNewChatTab: jest.fn(),
-      openChatTab: jest.fn(),
-      createPromptSelectorTab: jest.fn(),
+      getAllTabs: jest.fn().mockReturnValue([]),
       getActiveTab: jest.fn().mockReturnValue(null),
+      getActiveTabId: jest.fn().mockReturnValue(null),
+      openChatTab: jest.fn(),
+      removeCallbacks: mockRemoveCallbacks,
+      reorderTabs: mockReorderTabs,
+      setCallbacks: mockSetCallbacks,
+      switchToTab: mockSwitchToTab,
     } as unknown as jest.Mocked<MultiChatService>;
   });
 
@@ -68,16 +70,18 @@ describe('TabBar', () => {
   it('renders multiple tabs', async () => {
     const mockTabs: ITabInfo[] = [
       {
-        tabId: 'tab-1',
-        type: 'chat',
         chatId: 1,
+        chatService: mockChatServiceForTab,
+        tabId: 'tab-1',
         title: 'Chat 1',
+        type: 'chat',
       },
       {
-        tabId: 'tab-2',
-        type: 'chat',
         chatId: 2,
+        chatService: mockChatServiceForTab,
+        tabId: 'tab-2',
         title: 'Chat 2',
+        type: 'chat',
       },
     ];
 
@@ -94,10 +98,11 @@ describe('TabBar', () => {
   it('highlights active tab', async () => {
     const mockTabs: ITabInfo[] = [
       {
-        tabId: 'tab-1',
-        type: 'chat',
         chatId: 1,
+        chatService: mockChatServiceForTab,
+        tabId: 'tab-1',
         title: 'Chat 1',
+        type: 'chat',
       },
     ];
 
@@ -115,10 +120,11 @@ describe('TabBar', () => {
   it('calls switchToTab when tab is selected', async () => {
     const mockTabs: ITabInfo[] = [
       {
-        tabId: 'tab-1',
-        type: 'chat',
         chatId: 1,
+        chatService: mockChatServiceForTab,
+        tabId: 'tab-1',
         title: 'Chat 1',
+        type: 'chat',
       },
     ];
 
@@ -139,10 +145,11 @@ describe('TabBar', () => {
   it('calls closeChatTab when close button is clicked', async () => {
     const mockTabs: ITabInfo[] = [
       {
-        tabId: 'tab-1',
-        type: 'chat',
         chatId: 1,
+        chatService: mockChatServiceForTab,
+        tabId: 'tab-1',
         title: 'Chat 1',
+        type: 'chat',
       },
     ];
 
@@ -186,10 +193,11 @@ describe('TabBar', () => {
 
     const newTabs: ITabInfo[] = [
       {
-        tabId: 'tab-1',
-        type: 'chat',
         chatId: 1,
+        chatService: mockChatServiceForTab,
+        tabId: 'tab-1',
         title: 'New Chat',
+        type: 'chat',
       },
     ];
 
@@ -208,16 +216,18 @@ describe('TabBar', () => {
   it('reorders tabs on drag and drop', async () => {
     const mockTabs: ITabInfo[] = [
       {
-        tabId: 'tab-1',
-        type: 'chat',
         chatId: 1,
+        chatService: mockChatServiceForTab,
+        tabId: 'tab-1',
         title: 'Chat 1',
+        type: 'chat',
       },
       {
-        tabId: 'tab-2',
-        type: 'chat',
         chatId: 2,
+        chatService: mockChatServiceForTab,
+        tabId: 'tab-2',
         title: 'Chat 2',
+        type: 'chat',
       },
     ];
 

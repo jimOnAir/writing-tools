@@ -38,21 +38,23 @@ Object.defineProperty(globalThis, 'electronAPI', {
 // Create mock ChatService
 const createMockChatService = (): jest.Mocked<ChatService> => {
   return {
-    setCallbacks: jest.fn(),
-    initializeListeners: jest.fn(),
     cleanupListeners: jest.fn(),
-    sendMessage: jest.fn().mockResolvedValue(null),
-    navigateHistoryUp: jest.fn().mockReturnValue(null),
-    navigateHistoryDown: jest.fn().mockReturnValue(null),
-    getMessages: jest.fn().mockReturnValue([]),
-    getIsLoading: jest.fn().mockReturnValue(false),
+    deleteChat: jest.fn().mockResolvedValue(null),
+    getChatInfo: jest.fn().mockResolvedValue(null),
+    getCurrentChatId: jest.fn().mockReturnValue(null),
     getError: jest.fn().mockReturnValue(null),
     getHistoryIndex: jest.fn().mockReturnValue(-1),
     getIsHandlingResponse: jest.fn().mockReturnValue(false),
-    getCurrentChatId: jest.fn().mockReturnValue(null),
-    getChatInfo: jest.fn().mockResolvedValue(null),
+    getIsLoading: jest.fn().mockReturnValue(false),
+    getMessages: jest.fn().mockReturnValue([]),
+    getPreconfiguredPrompts: jest.fn().mockReturnValue([]),
+    getSelectedText: jest.fn().mockReturnValue(''),
+    initializeListeners: jest.fn(),
     loadChatMessages: jest.fn().mockResolvedValue(undefined),
-    deleteChat: jest.fn().mockResolvedValue(null),
+    navigateHistoryDown: jest.fn().mockReturnValue(null),
+    navigateHistoryUp: jest.fn().mockReturnValue(null),
+    sendMessage: jest.fn().mockResolvedValue(null),
+    setCallbacks: jest.fn(),
   } as unknown as jest.Mocked<ChatService>;
 };
 
@@ -80,6 +82,32 @@ describe('ChatComponent', () => {
     expect(screen.getByText('No messages yet')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Type your message...')).toBeInTheDocument();
     expect(screen.getByText('Send')).toBeInTheDocument();
+  });
+
+  test('shows prompt-selector UI when chatService has prompt data (selectedText)', () => {
+    mockChatService.getSelectedText.mockReturnValue('Selected text');
+
+    render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+    expect(screen.getByText('Select a Prompt')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Enter your custom prompt...')).toBeInTheDocument();
+  });
+
+  test('shows prompt-selector UI when chatService has prompt data (preconfiguredPrompts)', () => {
+    mockChatService.getPreconfiguredPrompts.mockReturnValue([
+      { prompt: 'Summarize {text}', title: 'Summarize' },
+    ]);
+
+    render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+    expect(screen.getByText('Select a Prompt')).toBeInTheDocument();
+  });
+
+  test('shows normal chat UI when chatService has no prompt data', () => {
+    render(<ChatComponent chatService={mockChatService} chatId={null} />);
+
+    expect(screen.getByText('No messages yet')).toBeInTheDocument();
+    expect(screen.queryByText('Select a Prompt')).not.toBeInTheDocument();
   });
 
   test('allows sending a message', async () => {

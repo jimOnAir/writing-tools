@@ -1,9 +1,12 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 
+import type { ChatService } from '../../domains/chat';
 import type { ITabInfo } from '../../domains/multi-chat';
 
 import { Tab, type TabProps } from './Tab';
+
+const mockChatServiceForTab = {} as unknown as ChatService;
 
 // Mock getNativeStyles
 jest.mock('../../styles/NativeStyles', () => ({
@@ -21,10 +24,11 @@ jest.mock('../../styles/NativeStyles', () => ({
 
 describe('Tab', () => {
   const mockTab: ITabInfo = {
-    tabId: 'tab-1',
-    type: 'chat',
     chatId: 1,
+    chatService: mockChatServiceForTab,
+    tabId: 'tab-1',
     title: 'Test Chat',
+    type: 'chat',
   };
 
   const defaultProps: TabProps = {

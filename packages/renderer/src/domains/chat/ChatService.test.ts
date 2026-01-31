@@ -6,8 +6,19 @@ import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
 
 import { ChatService } from './ChatService';
 
+const createMockLogger = () =>
+  ({
+    debug: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    setEnvironment: jest.fn(),
+    setLevel: jest.fn(),
+    warn: jest.fn(),
+  }) as unknown as jest.Mocked<import('@writing-tools/shared').ILogger>;
+
 describe('ChatService', () => {
   let mockIpcAdapter: jest.Mocked<IIpcAdapter>;
+  let mockLogger: ReturnType<typeof createMockLogger>;
   let chatService: ChatService;
   let mockListener: TIpcRenderListener;
 
@@ -15,6 +26,7 @@ describe('ChatService', () => {
     jest.clearAllMocks();
     jest.useFakeTimers();
 
+    mockLogger = createMockLogger();
     mockListener = { remove: jest.fn() } as unknown as TIpcRenderListener;
 
     mockIpcAdapter = {
@@ -37,7 +49,7 @@ describe('ChatService', () => {
       offChatStreamEnd: jest.fn(),
     } as unknown as jest.Mocked<IIpcAdapter>;
 
-    chatService = new ChatService(mockIpcAdapter);
+    chatService = new ChatService(mockIpcAdapter, mockLogger);
   });
 
   afterEach(() => {
@@ -85,6 +97,78 @@ describe('ChatService', () => {
       expect(mockIpcAdapter.offChatDeleted).toHaveBeenCalled();
       expect(mockIpcAdapter.offChatStreamChunk).toHaveBeenCalled();
       expect(mockIpcAdapter.offChatStreamEnd).toHaveBeenCalled();
+    });
+  });
+
+  describe('prompt selector', () => {
+    it('setPromptSelectorData updates selectedText and preconfiguredPrompts', () => {
+      const onSelectedTextChange = jest.fn();
+      const onPromptsChange = jest.fn();
+      chatService.setCallbacks({ onSelectedTextChange, onPromptsChange });
+
+      const data = {
+        preconfiguredPrompts: [{ prompt: 'Summarize {text}', title: 'Summarize' }],
+        selectedText: 'Hello world',
+      };
+
+      chatService.setPromptSelectorData(data);
+
+      expect(chatService.getSelectedText()).toBe('Hello world');
+      expect(chatService.getPreconfiguredPrompts()).toEqual(data.preconfiguredPrompts);
+      expect(onSelectedTextChange).toHaveBeenCalledWith('Hello world');
+      expect(onPromptsChange).toHaveBeenCalledWith(data.preconfiguredPrompts);
+    });
+
+    it('getSelectedText and getPreconfiguredPrompts return initial empty state', () => {
+      expect(chatService.getSelectedText()).toBe('');
+      expect(chatService.getPreconfiguredPrompts()).toEqual([]);
+    });
+
+    it('selectPrompt invokes PROMPT_SELECTOR channel', async () => {
+      mockIpcAdapter.invoke.mockResolvedValue({ started: true });
+
+      await chatService.setPromptSelectorData({ preconfiguredPrompts: [], selectedText: 'x' });
+      await chatService.selectPrompt({
+        prompt: 'Summarize {text}',
+        provider: 'ollama',
+        title: 'Summarize',
+      });
+
+      expect(mockIpcAdapter.invoke).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          channel: expect.any(String),
+          event: EIpcEvent.PROMPT_SELECT,
+          payload: expect.objectContaining({
+            prompt: expect.stringContaining('x'),
+            provider: 'ollama',
+          }),
+        }),
+      );
+    });
+
+    it('submitCustomPrompt invokes PROMPT_SELECTOR and does not call when trim empty', async () => {
+      mockIpcAdapter.invoke.mockResolvedValue({ started: true });
+
+      await chatService.submitCustomPrompt('   ');
+
+      expect(mockIpcAdapter.invoke).not.toHaveBeenCalled();
+    });
+
+    it('submitCustomPrompt invokes PROMPT_SELECTOR with processed template', async () => {
+      mockIpcAdapter.invoke.mockResolvedValue({ started: true });
+      chatService.setPromptSelectorData({ preconfiguredPrompts: [], selectedText: 'selected' });
+
+      await chatService.submitCustomPrompt('Rewrite: {text}');
+
+      expect(mockIpcAdapter.invoke).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            prompt: 'Rewrite: selected',
+          }),
+        }),
+      );
     });
   });
 

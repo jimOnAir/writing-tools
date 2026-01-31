@@ -1,10 +1,11 @@
 /* eslint-disable max-lines */
 import type { IChatWindowData } from '@writing-tools/shared';
 
+import type { ILogger } from '@writing-tools/shared';
+
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
 import { ChatService } from '../chat';
-import type { PromptSelectorService } from '../prompt-selector';
 
 import { MultiChatService } from './MultiChatService';
 
@@ -20,16 +21,27 @@ jest.mock('../chat', () => {
   };
 });
 
+const createMockLogger = (): jest.Mocked<ILogger> =>
+  ({
+    debug: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    setEnvironment: jest.fn(),
+    setLevel: jest.fn(),
+    warn: jest.fn(),
+  }) as unknown as jest.Mocked<ILogger>;
+
 describe('MultiChatService', () => {
   let mockIpcAdapter: jest.Mocked<IIpcAdapter>;
+  let mockLogger: jest.Mocked<ILogger>;
   let multiChatService: MultiChatService;
   let mockChatService: jest.Mocked<ChatService>;
-  let mockPromptSelectorService: jest.Mocked<PromptSelectorService>;
   let mockListener: TIpcRenderListener;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
+    mockLogger = createMockLogger();
     mockListener = { remove: jest.fn() } as unknown as TIpcRenderListener;
 
     mockIpcAdapter = {
@@ -55,30 +67,23 @@ describe('MultiChatService', () => {
     } as unknown as jest.Mocked<IIpcAdapter>;
 
     mockChatService = {
-      setCallbacks: jest.fn(),
-      initializeListeners: jest.fn(),
-      cleanupListeners: jest.fn(),
-      sendMessage: jest.fn().mockResolvedValue(null),
-      getCurrentChatId: jest.fn().mockReturnValue(null),
-      loadChatMessages: jest.fn().mockResolvedValue(undefined),
-      getChatInfo: jest.fn().mockResolvedValue(null),
       addTitleChangeCallback: jest.fn(() => jest.fn()),
+      cleanupListeners: jest.fn(),
+      getChatInfo: jest.fn().mockResolvedValue(null),
+      getCurrentChatId: jest.fn().mockReturnValue(null),
       getMessages: jest.fn().mockReturnValue([]),
+      getPreconfiguredPrompts: jest.fn().mockReturnValue([]),
+      getSelectedText: jest.fn().mockReturnValue(''),
+      initializeListeners: jest.fn(),
+      loadChatMessages: jest.fn().mockResolvedValue(undefined),
+      setCallbacks: jest.fn(),
+      setPromptSelectorData: jest.fn(),
+      sendMessage: jest.fn().mockResolvedValue(null),
     } as unknown as jest.Mocked<ChatService>;
 
-    mockPromptSelectorService = {
-      setCallbacks: jest.fn(),
-      initializeListeners: jest.fn(),
-      cleanupListeners: jest.fn(),
-      setPromptSelectorData: jest.fn(),
-      getSelectedText: jest.fn().mockReturnValue(''),
-      getPreconfiguredPrompts: jest.fn().mockReturnValue([]),
-    } as unknown as jest.Mocked<PromptSelectorService>;
-
-    // Mock ChatService constructor
     (ChatService as jest.Mock).mockImplementation(() => mockChatService);
 
-    multiChatService = new MultiChatService(mockIpcAdapter);
+    multiChatService = new MultiChatService(mockIpcAdapter, mockLogger);
   });
 
   describe('setCallbacks', () => {
@@ -132,22 +137,6 @@ describe('MultiChatService', () => {
 
       expect(multiChatService.getActiveTabId()).toBe(tab.tabId);
       expect(onActiveTabChange).toHaveBeenCalledWith(tab.tabId);
-    });
-  });
-
-  describe('createPromptSelectorTab', () => {
-    it('creates a prompt selector tab', () => {
-      multiChatService.setPromptSelectorService(mockPromptSelectorService);
-
-      const onTabsChange = jest.fn();
-      multiChatService.setCallbacks({ onTabsChange });
-
-      const tab = multiChatService.createPromptSelectorTab(mockPromptSelectorService);
-
-      expect(tab).toBeDefined();
-      expect(tab.type).toBe('prompt-selector');
-      expect(tab.promptSelectorService).toBe(mockPromptSelectorService);
-      expect(onTabsChange).toHaveBeenCalled();
     });
   });
 
@@ -461,26 +450,23 @@ describe('MultiChatService', () => {
       expect(multiChatService.getAllTabs().find(t => t.tabId === tab.tabId)).toBeUndefined();
     });
 
-    it('handles PROMPT_SELECTOR_DATA event', () => {
-      multiChatService.setPromptSelectorService(mockPromptSelectorService);
+    it('handles PROMPT_SELECTOR_DATA event by creating chat tab and setting prompt data', () => {
       multiChatService.initializeListeners();
 
       const onPromptSelectorDataMock = mockIpcAdapter.onPromptSelectorData as jest.Mock;
-      const mockCalls = onPromptSelectorDataMock.mock.calls;
-      const firstCall = mockCalls[0] as unknown[] | undefined;
-      const promptCallback = firstCall?.[0] as ((data: { selectedText: string, preconfiguredPrompts: any[] }) => void) | undefined;
+      const promptCallback = onPromptSelectorDataMock.mock.calls[0]?.[0] as ((data: { preconfiguredPrompts: unknown[], selectedText: string }) => void) | undefined;
 
-      if (!promptCallback) {
+      if (promptCallback === undefined) {
         throw new Error('Prompt callback not found');
       }
 
-      promptCallback({
-        selectedText: 'Selected text',
-        preconfiguredPrompts: [],
-      });
+      const data = { preconfiguredPrompts: [], selectedText: 'Selected text' };
+      promptCallback(data);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(mockPromptSelectorService.setPromptSelectorData).toHaveBeenCalled();
+      expect(mockChatService.setPromptSelectorData).toHaveBeenCalledWith(data);
+      const tabs = multiChatService.getAllTabs();
+      expect(tabs.length).toBe(1);
+      expect(tabs[0].chatService).toBe(mockChatService);
     });
   });
 
@@ -492,44 +478,6 @@ describe('MultiChatService', () => {
       expect(mockIpcAdapter.offChatWindowData).toHaveBeenCalled();
       expect(mockIpcAdapter.offChatDeleted).toHaveBeenCalled();
       expect(mockIpcAdapter.offPromptSelectorData).toHaveBeenCalled();
-    });
-  });
-
-  describe('replacePromptSelectorTabWithChat', () => {
-    it('replaces prompt selector tab with chat tab when CHAT_WINDOW_DATA is received', () => {
-      multiChatService.setPromptSelectorService(mockPromptSelectorService);
-      const promptTab = multiChatService.createPromptSelectorTab(mockPromptSelectorService);
-      const promptTabId = promptTab.tabId;
-
-      multiChatService.initializeListeners();
-
-      const onTabsChange = jest.fn();
-      multiChatService.setCallbacks({ onTabsChange });
-
-      // Trigger CHAT_WINDOW_DATA event which should replace the prompt selector tab
-      const onChatWindowDataMock = mockIpcAdapter.onChatWindowData as jest.Mock;
-      const mockCalls = onChatWindowDataMock.mock.calls;
-      const firstCall = mockCalls[0] as unknown[] | undefined;
-      const dataCallback = firstCall?.[0] as ((data: IChatWindowData) => void) | undefined;
-
-      if (!dataCallback) {
-        throw new Error('Data callback not found');
-      }
-
-      const data: IChatWindowData = {
-        prompt: 'Test prompt',
-      };
-
-      dataCallback(data);
-
-      // The prompt selector tab should be replaced with a chat tab
-      const tabs = multiChatService.getAllTabs();
-      const replacedTab = tabs.find(t => t.tabId === promptTabId);
-
-      expect(replacedTab).toBeDefined();
-      expect(replacedTab?.type).toBe('chat');
-      expect(replacedTab?.chatService).toBeDefined();
-      expect(onTabsChange).toHaveBeenCalled();
     });
   });
 
@@ -557,7 +505,7 @@ describe('MultiChatService', () => {
       });
     });
 
-    it('includes only chat tabs, not prompt-selector tabs', async () => {
+    it('saves single chat tab', async () => {
       const chatTab = multiChatService.createNewChatTab();
       chatTab.chatId = 1;
       multiChatService.switchToTab(chatTab.tabId);
@@ -871,38 +819,16 @@ describe('MultiChatService', () => {
       expect(multiChatService.getActiveTabId()).toBeNull();
     });
 
-    it('handles keyboard shortcuts without affecting prompt selector tabs', async () => {
-      multiChatService.setPromptSelectorService(mockPromptSelectorService);
+    it('Ctrl+W closes active chat tab and leaves other tabs', () => {
+      const tab1 = multiChatService.createNewChatTab();
+      multiChatService.createNewChatTab();
 
-      // Create a prompt selector tab first
-      const promptTab = multiChatService.createPromptSelectorTab(mockPromptSelectorService);
+      expect(multiChatService.getAllTabs()).toHaveLength(2);
+      multiChatService.switchToTab(tab1.tabId);
+      multiChatService.closeChatTab(tab1.tabId);
 
-      expect(promptTab.type).toBe('prompt-selector');
-
-      // Now create a chat tab
-      const chatTab = multiChatService.createNewChatTab();
-
-      expect(chatTab.type).toBe('chat');
-
-      // Verify we have both types of tabs
-      const allTabs = multiChatService.getAllTabs();
-      expect(allTabs.length).toBe(2);
-
-      // The Ctrl+W functionality should only affect chat tabs, not prompt selector tabs
-      const activeTabId = multiChatService.getActiveTabId();
-      if (activeTabId) {
-        const activeTab = multiChatService.getActiveTab();
-
-        if (activeTab?.type === 'chat') {
-          expect(() => {
-            multiChatService.closeChatTab(activeTabId);
-          }).not.toThrow();
-
-          // Should still have prompt selector tab
-          const remainingTabs = multiChatService.getAllTabs();
-          expect(remainingTabs.some(t => t.type === 'prompt-selector')).toBe(true);
-        }
-      }
+      const remainingTabs = multiChatService.getAllTabs();
+      expect(remainingTabs).toHaveLength(1);
     });
   });
 

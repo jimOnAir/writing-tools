@@ -3,21 +3,14 @@ import React from 'react';
 
 import type { ChatService } from '../domains/chat';
 import type { ChatListService } from '../domains/chat-list';
-import type { MultiChatService, ITabInfo } from '../domains/multi-chat';
-import type { PromptSelectorService } from '../domains/prompt-selector';
+import type { ITabInfo, MultiChatService } from '../domains/multi-chat';
 import type { SettingsService } from '../domains/settings';
 
 import { MainLayout } from './MainLayout';
 
-// Mock components
 jest.mock('./ChatComponent', () => ({
   __esModule: true,
   default: jest.fn(() => <div>ChatComponent</div>),
-}));
-
-jest.mock('./PromptSelectorComponent', () => ({
-  __esModule: true,
-  default: jest.fn(() => <div>PromptSelectorComponent</div>),
 }));
 
 jest.mock('./Sidebar', () => ({
@@ -63,14 +56,10 @@ describe('MainLayout', () => {
   let mockMultiChatService: jest.Mocked<MultiChatService>;
   let mockChatListService: jest.Mocked<ChatListService>;
   let mockSettingsService: jest.Mocked<SettingsService>;
-  let mockPromptSelectorService: jest.Mocked<PromptSelectorService>;
   let createNewChatTabMock: jest.Mock;
-  let setPromptSelectorServiceMock: jest.Mock;
   let initializeListenersMock: jest.Mock;
   let cleanupListenersMock: jest.Mock;
   let removeCallbacksMock: jest.Mock;
-  let promptSelectorInitializeListenersMock: jest.Mock;
-  let promptSelectorCleanupListenersMock: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -122,25 +111,21 @@ describe('MainLayout', () => {
     };
 
     const mockTab: ITabInfo = {
-      tabId: 'tab-1',
-      type: 'chat',
       chatId: 1,
-      title: 'Test Chat',
       chatService: mockChatService as unknown as ChatService,
+      tabId: 'tab-1',
+      title: 'Test Chat',
+      type: 'chat',
     };
 
     createNewChatTabMock = jest.fn();
-    setPromptSelectorServiceMock = jest.fn();
     initializeListenersMock = jest.fn();
     cleanupListenersMock = jest.fn();
     removeCallbacksMock = jest.fn();
-    promptSelectorInitializeListenersMock = jest.fn();
-    promptSelectorCleanupListenersMock = jest.fn();
 
     mockMultiChatService = {
       cleanupListeners: cleanupListenersMock,
       createNewChatTab: createNewChatTabMock,
-      createPromptSelectorTab: jest.fn(),
       getAllTabs: jest.fn().mockReturnValue([]),
       getActiveTab: jest.fn().mockReturnValue(mockTab),
       getActiveTabId: jest.fn().mockReturnValue('tab-1'),
@@ -151,7 +136,6 @@ describe('MainLayout', () => {
       restoreTabs: jest.fn(),
       saveTabs: jest.fn(),
       setCallbacks: jest.fn(),
-      setPromptSelectorService: setPromptSelectorServiceMock,
       switchToTab: jest.fn(),
       closeChatTab: jest.fn(),
     } as unknown as jest.Mocked<MultiChatService>;
@@ -170,25 +154,14 @@ describe('MainLayout', () => {
       loadSettings: jest.fn(),
       saveSettings: jest.fn(),
     } as unknown as jest.Mocked<SettingsService>;
-
-    mockPromptSelectorService = {
-      setCallbacks: jest.fn(),
-      initializeListeners: promptSelectorInitializeListenersMock,
-      cleanupListeners: promptSelectorCleanupListenersMock,
-      selectPrompt: jest.fn(),
-      submitCustomPrompt: jest.fn(),
-      getSelectedText: jest.fn().mockReturnValue(''),
-      getPreconfiguredPrompts: jest.fn().mockReturnValue([]),
-    } as unknown as jest.Mocked<PromptSelectorService>;
   });
 
   it('renders sidebar and main content', async () => {
     render(
       <MainLayout
-        multiChatService={mockMultiChatService}
         chatListService={mockChatListService}
+        multiChatService={mockMultiChatService}
         settingsService={mockSettingsService}
-        promptSelectorService={mockPromptSelectorService}
       />,
     );
 
@@ -209,7 +182,6 @@ describe('MainLayout', () => {
         multiChatService={mockMultiChatService}
         chatListService={mockChatListService}
         settingsService={mockSettingsService}
-        promptSelectorService={mockPromptSelectorService}
       />,
     );
 
@@ -226,7 +198,6 @@ describe('MainLayout', () => {
         multiChatService={mockMultiChatService}
         chatListService={mockChatListService}
         settingsService={mockSettingsService}
-        promptSelectorService={mockPromptSelectorService}
       />,
     );
 
@@ -244,37 +215,11 @@ describe('MainLayout', () => {
         multiChatService={mockMultiChatService}
         chatListService={mockChatListService}
         settingsService={mockSettingsService}
-        promptSelectorService={mockPromptSelectorService}
       />,
     );
 
     await waitFor(() => {
       expect(screen.getByText('ChatComponent')).toBeInTheDocument();
-    });
-  });
-
-  it('renders prompt selector component for prompt selector tab', async () => {
-    const promptTab: ITabInfo = {
-      tabId: 'prompt-tab-1',
-      type: 'prompt-selector',
-      chatId: null,
-      title: null,
-      promptSelectorService: mockPromptSelectorService,
-    };
-
-    mockMultiChatService.getActiveTab.mockReturnValue(promptTab);
-
-    render(
-      <MainLayout
-        multiChatService={mockMultiChatService}
-        chatListService={mockChatListService}
-        settingsService={mockSettingsService}
-        promptSelectorService={mockPromptSelectorService}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('PromptSelectorComponent')).toBeInTheDocument();
     });
   });
 
@@ -286,7 +231,6 @@ describe('MainLayout', () => {
         multiChatService={mockMultiChatService}
         chatListService={mockChatListService}
         settingsService={mockSettingsService}
-        promptSelectorService={mockPromptSelectorService}
       />,
     );
 
@@ -301,14 +245,11 @@ describe('MainLayout', () => {
         multiChatService={mockMultiChatService}
         chatListService={mockChatListService}
         settingsService={mockSettingsService}
-        promptSelectorService={mockPromptSelectorService}
       />,
     );
 
     await waitFor(() => {
-      expect(setPromptSelectorServiceMock).toHaveBeenCalledWith(mockPromptSelectorService);
       expect(initializeListenersMock).toHaveBeenCalledTimes(1);
-      expect(promptSelectorInitializeListenersMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -318,7 +259,6 @@ describe('MainLayout', () => {
         multiChatService={mockMultiChatService}
         chatListService={mockChatListService}
         settingsService={mockSettingsService}
-        promptSelectorService={mockPromptSelectorService}
       />,
     );
 
@@ -330,7 +270,6 @@ describe('MainLayout', () => {
 
     expect(removeCallbacksMock).toHaveBeenCalledTimes(1);
     expect(cleanupListenersMock).toHaveBeenCalledTimes(1);
-    expect(promptSelectorCleanupListenersMock).toHaveBeenCalledTimes(1);
   });
 
   it('handles chat selection', async () => {
@@ -339,7 +278,6 @@ describe('MainLayout', () => {
         multiChatService={mockMultiChatService}
         chatListService={mockChatListService}
         settingsService={mockSettingsService}
-        promptSelectorService={mockPromptSelectorService}
       />,
     );
 
@@ -361,7 +299,6 @@ describe('MainLayout', () => {
           multiChatService={mockMultiChatService}
           chatListService={mockChatListService}
           settingsService={mockSettingsService}
-          promptSelectorService={mockPromptSelectorService}
         />,
       );
 
@@ -384,7 +321,6 @@ describe('MainLayout', () => {
           multiChatService={mockMultiChatService}
           chatListService={mockChatListService}
           settingsService={mockSettingsService}
-          promptSelectorService={mockPromptSelectorService}
         />,
       );
 
@@ -402,7 +338,6 @@ describe('MainLayout', () => {
           multiChatService={mockMultiChatService}
           chatListService={mockChatListService}
           settingsService={mockSettingsService}
-          promptSelectorService={mockPromptSelectorService}
         />,
       );
 
@@ -426,7 +361,6 @@ describe('MainLayout', () => {
           multiChatService={mockMultiChatService}
           chatListService={mockChatListService}
           settingsService={mockSettingsService}
-          promptSelectorService={mockPromptSelectorService}
         />,
       );
 
@@ -451,7 +385,6 @@ describe('MainLayout', () => {
           multiChatService={mockMultiChatService}
           chatListService={mockChatListService}
           settingsService={mockSettingsService}
-          promptSelectorService={mockPromptSelectorService}
         />,
       );
 
@@ -472,7 +405,6 @@ describe('MainLayout', () => {
           multiChatService={mockMultiChatService}
           chatListService={mockChatListService}
           settingsService={mockSettingsService}
-          promptSelectorService={mockPromptSelectorService}
         />,
       );
 
@@ -492,7 +424,6 @@ describe('MainLayout', () => {
           multiChatService={mockMultiChatService}
           chatListService={mockChatListService}
           settingsService={mockSettingsService}
-          promptSelectorService={mockPromptSelectorService}
         />,
       );
 

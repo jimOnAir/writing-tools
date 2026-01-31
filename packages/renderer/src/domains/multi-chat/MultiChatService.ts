@@ -1,21 +1,19 @@
-import type { IChatWindowData, IPromptSelectorData, TIpcEvent, TOpenTab } from '@writing-tools/shared';
-import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
+import type { IChatWindowData, ILogger, IPromptSelectorData, TIpcEvent, TOpenTab } from '@writing-tools/shared';
+import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
 import { isErrorResponse } from '../../utils/responseTypeGuards';
 import { ChatService } from '../chat';
-import type { PromptSelectorService } from '../prompt-selector';
 
-export type TabType = 'chat' | 'prompt-selector';
+export type TabType = 'chat';
 
 export interface ITabInfo {
-  readonly tabId: string;
-  readonly type: TabType;
+  readonly chatService: ChatService;
   chatId: number | null;
-  readonly chatService?: ChatService;
-  readonly promptSelectorService?: PromptSelectorService;
+  readonly tabId: string;
   title: string | null;
+  readonly type: TabType;
   removeTitleChangeCallback?: () => void;
 }
 
@@ -27,13 +25,13 @@ export interface ITabInfo {
  */
 export class MultiChatService {
   private readonly ipcAdapter: IIpcAdapter;
+  private readonly logger: ILogger;
   private readonly tabs: ITabInfo[] = [];
   private activeTabId: string | null = null;
   private chatWindowDataListener: TIpcRenderListener | null = null;
   private chatDeletedListener: TIpcRenderListener | null = null;
   private chatSaveTabsRequestListener: TIpcRenderListener | null = null;
   private promptSelectorDataListener: TIpcRenderListener | null = null;
-  private promptSelectorService: PromptSelectorService | null = null;
   private isRestoringTabs = false;
   private saveTabsTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private keydownListener: ((event: KeyboardEvent) => void) | null = null;
@@ -42,8 +40,9 @@ export class MultiChatService {
   private readonly onTabsChangeCallbacks = new Set<(tabs: ITabInfo[]) => void>();
   private readonly onActiveTabChangeCallbacks = new Set<(tabId: string | null) => void>();
 
-  public constructor(ipcAdapter: IIpcAdapter) {
+  public constructor(ipcAdapter: IIpcAdapter, logger: ILogger) {
     this.ipcAdapter = ipcAdapter;
+    this.logger = logger;
   }
 
   /**
@@ -89,67 +88,38 @@ export class MultiChatService {
   }
 
   /**
-   * Set the prompt selector service (needed for creating prompt selector tabs)
-   */
-  public setPromptSelectorService(service: PromptSelectorService): void {
-    this.promptSelectorService = service;
-  }
-
-  /**
    * Initialize IPC listeners for chat events
    */
   public initializeListeners(): void {
     const handleChatWindowData = (data: IChatWindowData) => {
       const promptText = data.prompt === '' ? 'none' : data.prompt;
       const chatIdText = data.chatId === undefined ? 'undefined' : String(data.chatId);
-      logger.info('MultiChatService received CHAT_WINDOW_DATA: prompt=%s, chatId=%s', promptText, chatIdText);
+      this.logger.info('MultiChatService received CHAT_WINDOW_DATA: prompt=%s, chatId=%s', promptText, chatIdText);
 
-      // Check if there's a prompt selector tab that should be replaced
-      // Prefer the active tab if it's a prompt selector, otherwise find any prompt selector tab
+      if (data.prompt === undefined || data.prompt === '' || data.chatId === undefined) {
+        return;
+      }
+
       const activeTab = this.getActiveTab();
-      let tabToReplace: ITabInfo | null = null;
+      let tab: ITabInfo;
 
-      if (activeTab !== null && activeTab.type === 'prompt-selector') {
-        tabToReplace = activeTab;
-        logger.info('Replacing active prompt selector tab with chat tab');
+      if (activeTab?.chatService !== undefined && activeTab.chatId === null) {
+        tab = activeTab;
       } else {
-        // Find any prompt selector tab to replace
-        const promptSelectorTab = this.tabs.find(t => t.type === 'prompt-selector');
-        if (promptSelectorTab) {
-          tabToReplace = promptSelectorTab;
-          logger.info('Replacing prompt selector tab with chat tab');
-        }
+        tab = this.createNewChatTab();
       }
 
-      // Create a new chat tab (or replace existing prompt selector tab)
-      const tab = tabToReplace === null
-        ? this.createNewChatTab()
-        : this.replacePromptSelectorTabWithChat(tabToReplace.tabId);
-
-      // Set up the chat service to handle the prompt
-      // Note: The main process (handlePromptSelect) already sends the message to the LLM
-      // and will send OLLAMA_RESPONSE event. We should NOT call sendMessage here to avoid duplicates.
-      // Instead, we just set the chatId and load messages - the OLLAMA_RESPONSE listener will handle the response.
-      if (data.prompt && tab.chatService) {
-        // Set chatId if provided
-        if (data.chatId !== undefined) {
-          tab.chatId = data.chatId;
-          // Save tabs when chatId is set
-          this.saveTabsIfNotRestoring();
-          // Load messages for this chat (the main process already saved them)
-          void tab.chatService.loadChatMessages(data.chatId);
-        }
-
-        this.switchToTab(tab.tabId);
-      }
+      tab.chatId = data.chatId;
+      this.saveTabsIfNotRestoring();
+      void tab.chatService.loadChatMessages(data.chatId);
+      this.switchToTab(tab.tabId);
     };
 
     const handleChatDeleted = (data: { chatId: number }) => {
-      logger.info('MultiChatService received CHAT_DELETED: chatId=%s', String(data.chatId));
+      this.logger.info('MultiChatService received CHAT_DELETED: chatId=%s', String(data.chatId));
 
-      // Find and close the tab with this chatId
       const tabToClose = this.tabs.find(t => t.chatId === data.chatId);
-      if (tabToClose) {
+      if (tabToClose !== undefined) {
         this.closeChatTab(tabToClose.tabId);
       }
     };
@@ -157,55 +127,36 @@ export class MultiChatService {
     const handlePromptSelectorData = (data: IPromptSelectorData) => {
       const selectedTextStatus = data.selectedText === '' ? 'empty' : 'present';
       const promptsCount = String(data.preconfiguredPrompts.length);
-      logger.info('MultiChatService received PROMPT_SELECTOR_DATA: selectedText=%s, promptsCount=%s', selectedTextStatus, promptsCount);
+      this.logger.info('MultiChatService received PROMPT_SELECTOR_DATA: selectedText=%s, promptsCount=%s', selectedTextStatus, promptsCount);
 
-      // Find existing prompt selector tab
-      let existingPromptSelectorTab = this.tabs.find(t => t.type === 'prompt-selector');
-
-      if (!existingPromptSelectorTab && this.promptSelectorService) {
-        // Create a new prompt selector tab if one doesn't exist
-        existingPromptSelectorTab = this.createPromptSelectorTab(this.promptSelectorService);
-      }
-
-      // Manually forward the data to the service to ensure it receives it
-      // This handles the case where the IPC event might have been missed due to timing
-      // or if the listener wasn't set up yet
-      if (existingPromptSelectorTab?.promptSelectorService) {
-        // Manually update the service state with the received data
-        existingPromptSelectorTab.promptSelectorService.setPromptSelectorData(data);
-        this.switchToTab(existingPromptSelectorTab.tabId);
-      }
+      const newTab = this.createNewChatTab();
+      newTab.chatService.setPromptSelectorData(data);
     };
 
     this.chatWindowDataListener = this.ipcAdapter.onChatWindowData(handleChatWindowData);
     this.chatDeletedListener = this.ipcAdapter.onChatDeleted(handleChatDeleted);
     this.promptSelectorDataListener = this.ipcAdapter.onPromptSelectorData(handlePromptSelectorData);
 
-    // Set up save tabs request listener
     const handleChatSaveTabsRequest = () => {
-      logger.info('MultiChatService received CHAT_SAVE_TABS_REQUEST');
+      this.logger.info('MultiChatService received CHAT_SAVE_TABS_REQUEST');
       void this.saveTabs();
     };
 
     this.chatSaveTabsRequestListener = this.ipcAdapter.onChatSaveTabsRequest(handleChatSaveTabsRequest);
 
-    // Setup keyboard shortcut listener for Ctrl+W/Cmd+W to close current tab
     const handleKeydown = (event: KeyboardEvent) => {
-      // Check if Ctrl or Cmd is pressed along with W key
       const isCtrlPressed = event.ctrlKey || event.metaKey;
       if (isCtrlPressed && event.key === 'w') {
-        event.preventDefault(); // Prevent default browser behavior
+        event.preventDefault();
 
-        // Only close tab if we have an active tab and at least one chat tab exists
         const activeTab = this.getActiveTab();
-        if (activeTab !== null && activeTab.type === 'chat' && this.tabs.length > 0) {
-          logger.info('Ctrl+W pressed, closing current active tab');
+        if (activeTab !== null && this.tabs.length > 0) {
+          this.logger.info('Ctrl+W pressed, closing current active tab');
           this.closeChatTab(activeTab.tabId);
         }
       }
     };
 
-    // Add the keyboard event listener to document
     this.keydownListener = handleKeydown;
     document.addEventListener('keydown', this.keydownListener);
   }
@@ -245,41 +196,12 @@ export class MultiChatService {
   }
 
   /**
-   * Create a new prompt selector tab
-   * Note: Listeners are already initialized in MainLayout, so we don't initialize them again here
-   */
-  public createPromptSelectorTab(promptSelectorService: PromptSelectorService): ITabInfo {
-    const tabId = this.generateTabId();
-
-    // Listeners are already initialized in MainLayout
-    // The service will receive data via its IPC listener
-
-    const tab: ITabInfo = {
-      tabId,
-      type: 'prompt-selector',
-      chatId: null,
-      promptSelectorService,
-      title: 'Prompt Selector',
-    };
-
-    this.tabs.push(tab);
-
-    // Notify tabs change first so UI knows about the new tab
-    this.notifyTabsChange();
-
-    // Always switch to the new tab and notify
-    this.switchToTab(tabId);
-
-    return tab;
-  }
-
-  /**
    * Create a new chat tab
    * Note: This does NOT remove empty tabs - call removeEmptyTabs() separately if needed
    */
   public createNewChatTab(): ITabInfo {
     const tabId = this.generateTabId();
-    const chatService = new ChatService(this.ipcAdapter);
+    const chatService = new ChatService(this.ipcAdapter, this.logger);
 
     // Initialize listeners for the new chat service
     chatService.initializeListeners();
@@ -368,11 +290,11 @@ export class MultiChatService {
    * Close a chat tab
    */
   public closeChatTab(tabId: string): void {
-    logger.info('Closing tab: tabId=%s, total tabs=%s', tabId, String(this.tabs.length));
+    this.logger.info('Closing tab: tabId=%s, total tabs=%s', tabId, String(this.tabs.length));
 
     const tabIndex = this.tabs.findIndex(t => t.tabId === tabId);
     if (tabIndex === -1) {
-      logger.warn('Tab not found for closing: tabId=%s', tabId);
+      this.logger.warn('Tab not found for closing: tabId=%s', tabId);
 
       return;
     }
@@ -381,26 +303,22 @@ export class MultiChatService {
     const wasActive = this.activeTabId === tabId;
     const isLastTab = this.tabs.length === 1;
 
-    // Cleanup services
-    if (tab.chatService) {
+    if (tab.chatService !== undefined) {
       tab.chatService.cleanupListeners();
     }
-    if (tab.removeTitleChangeCallback) {
+    if (tab.removeTitleChangeCallback !== undefined) {
       tab.removeTitleChangeCallback();
-    }
-    if (tab.promptSelectorService) {
-      tab.promptSelectorService.cleanupListeners();
     }
 
     this.tabs.splice(tabIndex, 1);
-    logger.info('Tab removed. Remaining tabs: %s', String(this.tabs.length));
+    this.logger.info('Tab removed. Remaining tabs: %s', String(this.tabs.length));
 
     if (isLastTab) {
       this.activeTabId = null;
       this.notifyActiveTabChange();
     } else if (wasActive) {
       const newIndex = Math.max(0, tabIndex - 1);
-      logger.info('Switching to tab at index: %s', String(newIndex));
+      this.logger.info('Switching to tab at index: %s', String(newIndex));
       this.switchToTab(this.tabs[newIndex].tabId);
     }
 
@@ -464,15 +382,15 @@ export class MultiChatService {
       const response = await this.ipcAdapter.invoke(payload.channel, payload);
 
       if ('error' in response) {
-        logger.error('Failed to save tabs: %s', response.error);
+        this.logger.error('Failed to save tabs: %s', response.error);
       } else {
-        logger.info('Loaded %d tabs', String(response.tabs.length));
+        this.logger.info('Loaded %d tabs', String(response.tabs.length));
       }
 
       return response;
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to load tabs: %s', errorText);
+      this.logger.error('Failed to load tabs: %s', errorText);
 
       return { error: errorText };
     }
@@ -480,14 +398,10 @@ export class MultiChatService {
 
   /**
    * Save current tabs to main process
-   * Only saves chat tabs (not prompt-selector tabs)
    */
   public async saveTabs(): Promise<void> {
     try {
-      // Filter to only chat tabs and convert to TOpenTab format
-      const chatTabs = this.tabs
-        .filter(tab => tab.type === 'chat')
-        .map((tab, index) => ({
+      const chatTabs = this.tabs.map((tab, index) => ({
           chatId: tab.chatId,
           tabOrder: index,
           isActive: tab.tabId === this.activeTabId,
@@ -502,26 +416,26 @@ export class MultiChatService {
       const response = await this.ipcAdapter.invoke(payload.channel, payload);
 
       if ('error' in response) {
-        logger.error('Failed to save tabs: %s', response.error);
+        this.logger.error('Failed to save tabs: %s', response.error);
       } else {
-        logger.info('Saved %d tabs', String(chatTabs.length));
+        this.logger.info('Saved %d tabs', String(chatTabs.length));
       }
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to save tabs: %s', errorText);
+      this.logger.error('Failed to save tabs: %s', errorText);
     }
   }
 
   /**
    * Restore tabs from saved state
    * Skips tabs with deleted chatIds
-   * Only restores chat tabs (not prompt-selector tabs)
+   * Only restores chat tabs
    * Restores tab order and active tab
    */
   public async restoreTabs(savedTabs: TOpenTab[]): Promise<void> {
     // Prevent concurrent restore operations
     if (this.isRestoringTabs) {
-      logger.info('Restore already in progress, skipping duplicate call');
+      this.logger.info('Restore already in progress, skipping duplicate call');
 
       return;
     }
@@ -529,7 +443,7 @@ export class MultiChatService {
     this.isRestoringTabs = true;
 
     if (savedTabs.length === 0) {
-      logger.info('No saved tabs to restore, creating default empty tab');
+      this.logger.info('No saved tabs to restore, creating default empty tab');
 
       try {
         // Clear existing tabs
@@ -547,7 +461,7 @@ export class MultiChatService {
     }
 
     try {
-      logger.info('Restoring %d saved tabs', String(savedTabs.length));
+      this.logger.info('Restoring %d saved tabs', String(savedTabs.length));
 
       // Sort by tabOrder to restore in correct order
       const sortedTabs = [...savedTabs].sort((a, b) => a.tabOrder - b.tabOrder);
@@ -572,27 +486,27 @@ export class MultiChatService {
             const response = await this.ipcAdapter.invoke(message.channel, message);
 
             if (isErrorResponse(response)) {
-              logger.info('Skipping tab with deleted chatId=%d', String(savedTab.chatId));
+              this.logger.info('Skipping tab with deleted chatId=%d', String(savedTab.chatId));
               continue;
             }
 
             validTabs.push(savedTab);
           } catch (error: unknown) {
             const errorText = error instanceof Error ? error.message : String(error);
-            logger.warn('Error validating chatId=%d, skipping tab: %s', String(savedTab.chatId), errorText);
+            this.logger.warn('Error validating chatId=%d, skipping tab: %s', String(savedTab.chatId), errorText);
             continue;
           }
         }
       }
 
-      // Clear existing tabs (except prompt-selector tabs if any)
+      // Clear existing tabs
       // Actually, we should keep existing tabs and just restore the saved ones
       // But the plan says to restore tabs, so let's clear all and restore
       // However, we need to ensure at least one tab exists
       this.tabs.length = 0;
 
       if (validTabs.length === 0) {
-        logger.info('No valid tabs to restore after filtering deleted chats');
+        this.logger.info('No valid tabs to restore after filtering deleted chats');
         // Continue to create default empty tab below
       }
 
@@ -617,7 +531,7 @@ export class MultiChatService {
 
       // If no tabs were restored, create a default empty tab
       if (this.tabs.length === 0) {
-        logger.info('No tabs restored, creating default empty tab');
+        this.logger.info('No tabs restored, creating default empty tab');
         this.createNewChatTab();
         activeTabId = this.tabs[0]?.tabId ?? null;
       } else if (activeTabId !== null) {
@@ -628,7 +542,7 @@ export class MultiChatService {
         this.switchToTab(this.tabs[0].tabId);
       }
 
-      logger.info('Restored %d tabs, active tab: %s', String(this.tabs.length), activeTabId ?? 'none');
+      this.logger.info('Restored %d tabs, active tab: %s', String(this.tabs.length), activeTabId ?? 'none');
 
       // Notify UI that tabs have changed
       this.notifyTabsChange();
@@ -665,79 +579,9 @@ export class MultiChatService {
   }
 
   /**
-   * Replace a prompt selector tab with a chat tab
-   */
-  private replacePromptSelectorTabWithChat(promptSelectorTabId: string): ITabInfo {
-    const tabIndex = this.tabs.findIndex(t => t.tabId === promptSelectorTabId);
-    if (tabIndex === -1) {
-      // Tab not found, just create a new chat tab
-      return this.createNewChatTab();
-    }
-
-    const oldTab = this.tabs[tabIndex];
-
-    // Cleanup the prompt selector service
-    if (oldTab.promptSelectorService) {
-      oldTab.promptSelectorService.cleanupListeners();
-    }
-
-    // Create new chat service
-    const chatService = new ChatService(this.ipcAdapter);
-    chatService.initializeListeners();
-
-    // Listen to title changes to update tab title
-    const handleTitleChange = (title: string) => {
-      const foundTab = this.tabs.find(t => t.tabId === promptSelectorTabId);
-      if (foundTab?.chatService) {
-        const serviceChatId = foundTab.chatService.getCurrentChatId();
-        // Only update title if tab's chatId matches service's currentChatId, or if both are null (new chat)
-        if (foundTab.chatId === serviceChatId || (foundTab.chatId === null && serviceChatId !== null)) {
-          // If tab.chatId is null but service has a chatId, update tab.chatId to sync them
-          if (foundTab.chatId === null && serviceChatId !== null) {
-            foundTab.chatId = serviceChatId;
-          }
-          foundTab.title = title;
-          this.notifyTabsChange();
-        }
-      }
-    };
-
-    // Add title change callback (using addTitleChangeCallback to support multiple callbacks)
-    // This allows ChatComponent to also receive title updates via setCallbacks
-    const removeTitleChangeCallback = chatService.addTitleChangeCallback(handleTitleChange);
-
-    // Replace the tab in place
-    const newTab: ITabInfo = {
-      tabId: promptSelectorTabId, // Keep the same tab ID
-      type: 'chat',
-      chatId: null,
-      chatService,
-      title: null,
-      removeTitleChangeCallback,
-    };
-
-    this.tabs[tabIndex] = newTab;
-
-    // Notify tabs change
-    this.notifyTabsChange();
-
-    // If this was the active tab, notify active tab change to trigger UI re-render
-    // The key change (including type in MainLayout) will cause React to remount the component
-    if (this.activeTabId === promptSelectorTabId) {
-      this.notifyActiveTabChange();
-    }
-
-    return newTab;
-  }
-
-  /**
    * Check if a tab is empty (new chat with no messages)
    */
   private isTabEmpty(tab: ITabInfo): boolean {
-    if (tab.type !== 'chat' || !tab.chatService) {
-      return false; // Prompt selector tabs are never considered empty
-    }
-
     return tab.chatId === null && tab.chatService.getMessages().length === 0;
   }
 

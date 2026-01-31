@@ -42,7 +42,7 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
 
     const chatIds = new Set<number>();
     for (const tab of tabs) {
-      if (tab.type === 'chat' && tab.chatId !== null) {
+      if (tab.chatId !== null) {
         chatIds.add(tab.chatId);
       }
     }

@@ -1,5 +1,5 @@
-import type { IChatMessage, TChatResponse, TIpcEvent, IChatInfo, IChatStreamChunk, IChatStreamEnd, IMessageStatistics } from '@writing-tools/shared';
-import { EIpcChannel, EIpcEvent, logger } from '@writing-tools/shared';
+import type { IChatMessage, TChatResponse, TIpcEvent, IChatInfo, IChatStreamChunk, IChatStreamEnd, ILogger, IMessageStatistics, IPreconfiguredPrompt, IPromptSelectorData } from '@writing-tools/shared';
+import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
@@ -14,6 +14,7 @@ import { isErrorResponse } from '../../utils/responseTypeGuards';
  */
 export class ChatService {
   private readonly ipcAdapter: IIpcAdapter;
+  private readonly logger: ILogger;
   private messages: IChatMessage[] = [];
   private isLoading = false;
   private error: string | null = null;
@@ -31,6 +32,10 @@ export class ChatService {
   private chatStreamEndListener: TIpcRenderListener | null = null;
   private currentChatId: number | null = null;
 
+  // Prompt-selector state (pushed by MultiChatService via setPromptSelectorData)
+  private selectedText = '';
+  private preconfiguredPrompts: IPreconfiguredPrompt[] = [];
+
   // Callbacks for component state updates
   private onMessagesChange?: (messages: IChatMessage[]) => void;
   private onLoadingChange?: (isLoading: boolean) => void;
@@ -39,11 +44,14 @@ export class ChatService {
   private onHandlingResponseChange?: (isHandling: boolean) => void;
   private onTitleChange?: (title: string) => void;
   private onStreamingChange?: (isStreaming: boolean) => void;
+  private onSelectedTextChange?: (text: string) => void;
+  private onPromptsChange?: (prompts: IPreconfiguredPrompt[]) => void;
   // Support multiple title change callbacks (for ChatComponent and MultiChatService)
   private readonly onTitleChangeCallbacks = new Set<(title: string) => void>();
 
-  public constructor(ipcAdapter: IIpcAdapter) {
+  public constructor(ipcAdapter: IIpcAdapter, logger: ILogger) {
     this.ipcAdapter = ipcAdapter;
+    this.logger = logger;
   }
 
   /**
@@ -57,6 +65,8 @@ export class ChatService {
     onHandlingResponseChange?: (isHandling: boolean) => void,
     onTitleChange?: (title: string) => void,
     onStreamingChange?: (isStreaming: boolean) => void,
+    onSelectedTextChange?: (text: string) => void,
+    onPromptsChange?: (prompts: IPreconfiguredPrompt[]) => void,
   }): void {
     this.onMessagesChange = callbacks.onMessagesChange;
     this.onLoadingChange = callbacks.onLoadingChange;
@@ -65,6 +75,8 @@ export class ChatService {
     this.onHandlingResponseChange = callbacks.onHandlingResponseChange;
     this.onTitleChange = callbacks.onTitleChange;
     this.onStreamingChange = callbacks.onStreamingChange;
+    this.onSelectedTextChange = callbacks.onSelectedTextChange;
+    this.onPromptsChange = callbacks.onPromptsChange;
     // Also add to multiple callbacks set for title changes
     if (callbacks.onTitleChange !== undefined) {
       this.onTitleChangeCallbacks.add(callbacks.onTitleChange);
@@ -95,16 +107,16 @@ export class ChatService {
     // This prevents multiple ChatService instances from creating duplicate chats
 
     const handleOllamaResponse = (response: TChatResponse) => {
-      logger.info('Current messages count: %s', this.messages.length.toString());
+      this.logger.info('Current messages count: %s', this.messages.length.toString());
 
       // Update currentChatId if provided (for hotkey/prompt select flows)
       // Only set it if we're currently handling a response (isLoading or isHandlingOllamaResponse)
       // This prevents other tabs from incorrectly adopting chatIds from responses meant for different tabs
       if (response.chatId !== undefined && this.currentChatId === null && (this.isLoading || this.isHandlingOllamaResponse)) {
         this.currentChatId = response.chatId;
-        logger.info('ChatId set from response: chatId=%s', String(response.chatId));
+        this.logger.info('ChatId set from response: chatId=%s', String(response.chatId));
       } else if (response.chatId !== undefined && this.currentChatId === null) {
-        logger.info('Ignoring chatId from response: chatId=%s (not handling response for this service)', String(response.chatId));
+        this.logger.info('Ignoring chatId from response: chatId=%s (not handling response for this service)', String(response.chatId));
       }
 
       this.setHandlingResponse(true);
@@ -150,14 +162,14 @@ export class ChatService {
       // Do NOT accept title updates when currentChatId is null - this causes bugs in multi-tab context
       // where multiple ChatService instances receive the same event and the one with null accepts it incorrectly
       if (this.currentChatId === data.chatId) {
-        logger.info('Title updated for current chat: chatId=%s, title="%s"', String(data.chatId), data.title);
+        this.logger.info('Title updated for current chat: chatId=%s, title="%s"', String(data.chatId), data.title);
         // Call both the single callback (for backward compatibility) and all registered callbacks
         this.onTitleChange?.(data.title);
         this.onTitleChangeCallbacks.forEach(callback => {
           callback(data.title);
         });
       } else {
-        logger.info('Title update ignored: chatId=%s does not match currentChatId=%s', String(data.chatId), this.currentChatId === null ? 'null' : String(this.currentChatId));
+        this.logger.info('Title update ignored: chatId=%s does not match currentChatId=%s', String(data.chatId), this.currentChatId === null ? 'null' : String(this.currentChatId));
       }
     };
 
@@ -165,13 +177,13 @@ export class ChatService {
       // Only accept CHAT_LOAD_MESSAGES_DATA if currentChatId is null (new tab) or matches the event's chatId
       // This prevents other tabs from incorrectly adopting chatIds from load events meant for different tabs
       if (this.currentChatId === null || this.currentChatId === data.chatId) {
-        logger.info('Loading messages for chat: chatId=%s, messageCount=%s', String(data.chatId), String(data.messages.length));
+        this.logger.info('Loading messages for chat: chatId=%s, messageCount=%s', String(data.chatId), String(data.messages.length));
         this.currentChatId = data.chatId;
         this.setMessages(data.messages);
         this.setLoading(false);
         this.setError(null);
       } else {
-        logger.info('Ignoring CHAT_LOAD_MESSAGES_DATA: chatId=%s does not match currentChatId=%s', String(data.chatId), String(this.currentChatId));
+        this.logger.info('Ignoring CHAT_LOAD_MESSAGES_DATA: chatId=%s does not match currentChatId=%s', String(data.chatId), String(this.currentChatId));
       }
     };
 
@@ -180,7 +192,7 @@ export class ChatService {
       // Do NOT close the window - MultiChatService will handle closing the tab
       // Closing the window when a chat is deleted is not desired behavior
       if (this.currentChatId === data.chatId) {
-        logger.info('Current chat was deleted, clearing current chat: chatId=%s', String(data.chatId));
+        this.logger.info('Current chat was deleted, clearing current chat: chatId=%s', String(data.chatId));
         this.currentChatId = null;
         this.setMessages([]);
         this.setError(null);
@@ -217,7 +229,7 @@ export class ChatService {
         return;
       }
 
-      logger.info('Stream ended for chatId=%s, error=%s', String(data.chatId), data.error ?? 'none');
+      this.logger.info('Stream ended for chatId=%s, error=%s', String(data.chatId), data.error ?? 'none');
 
       // Handle error
       if (data.error !== undefined) {
@@ -251,7 +263,7 @@ export class ChatService {
       this.chatStreamEndListener = this.ipcAdapter.onChatStreamEnd(handleStreamEnd);
     } catch (error) {
       const errorText = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to initialize chat listeners: %s', errorText);
+      this.logger.error('Failed to initialize chat listeners: %s', errorText);
     }
   }
 
@@ -308,7 +320,7 @@ export class ChatService {
     if (chatId === null) {
       const newChatId = await this.createNewChatSession();
       if (newChatId === null) {
-        logger.error('Cannot send message: no chat session available');
+        this.logger.error('Cannot send message: no chat session available');
         this.setError('Failed to create chat session');
 
         return 'Failed to create chat session';
@@ -357,13 +369,13 @@ export class ChatService {
       }
 
       // Streaming has started, the actual content will come via CHAT_STREAM_CHUNK events
-      logger.info('Streaming started for chatId=%s', String(chatId));
+      this.logger.info('Streaming started for chatId=%s', String(chatId));
 
       return null;
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
 
-      logger.error('Failed to start streaming: %s', errorText);
+      this.logger.error('Failed to start streaming: %s', errorText);
       this.setError(`Failed to send message: ${errorText}`);
 
       // Update the placeholder message to show error
@@ -480,6 +492,80 @@ export class ChatService {
   }
 
   /**
+   * Set prompt selector data (pushed by MultiChatService when PROMPT_SELECTOR_DATA arrives)
+   */
+  public setPromptSelectorData(data: IPromptSelectorData): void {
+    this.setSelectedText(data.selectedText);
+    this.setPreconfiguredPrompts(data.preconfiguredPrompts);
+  }
+
+  /**
+   * Get selected text
+   */
+  public getSelectedText(): string {
+    return this.selectedText;
+  }
+
+  /**
+   * Get preconfigured prompts
+   */
+  public getPreconfiguredPrompts(): IPreconfiguredPrompt[] {
+    return this.preconfiguredPrompts;
+  }
+
+  /**
+   * Select a preconfigured prompt
+   */
+  public async selectPrompt(promptObj: IPreconfiguredPrompt): Promise<void> {
+    const prompt = this.processPromptTemplate(promptObj.prompt);
+
+    const message: TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT> = {
+      channel: EIpcChannel.PROMPT_SELECTOR,
+      event: EIpcEvent.PROMPT_SELECT,
+      payload: {
+        model: promptObj.model,
+        prompt,
+        provider: promptObj.provider,
+      },
+    };
+
+    try {
+      await this.ipcAdapter.invoke(message.channel, message);
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : String(err);
+      this.logger.error('Error selecting prompt: %s', errorText);
+      throw err;
+    }
+  }
+
+  /**
+   * Submit a custom prompt
+   */
+  public async submitCustomPrompt(customPrompt: string): Promise<void> {
+    if (customPrompt.trim() === '') {
+      return;
+    }
+
+    const prompt = this.processPromptTemplate(customPrompt);
+
+    const message: TIpcEvent<EIpcChannel.PROMPT_SELECTOR, EIpcEvent.PROMPT_SELECT> = {
+      channel: EIpcChannel.PROMPT_SELECTOR,
+      event: EIpcEvent.PROMPT_SELECT,
+      payload: {
+        prompt,
+      },
+    };
+
+    try {
+      await this.ipcAdapter.invoke(message.channel, message);
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : String(err);
+      this.logger.error('Error selecting prompt: %s', errorText);
+      throw err;
+    }
+  }
+
+  /**
    * Get chat info by ID
    */
   public async getChatInfo(chatId: number): Promise<IChatInfo | null> {
@@ -493,7 +579,7 @@ export class ChatService {
       const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isErrorResponse(response)) {
-        logger.error('Failed to get chat info: %s', response.error);
+        this.logger.error('Failed to get chat info: %s', response.error);
 
         return null;
       }
@@ -501,7 +587,7 @@ export class ChatService {
       return response.chat;
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
-      logger.error('Failed to get chat info: %s', errorText);
+      this.logger.error('Failed to get chat info: %s', errorText);
 
       return null;
     }
@@ -521,7 +607,7 @@ export class ChatService {
       const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isErrorResponse(response)) {
-        logger.error('Failed to load messages: %s', response.error);
+        this.logger.error('Failed to load messages: %s', response.error);
         this.setError(`Failed to load messages: ${response.error}`);
 
         return;
@@ -539,7 +625,7 @@ export class ChatService {
       this.setError(null);
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
-      logger.error('Failed to load messages: %s', errorText);
+      this.logger.error('Failed to load messages: %s', errorText);
       this.setError(`Failed to load messages: ${errorText}`);
     }
   }
@@ -558,7 +644,7 @@ export class ChatService {
       const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isErrorResponse(response)) {
-        logger.error('Failed to delete chat: %s', response.error);
+        this.logger.error('Failed to delete chat: %s', response.error);
 
         return response.error;
       }
@@ -572,7 +658,7 @@ export class ChatService {
       return null;
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
-      logger.error('Failed to delete chat: %s', errorText);
+      this.logger.error('Failed to delete chat: %s', errorText);
 
       return errorText;
     }
@@ -592,23 +678,45 @@ export class ChatService {
       const response = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isErrorResponse(response)) {
-        logger.error('Failed to create chat session: %s', response.error);
+        this.logger.error('Failed to create chat session: %s', response.error);
         this.currentChatId = null;
 
         return null;
       } else {
         this.currentChatId = response.chatId;
-        logger.info('Created new chat session with ID: %s', response.chatId.toString());
+        this.logger.info('Created new chat session with ID: %s', response.chatId.toString());
 
         return response.chatId;
       }
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
-      logger.error('Failed to create chat session: %s', errorText);
+      this.logger.error('Failed to create chat session: %s', errorText);
       this.currentChatId = null;
 
       return null;
     }
+  }
+
+  /**
+   * Process a prompt template by replacing {text} placeholder with selected text
+   */
+  private processPromptTemplate(template: string): string {
+    let prompt = template;
+    if (!prompt.includes('{text}')) {
+      prompt += '\n{text}';
+    }
+
+    return prompt.replaceAll('{text}', this.selectedText);
+  }
+
+  private setSelectedText(text: string): void {
+    this.selectedText = text;
+    this.onSelectedTextChange?.(text);
+  }
+
+  private setPreconfiguredPrompts(prompts: IPreconfiguredPrompt[]): void {
+    this.preconfiguredPrompts = prompts;
+    this.onPromptsChange?.(prompts);
   }
 
   // Private setters that trigger callbacks

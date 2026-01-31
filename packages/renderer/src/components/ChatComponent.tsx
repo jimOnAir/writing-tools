@@ -1,8 +1,8 @@
-import type { IChatMessage } from '@writing-tools/shared';
+import type { IChatMessage, IPreconfiguredPrompt } from '@writing-tools/shared';
 import React, { useState, useEffect, useRef } from 'react';
 
 import type { ChatService } from '../domains/chat';
-import { ButtonStyles, ButtonSizeStyles, MessageStyles, InputStyles, NotificationStyles, LoadingStyles, BackgroundStyles, LayoutStyles, SpinnerIcon, ColorPalette, TypographyStyles } from '../styles/Styles';
+import { BackgroundStyles, ButtonSizeStyles, ButtonStyles, CardStyles, ColorPalette, InputStyles, LayoutStyles, MessageStyles, NotificationStyles, LoadingStyles, SpinnerIcon, TypographyStyles } from '../styles/Styles';
 import { formatStatistics } from '../utils/formatStatistics';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
@@ -26,6 +26,9 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
   const [isStreaming, setIsStreaming] = useState(false);
   const [chatTitle, setChatTitle] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [selectedText, setSelectedText] = useState<string>('');
+  const [preconfiguredPrompts, setPreconfiguredPrompts] = useState<IPreconfiguredPrompt[]>([]);
+  const [customPrompt, setCustomPrompt] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isSendingRef = useRef<boolean>(false);
@@ -34,13 +37,21 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
   // Register callbacks
   useEffect(() => {
     chatService.setCallbacks({
-      onMessagesChange: setMessages,
-      onLoadingChange: setIsLoading,
       onErrorChange: setError,
       onHandlingResponseChange: setIsHandlingResponse,
-      onTitleChange: setChatTitle,
+      onLoadingChange: setIsLoading,
+      onMessagesChange: setMessages,
+      onPromptsChange: setPreconfiguredPrompts,
+      onSelectedTextChange: setSelectedText,
       onStreamingChange: setIsStreaming,
+      onTitleChange: setChatTitle,
     });
+  }, [chatService]);
+
+  // Seed prompt-selector state from service
+  useEffect(() => {
+    setSelectedText(chatService.getSelectedText());
+    setPreconfiguredPrompts(chatService.getPreconfiguredPrompts());
   }, [chatService]);
 
   // Note: Listeners are initialized by MultiChatService when creating tabs
@@ -176,6 +187,127 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
       // Other keys are ignored
     }
   };
+
+  // Show prompt-selector UI only when chatService has prompt data
+  const showPromptSelector = chatService.getSelectedText() !== '' || chatService.getPreconfiguredPrompts().length > 0;
+
+  const handlePromptSelect = async (prompt: IPreconfiguredPrompt): Promise<void> => {
+    try {
+      await chatService.selectPrompt(prompt);
+    } catch {
+      // Error is already logged in the service
+    }
+  };
+
+  const handleCustomPromptSubmit = async (): Promise<void> => {
+    if (customPrompt.trim() !== '') {
+      try {
+        await chatService.submitCustomPrompt(customPrompt);
+        setCustomPrompt('');
+      } catch {
+        // Error is already logged in the service
+      }
+    }
+  };
+
+  const handlePromptKeyPress = (e: React.KeyboardEvent): void => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      void handleCustomPromptSubmit();
+    }
+  };
+
+  if (showPromptSelector) {
+    return (
+      <div className={`flex flex-col flex-1 min-h-0 overflow-hidden p-4 w-full ${BackgroundStyles.main}`}>
+        <h1 className={TypographyStyles.h1}>Select a Prompt</h1>
+
+        <div className={`mb-3 p-3 ${BackgroundStyles.card} flex-1 overflow-y-auto min-h-[100px] rounded`}>
+          {selectedText !== '' ? (
+            <p
+              className="whitespace-pre-wrap markdown-content"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedText) }}
+            />
+          ) : (
+            <p className={TypographyStyles.emptyState}>No text selected. Select some text first.</p>
+          )}
+        </div>
+
+        <div className={LayoutStyles.section}>
+          <h2 className={TypographyStyles.h3}>Preconfigured Prompts</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {preconfiguredPrompts.map((prompt) => {
+              const providerDisplay = prompt.provider ?? 'Default';
+              const modelDisplay = prompt.model ?? 'Default';
+              const modelTooltip = prompt.model ?? 'Uses default model from settings';
+
+              return (
+                <button
+                  key={`${prompt.title}-${prompt.prompt}`}
+                  onClick={() => {
+                    void handlePromptSelect(prompt);
+                  }}
+                  className={CardStyles.promptCard}
+                  type="button"
+                >
+                  <div className="flex items-center mb-1">
+                    {prompt.icon !== undefined && prompt.icon !== '' ? (
+                      <img
+                        alt={prompt.title}
+                        className="w-5 h-5 mr-2 object-contain rounded"
+                        src={prompt.icon}
+                      />
+                    ) : null}
+                    <div className={`font-medium ${ColorPalette.text.primary} text-sm`}>{prompt.title}</div>
+                  </div>
+                  <div className={`text-xs ${ColorPalette.text.muted} line-clamp-2 mb-2`}>
+                    {prompt.prompt.replaceAll('{text}', '...')}
+                  </div>
+                  <div className={`text-xs ${ColorPalette.text.muted} flex items-center gap-2`}>
+                    <span>Provider: {providerDisplay}</span>
+                    <span>|</span>
+                    <Tooltip content={modelTooltip}>
+                      <span className="truncate">
+                        Model: {modelDisplay}
+                      </span>
+                    </Tooltip>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <h2 className={TypographyStyles.h3}>Or enter your own prompt</h2>
+        <div className={LayoutStyles.inputGroup}>
+          <textarea
+            className={`${InputStyles} resize-none`}
+            onChange={(e) => {
+              setCustomPrompt(e.target.value);
+            }}
+            onKeyDown={handlePromptKeyPress}
+            placeholder="Enter your custom prompt..."
+            rows={2}
+            value={customPrompt}
+          />
+          <button
+            className={`${ButtonStyles.base} ${ButtonSizeStyles.default} ${
+              customPrompt.trim() === ''
+                ? ButtonStyles.disabled
+                : ButtonStyles.primary
+            } whitespace-nowrap`}
+            disabled={customPrompt.trim() === ''}
+            onClick={() => {
+              void handleCustomPromptSubmit();
+            }}
+            type="button"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Determine if we should show the title section (if there's a chat or messages)
   const hasActiveChat = chatId !== null || chatService.getCurrentChatId() !== null || messages.length > 0;

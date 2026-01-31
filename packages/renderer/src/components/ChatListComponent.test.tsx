@@ -2,6 +2,7 @@ import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import type { IChatInfo } from '@writing-tools/shared';
 import React from 'react';
 
+import type { ChatService } from '../domains/chat';
 import type { ChatListService } from '../domains/chat-list';
 import type { ITabInfo, MultiChatService } from '../domains/multi-chat';
 
@@ -328,6 +329,8 @@ describe('ChatListComponent', () => {
   });
 
   describe('opened chat marking', () => {
+    const mockChatServiceForTabs = {} as unknown as ChatService;
+
     const createMockMultiChatService = (tabs: ITabInfo[] = []): jest.Mocked<MultiChatService> => {
       let onTabsChangeCallback: ((tabs: readonly ITabInfo[]) => void) | undefined;
 
@@ -370,10 +373,11 @@ describe('ChatListComponent', () => {
     it('applies visual styling to opened chats', () => {
       const mockTabs: ITabInfo[] = [
         {
-          tabId: 'tab-1',
-          type: 'chat',
           chatId: 1,
+          chatService: mockChatServiceForTabs,
+          tabId: 'tab-1',
           title: 'Chat 1',
+          type: 'chat',
         },
       ];
 
@@ -421,10 +425,11 @@ describe('ChatListComponent', () => {
     it('does not apply visual styling to non-opened chats', () => {
       const mockTabs: ITabInfo[] = [
         {
-          tabId: 'tab-1',
-          type: 'chat',
           chatId: 1,
+          chatService: mockChatServiceForTabs,
+          tabId: 'tab-1',
           title: 'Chat 1',
+          type: 'chat',
         },
       ];
 
@@ -472,10 +477,11 @@ describe('ChatListComponent', () => {
     it('updates styling when tabs change', () => {
       const mockTabs: ITabInfo[] = [
         {
-          tabId: 'tab-1',
-          type: 'chat',
           chatId: 1,
+          chatService: mockChatServiceForTabs,
+          tabId: 'tab-1',
           title: 'Chat 1',
+          type: 'chat',
         },
       ];
 
@@ -530,10 +536,11 @@ describe('ChatListComponent', () => {
         const tabsCallback = onTabsChangeCallback;
         const updatedTabs: ITabInfo[] = [
           {
-            tabId: 'tab-2',
-            type: 'chat',
             chatId: 2,
+            chatService: mockChatServiceForTabs,
+            tabId: 'tab-2',
             title: 'Chat 2',
+            type: 'chat',
           },
         ];
 
@@ -622,10 +629,11 @@ describe('ChatListComponent', () => {
     it('handles tabs with null chatIds', () => {
       const mockTabs: ITabInfo[] = [
         {
-          tabId: 'tab-1',
-          type: 'chat',
           chatId: null,
+          chatService: mockChatServiceForTabs,
+          tabId: 'tab-1',
           title: null,
+          type: 'chat',
         },
       ];
 
@@ -668,53 +676,5 @@ describe('ChatListComponent', () => {
       expect(chat1Element?.className).not.toContain('border-l-4');
     });
 
-    it('handles prompt-selector tabs (should not mark chats as opened)', () => {
-      const mockTabs: ITabInfo[] = [
-        {
-          tabId: 'tab-1',
-          type: 'prompt-selector',
-          chatId: null,
-          title: 'Prompt Selector',
-        },
-      ];
-
-      const mockMultiChatService = createMockMultiChatService(mockTabs);
-
-      let onLoadingChange: ((loading: boolean) => void) | undefined;
-      let onChatsChange: ((chats: IChatInfo[]) => void) | undefined;
-
-      mockChatListService.setCallbacks.mockImplementation((callbacks) => {
-        onLoadingChange = callbacks.onLoadingChange;
-        onChatsChange = callbacks.onChatsChange;
-      });
-
-      render(
-        <ChatListComponent
-          chatListService={mockChatListService}
-          multiChatService={mockMultiChatService}
-          onChatSelect={onChatSelect}
-        />,
-      );
-
-      if (onLoadingChange) {
-        const loadingCallback = onLoadingChange;
-        act(() => {
-          loadingCallback(false);
-        });
-      }
-      if (onChatsChange) {
-        const chatsCallback = onChatsChange;
-        act(() => {
-          chatsCallback(mockChats);
-        });
-      }
-
-      // Prompt-selector tabs should not mark any chats as opened
-      const chat1Button = screen.getByLabelText('Open chat: Chat 1');
-      // Button -> Tooltip div -> Container div
-      const chat1Element = chat1Button.parentElement?.parentElement;
-      expect(chat1Element).not.toBeNull();
-      expect(chat1Element?.className).not.toContain('border-l-4');
-    });
   });
 });
