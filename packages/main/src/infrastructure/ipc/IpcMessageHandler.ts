@@ -6,6 +6,7 @@ import type { IChatService } from '../../domains/chat';
 import type { IMessageService } from '../../domains/chat/IMessageService';
 import type { ITitleGenerationService } from '../../domains/chat/ITitleGenerationService';
 import type { IModelService } from '../../domains/llm';
+import type { ISettingsService } from '../../domains/settings/ISettingsService';
 import type { IWindowService } from '../../domains/windows';
 
 import type { IIpcMessageHandler } from './IIpcMessageHandler';
@@ -17,12 +18,13 @@ export class IpcMessageHandler implements IIpcMessageHandler {
   private readonly processingChatIds = new Set<number>();
 
   public constructor(
+    private readonly chatService: IChatService,
     private readonly logger: ILogger,
     private readonly messageService: IMessageService,
-    private readonly windowService: IWindowService,
     private readonly modelService: IModelService,
-    private readonly chatService: IChatService,
+    private readonly settingsService: ISettingsService,
     private readonly titleGenerationService: ITitleGenerationService,
+    private readonly windowService: IWindowService,
   ) {}
 
   public register(): void {
@@ -30,7 +32,11 @@ export class IpcMessageHandler implements IIpcMessageHandler {
       const eventType = data.event;
       switch (data.event) {
         case EIpcEvent.MESSAGE_SEND_STREAM:
-          return this.handleChatSendMessageStream(data.payload.chatId, data.payload.messages);
+          return this.handleChatSendMessageStream(
+            data.payload.chatId,
+            data.payload.messages,
+            { model: data.payload.model, provider: data.payload.provider },
+          );
         case EIpcEvent.MESSAGES_LOAD:
           return this.handleChatLoadMessages(data.payload.chatId);
         default:
@@ -39,7 +45,11 @@ export class IpcMessageHandler implements IIpcMessageHandler {
     });
   }
 
-  private async handleChatSendMessageStream(chatId: number, messages: IChatMessage[]) {
+  private async handleChatSendMessageStream(
+    chatId: number,
+    messages: IChatMessage[],
+    override: { model?: string, provider?: 'ollama' | 'lmstudio' },
+  ) {
     // Prevent duplicate processing for the same chatId
     if (this.processingChatIds.has(chatId)) {
       this.logger.warn('handleChatSendMessageStream: Already processing chatId=%s, ignoring duplicate request', String(chatId));
@@ -64,7 +74,7 @@ export class IpcMessageHandler implements IIpcMessageHandler {
       const { window: mainWindow } = await this.windowService.getMainWindow();
 
       // Start streaming in the background
-      void this.streamLLMResponse(chatId, messages, mainWindow);
+      void this.streamLLMResponse(chatId, messages, mainWindow, override);
 
       // Return immediately to indicate streaming has started
       return { started: true } as const;
@@ -81,15 +91,26 @@ export class IpcMessageHandler implements IIpcMessageHandler {
     chatId: number,
     messages: IChatMessage[],
     mainWindow: Electron.BrowserWindow,
+    override: { model?: string, provider?: 'ollama' | 'lmstudio' },
   ): Promise<void> {
     let fullContent = '';
     let statistics: IMessageStatistics | undefined;
 
     try {
       const chat = this.chatService.getChat(chatId);
-      const streamOptions = chat
-        ? { model: chat.model, provider: chat.provider as 'ollama' | 'lmstudio' }
-        : undefined;
+      let streamOptions: { model: string, provider: 'ollama' | 'lmstudio' } | undefined;
+      if (override.model !== undefined && override.model !== '') {
+        const settings = await this.settingsService.loadSettings();
+        streamOptions = {
+          model: override.model,
+          provider: override.provider ?? (settings.provider ?? 'ollama'),
+        };
+      } else if (chat !== null) {
+        streamOptions = {
+          model: chat.model,
+          provider: chat.provider as 'ollama' | 'lmstudio',
+        };
+      }
       const streamGenerator = this.modelService.sendMessagesStream(messages.map((message => {
         return {
           role: message.role,

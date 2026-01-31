@@ -1,7 +1,8 @@
-import type { IChatMessage, IPreconfiguredPrompt } from '@writing-tools/shared';
-import React, { useState, useEffect, useRef } from 'react';
+import type { IChatInfo, IChatMessage, IPreconfiguredPrompt, ISettings } from '@writing-tools/shared';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 
 import type { ChatService } from '../domains/chat';
+import type { SettingsService } from '../domains/settings';
 import { BackgroundStyles, ButtonSizeStyles, ButtonStyles, CardStyles, ColorPalette, InputStyles, LayoutStyles, MessageStyles, NotificationStyles, LoadingStyles, SpinnerIcon, TypographyStyles } from '../styles/Styles';
 import { formatStatistics } from '../utils/formatStatistics';
 import { renderMarkdown } from '../utils/markdownRenderer';
@@ -9,15 +10,15 @@ import { renderMarkdown } from '../utils/markdownRenderer';
 import { Tooltip } from './Tooltip';
 
 interface ChatComponentProps {
-  readonly chatService: ChatService;
   readonly chatId: number | null;
+  readonly chatService: ChatService;
+  readonly settingsService: SettingsService;
 }
 
 // TODO: Keep chat position when while switching tabs
-// TODO: add model chooser for next message
 // TODO: add edit users message
 // TODO: add resending message
-const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) => {
+const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, settingsService }) => {
   const [messages, setMessages] = useState<IChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -25,10 +26,15 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
   const [isHandlingResponse, setIsHandlingResponse] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [chatTitle, setChatTitle] = useState<string | null>(null);
+  const [chatInfo, setChatInfo] = useState<IChatInfo | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [selectedText, setSelectedText] = useState<string>('');
   const [preconfiguredPrompts, setPreconfiguredPrompts] = useState<IPreconfiguredPrompt[]>([]);
   const [customPrompt, setCustomPrompt] = useState<string>('');
+  const [modelOverride, setModelOverride] = useState<{ model: string, provider: 'ollama' | 'lmstudio' } | null>(null);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [settings, setSettings] = useState<ISettings | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isSendingRef = useRef<boolean>(false);
@@ -71,6 +77,17 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
     }
   }, [chatService, chatId]);
 
+  // Settings and available models for model dropdown
+  useEffect(() => {
+    settingsService.setCallbacks({
+      onAvailableModelsChange: setAvailableModels,
+      onLoadingModelsChange: setLoadingModels,
+      onSettingsChange: setSettings,
+    });
+    void settingsService.loadSettings();
+    void settingsService.fetchAvailableModels();
+  }, [settingsService]);
+
   // Scroll to bottom when messages change
   // During streaming, use auto-scroll to keep the latest content visible
   useEffect(() => {
@@ -82,24 +99,27 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
     }
   }, [messages, isHandlingResponse, isStreaming]);
 
-  // Fetch title when chatId or messages change
+  // Fetch title and chatInfo when chatId or messages change
   useEffect(() => {
     const fetchTitle = async () => {
       const currentChatId = chatId ?? chatService.getCurrentChatId();
       if (currentChatId === null) {
         setChatTitle(null);
+        setChatInfo(null);
 
         return;
       }
 
-      const chatInfo = await chatService.getChatInfo(currentChatId);
-      if (chatInfo === null) {
+      const info = await chatService.getChatInfo(currentChatId);
+      if (info === null) {
         setChatTitle(null);
+        setChatInfo(null);
 
         return;
       }
 
-      setChatTitle(chatInfo.title);
+      setChatTitle(info.title);
+      setChatInfo(info);
     };
 
     void fetchTitle();
@@ -130,6 +150,50 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
     }
   };
 
+  // Effective model and provider for display and send (modelOverride ?? chatInfo ?? settings default)
+  const effectiveModel = useMemo(() => {
+    if (modelOverride?.model !== undefined && modelOverride.model !== '') {
+      return modelOverride.model;
+    }
+    if (chatInfo?.model !== undefined && chatInfo.model !== '') {
+      return chatInfo.model;
+    }
+    if (settings !== null) {
+      const provider = settings.provider ?? 'ollama';
+
+      return provider === 'lmstudio'
+        ? (settings.lmstudio.model ?? '')
+        : (settings.ollama.model ?? '');
+    }
+
+    return '';
+  }, [chatInfo?.model, modelOverride?.model, settings]);
+
+  const effectiveProvider = useMemo((): 'ollama' | 'lmstudio' => {
+    if (modelOverride?.provider !== undefined) {
+      return modelOverride.provider;
+    }
+    if (chatInfo?.provider === 'ollama' || chatInfo?.provider === 'lmstudio') {
+      return chatInfo.provider;
+    }
+
+    return (settings?.provider ?? 'ollama');
+  }, [chatInfo?.provider, modelOverride?.provider, settings?.provider]);
+
+  const modelOptions = useMemo(() => {
+    if (effectiveModel !== '' && !availableModels.includes(effectiveModel)) {
+      return [effectiveModel, ...availableModels];
+    }
+    if (availableModels.length > 0) {
+      return availableModels;
+    }
+    if (effectiveModel !== '') {
+      return [effectiveModel];
+    }
+
+    return [];
+  }, [availableModels, effectiveModel]);
+
   // Handle sending a message
   const handleSendMessage = async () => {
     // Prevent double submission using ref for immediate check
@@ -138,8 +202,11 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
     }
     isSendingRef.current = true;
     try {
-      const errorText = await chatService.sendMessage(inputValue);
-      if (!errorText) {
+      const options = effectiveModel !== ''
+        ? { model: effectiveModel, provider: effectiveProvider }
+        : undefined;
+      const errorText = await chatService.sendMessage(inputValue, options);
+      if (errorText === null) {
         setInputValue('');
       }
     } finally {
@@ -448,6 +515,37 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatService, chatId }) =>
           {error}
         </div>
       )}
+
+      <div className="flex flex-col gap-2 flex-shrink-0 mb-3">
+        <label htmlFor="model" className={TypographyStyles.label}>
+          Model
+        </label>
+        <select
+          id="model"
+          value={effectiveModel}
+          onChange={(e) => {
+            const selectedModel = e.target.value;
+            const provider = (settings?.provider ?? 'ollama');
+            setModelOverride(selectedModel !== '' ? { model: selectedModel, provider } : null);
+          }}
+          className={InputStyles}
+          disabled={loadingModels}
+        >
+          {modelOptions.length === 0 && effectiveModel === '' ? (
+            <option value="">—</option>
+          ) : null}
+          {modelOptions.map((modelOption) => (
+            <option key={modelOption} value={modelOption}>
+              {modelOption}
+            </option>
+          ))}
+        </select>
+        {loadingModels && (
+          <div className={`text-sm ${ColorPalette.text.muted}`}>
+            Fetching available models...
+          </div>
+        )}
+      </div>
 
       <div className={`${LayoutStyles.inputGroup} flex-shrink-0`}>
         <textarea

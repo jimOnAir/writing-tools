@@ -101,12 +101,23 @@ export class MultiChatService {
       }
 
       const activeTab = this.getActiveTab();
+      // CHAT_WINDOW_DATA is only sent from prompt-select (IpcPromptSelectorHandler); always reuse active tab when present
       let tab: ITabInfo;
-
-      if (activeTab?.chatService !== undefined && activeTab.chatId === null) {
+      // #region agent log
+      const wouldReuse = activeTab?.chatService !== undefined;
+      fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MultiChatService.ts:handleChatWindowData',message:'CHAT_WINDOW_DATA received (post-fix)',data:{chatId:data.chatId,activeTabId:this.activeTabId,activeTabChatId:activeTab?.chatId ?? null,tabsLength:this.tabs.length,wouldReuse},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A-B-D-E'})}).catch(()=>{});
+      // #endregion
+      if (activeTab?.chatService !== undefined) {
         tab = activeTab;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MultiChatService.ts:handleChatWindowData',message:'reusing active tab',data:{tabId:tab.tabId},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A-B-D-E'})}).catch(()=>{});
+        // #endregion
       } else {
         tab = this.createNewChatTab();
+        // #region agent log
+        const reason = activeTab == null ? 'noActiveTab' : 'noChatService';
+        fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MultiChatService.ts:handleChatWindowData',message:'created new tab (no active tab)',data:{reason},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A-B-D-E'})}).catch(()=>{});
+        // #endregion
       }
 
       tab.chatId = data.chatId;
@@ -129,6 +140,10 @@ export class MultiChatService {
       const promptsCount = String(data.preconfiguredPrompts.length);
       this.logger.info('MultiChatService received PROMPT_SELECTOR_DATA: selectedText=%s, promptsCount=%s', selectedTextStatus, promptsCount);
 
+      // #region agent log
+      const activeTab = this.getActiveTab();
+      fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MultiChatService.ts:handlePromptSelectorData',message:'PROMPT_SELECTOR_DATA received, always creating new tab',data:{tabsLength:this.tabs.length,activeTabId:this.activeTabId,activeTabChatId:activeTab?.chatId ?? null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       const newTab = this.createNewChatTab();
       newTab.chatService.setPromptSelectorData(data);
     };

@@ -36,7 +36,12 @@ export type TPromptSelectPayload = {
   provider?: 'ollama' | 'lmstudio',
 };
 
-export type TChatSendMessageStreamPayload = { chatId: number, messages: IChatMessage[] };
+export type TChatSendMessageStreamPayload = {
+  chatId: number,
+  messages: IChatMessage[],
+  model?: string,
+  provider?: 'ollama' | 'lmstudio',
+};
 
 export type TIpcEventPayloadMap = {
   [EIpcEvent.CHAT_CREATE]: TChatCreateSessionPayload,

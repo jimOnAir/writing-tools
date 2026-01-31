@@ -146,12 +146,13 @@ export class AppBootstrap {
     );
 
     this.ipcMessageHandler = new IpcMessageHandler(
+      this.chatService,
       this.logger,
       this.messageService,
-      this.windowService,
       this.modelService,
-      this.chatService,
+      this.settingsService,
       this.titleGenerationService,
+      this.windowService,
     );
   }
 

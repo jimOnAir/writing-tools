@@ -151,7 +151,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               );
             }
 
-            return <ChatComponent key={activeTab.tabId} chatService={activeTab.chatService} chatId={activeTab.chatId} />;
+            return (
+              <ChatComponent
+                key={activeTab.tabId}
+                chatId={activeTab.chatId}
+                chatService={activeTab.chatService}
+                settingsService={settingsService}
+              />
+            );
           })()}
         </div>
       </div>

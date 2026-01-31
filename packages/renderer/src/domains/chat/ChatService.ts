@@ -6,7 +6,7 @@ import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
 import { isErrorResponse } from '../../utils/responseTypeGuards';
 
 // TODO: generate unique chat uuid and use it as idempotency key
-
+// TODO: last model must be saved to chat session
 /**
  * Service for managing chat domain logic
  * Handles message state, IPC communication, and chat operations
@@ -322,8 +322,12 @@ export class ChatService {
 
   /**
    * Send a message to the chat (uses streaming by default)
+   * @param options - Optional model/provider override for this request
    */
-  public async sendMessage(inputValue: string): Promise<string | null> {
+  public async sendMessage(
+    inputValue: string,
+    options?: { model?: string, provider?: 'ollama' | 'lmstudio' },
+  ): Promise<string | null> {
     if (!inputValue.trim() || this.isLoading) {
       return null;
     }
@@ -368,10 +372,18 @@ export class ChatService {
     this.streamingContent = '';
     this.setStreaming(true);
 
+    const payload: { chatId: number, messages: IChatMessage[], model?: string, provider?: 'ollama' | 'lmstudio' } = {
+      chatId,
+      messages: this.messages.slice(0, -1), // Exclude the placeholder message
+    };
+    if (options?.model !== undefined && options.model !== '') {
+      payload.model = options.model;
+      payload.provider = options.provider;
+    }
     const message: TIpcEvent<EIpcChannel.MESSAGE, EIpcEvent.MESSAGE_SEND_STREAM> = {
       channel: EIpcChannel.MESSAGE,
       event: EIpcEvent.MESSAGE_SEND_STREAM,
-      payload: { chatId, messages: this.messages.slice(0, -1) }, // Exclude the placeholder message
+      payload,
     };
 
     try {
@@ -608,8 +620,10 @@ export class ChatService {
 
   /**
    * Load messages for a specific chat
+   * Clears prompt-selector state so the messages view is shown instead of the prompt selector UI
    */
   public async loadChatMessages(chatId: number): Promise<void> {
+    this.clearPromptSelectorData();
     try {
       const message: TIpcEvent<EIpcChannel.MESSAGE, EIpcEvent.MESSAGES_LOAD> = {
         channel: EIpcChannel.MESSAGE,
@@ -730,6 +744,14 @@ export class ChatService {
   private setPreconfiguredPrompts(prompts: IPreconfiguredPrompt[]): void {
     this.preconfiguredPrompts = prompts;
     this.onPromptsChange?.(prompts);
+  }
+
+  /**
+   * Clear prompt-selector state so the messages view is shown (e.g. after selecting a prompt)
+   */
+  private clearPromptSelectorData(): void {
+    this.setSelectedText('');
+    this.setPreconfiguredPrompts([]);
   }
 
   // Private setters that trigger callbacks

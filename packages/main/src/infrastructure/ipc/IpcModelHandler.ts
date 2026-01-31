@@ -1,4 +1,4 @@
-import type { EIpcEvent, TIpcEvent } from '@writing-tools/shared';
+import type { TIpcEvent, EIpcEvent } from '@writing-tools/shared';
 import { EIpcChannel } from '@writing-tools/shared';
 import { ipcMain } from 'electron';
 
