@@ -1,7 +1,14 @@
 import type { IPreconfiguredPrompt, ISettings } from '@writing-tools/shared';
 import React, { useMemo } from 'react';
 
-import { InputStyles, TypographyStyles, CardStyles, FileInputStyles } from '../../styles/Styles';
+import {
+  ButtonSizeStyles,
+  ButtonStyles,
+  CardStyles,
+  FileInputStyles,
+  InputStyles,
+  TypographyStyles,
+} from '../../styles/Styles';
 import { CloseIcon } from '../icons';
 
 export interface PreconfiguredPromptItemProps {
@@ -51,10 +58,15 @@ export const PreconfiguredPromptItem: React.FC<PreconfiguredPromptItemProps> = (
         onClick={() => {
           onRemove(index);
         }}
-        className="absolute top-2 right-2 p-1.5 rounded hover:bg-gray-700/50 text-gray-400 hover:text-red-400 transition-all duration-200 flex items-center justify-center"
+        className={`
+          absolute top-2 right-2 flex items-center gap-1.5
+          ${ButtonStyles.base} ${ButtonStyles.ghost} ${ButtonSizeStyles.default}
+          hover:text-red-400 whitespace-nowrap
+        `}
         aria-label="Remove prompt"
       >
         <CloseIcon size={16} />
+        Remove
       </button>
       <div className="mb-3">
         <label htmlFor={`prompt-title-${indexStr}`} className={TypographyStyles.label}>

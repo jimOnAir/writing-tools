@@ -17,7 +17,6 @@ interface SettingsProps {
   readonly isModal?: boolean;
 }
 
-// TODO: stick close button. Make it distinct from remove prompt button
 // TODO: Fix editing title, it looses focus on keyup
 // TODO: Sort prompts with drag and drop
 

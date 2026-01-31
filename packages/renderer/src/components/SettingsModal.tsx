@@ -65,7 +65,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
       <div
         className={`
           ${nativeStyles.modal.container}
-          max-w-4xl w-full max-h-[90vh] overflow-y-auto
+          flex flex-col max-w-4xl w-full max-h-[90vh]
           m-4 p-6
           transition-all duration-200
         `}
@@ -79,7 +79,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
         aria-modal="true"
         aria-labelledby="settings-modal-title"
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex shrink-0 items-center justify-between mb-4">
           <h2 id="settings-modal-title" className="text-xl font-semibold text-white">Settings</h2>
           <button
             type="button"
@@ -90,7 +90,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
             ×
           </button>
         </div>
-        <Settings settingsService={settingsService} isModal />
+        <div className="min-h-0 flex-1 overflow-y-auto pr-2 pb-4">
+          <Settings settingsService={settingsService} isModal />
+        </div>
       </div>
     </div>
   );
