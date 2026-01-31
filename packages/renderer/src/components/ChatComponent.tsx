@@ -22,7 +22,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null); // TODO: Proper error handing, now it's just written as message
-  const [isHandlingResponse, setIsHandlingResponse] = useState(false);
+  const [_, setIsHandlingResponse] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [chatTitle, setChatTitle] = useState<string | null>(null);
   const [chatInfo, setChatInfo] = useState<IChatInfo | null>(null);
@@ -34,6 +34,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [settings, setSettings] = useState<ISettings | null>(null);
+  const [followUpQuestions, setFollowUpQuestions] = useState<string[] | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -45,6 +46,12 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
   useEffect(() => {
     chatService.setCallbacks({
       onErrorChange: setError,
+      onFollowUpQuestionsChange: (dataChatId, questions) => {
+        const currentChatId = chatId ?? chatService.getCurrentChatId();
+        if (dataChatId === currentChatId) {
+          setFollowUpQuestions(questions);
+        }
+      },
       onHandlingResponseChange: setIsHandlingResponse,
       onLoadingChange: setIsLoading,
       onMessagesChange: setMessages,
@@ -54,7 +61,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
       onStreamingChange: setIsStreaming,
       onTitleChange: setChatTitle,
     });
-  }, [chatService]);
+  }, [chatService, chatId]);
 
   // Seed prompt-selector state and model override from service
   useEffect(() => {
@@ -222,18 +229,20 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
   }, [availableModels, effectiveModel]);
 
   // Handle sending a message
-  const handleSendMessage = async () => {
+  const handleSendMessage = async (messageText?: string) => {
+    const text = messageText ?? inputValue;
     // Prevent double submission using ref for immediate check
-    if (isSendingRef.current || isLoading || !inputValue.trim()) {
+    if (isSendingRef.current || isLoading || !text.trim()) {
       return;
     }
     isSendingRef.current = true;
+    setFollowUpQuestions(null);
     try {
       const options = effectiveModel !== ''
         ? { model: effectiveModel, provider: effectiveProvider }
         : undefined;
-      const errorText = await chatService.sendMessage(inputValue, options);
-      if (errorText === null) {
+      const errorText = await chatService.sendMessage(text, options);
+      if (errorText === null && messageText === undefined) {
         setInputValue('');
       }
     } finally {
@@ -523,7 +532,36 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
                 </div>
               );
             })}
-            {/* TODO: Add follow-up questions links */}
+            {followUpQuestions !== null && followUpQuestions.length > 0 && messages.length > 0 && !isStreaming && (() => {
+              const lastMessage = messages.at(-1);
+              if (lastMessage === undefined || lastMessage.role !== 'assistant') {
+                return null;
+              }
+
+              return (
+                <div className={`flex flex-col gap-2 justify-start items-start mt-3 pt-2 border-t ${ColorPalette.border.defaultLight}`}>
+                  <span className={`text-xs ${ColorPalette.text.muted}`}>Suggested follow-ups</span>
+                  <div className="flex flex-wrap gap-2">
+                    {followUpQuestions.map((question, index) => (
+                      <button
+                        key={`${String(index)}-${question.slice(0, 20)}`}
+                        type="button"
+                        className={
+                          `${ButtonStyles.base} ${ButtonStyles.ghost} ${ColorPalette.text.primary} text-sm whitespace-nowrap hover:underline`
+                        }
+                        onClick={() => {
+                          setFollowUpQuestions(null);
+                          void handleSendMessage(question);
+                        }}
+                        aria-label={`Send follow-up: ${question}`}
+                      >
+                        {question}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
             {isLoading && !isStreaming && (
               <div className="flex justify-start">
                 <div className={`${BackgroundStyles.loadingBubble} ${ColorPalette.text.tertiary} p-3 rounded rounded-l-sm`}>
@@ -555,7 +593,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
           value={effectiveModel}
           onChange={(e) => {
             const selectedModel = e.target.value;
-            const provider = (settings?.provider ?? 'ollama') as 'ollama' | 'lmstudio';
+            const provider = (settings?.provider ?? 'ollama');
             chatService.setModelOverride(selectedModel !== '' ? { model: selectedModel, provider } : null);
           }}
           className={InputStyles}

@@ -1,4 +1,4 @@
-import type { IChatMessage, TChatResponse, TIpcEvent, IChatInfo, IChatStreamChunk, IChatStreamEnd, ILogger, IMessageStatistics, IPreconfiguredPrompt, IPromptSelectorData } from '@writing-tools/shared';
+import type { IChatFollowUpQuestions, IChatMessage, TChatResponse, TIpcEvent, IChatInfo, IChatStreamChunk, IChatStreamEnd, ILogger, IMessageStatistics, IPreconfiguredPrompt, IPromptSelectorData } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
@@ -47,10 +47,12 @@ export class ChatService {
   private onModelOverrideChange?: (override: { model: string, provider: 'ollama' | 'lmstudio' } | null) => void;
   private onTitleChange?: (title: string) => void;
   private onStreamingChange?: (isStreaming: boolean) => void;
-  private onSelectedTextChange?: (text: string) => void;
+  private onFollowUpQuestionsChange?: (chatId: number, questions: string[]) => void;
   private onPromptsChange?: (prompts: IPreconfiguredPrompt[]) => void;
+  private onSelectedTextChange?: (text: string) => void;
   // Support multiple title change callbacks (for ChatComponent and MultiChatService)
   private readonly onTitleChangeCallbacks = new Set<(title: string) => void>();
+  private chatFollowUpQuestionsListener: TIpcRenderListener | null = null;
 
   public constructor(ipcAdapter: IIpcAdapter, logger: ILogger) {
     this.ipcAdapter = ipcAdapter;
@@ -61,27 +63,29 @@ export class ChatService {
    * Register callbacks for state changes
    */
   public setCallbacks(callbacks: {
-    onMessagesChange?: (messages: IChatMessage[]) => void,
-    onLoadingChange?: (isLoading: boolean) => void,
     onErrorChange?: (error: string | null) => void,
-    onHistoryIndexChange?: (index: number) => void,
+    onFollowUpQuestionsChange?: (chatId: number, questions: string[]) => void,
     onHandlingResponseChange?: (isHandling: boolean) => void,
+    onHistoryIndexChange?: (index: number) => void,
+    onLoadingChange?: (isLoading: boolean) => void,
+    onMessagesChange?: (messages: IChatMessage[]) => void,
     onModelOverrideChange?: (override: { model: string, provider: 'ollama' | 'lmstudio' } | null) => void,
-    onTitleChange?: (title: string) => void,
-    onStreamingChange?: (isStreaming: boolean) => void,
-    onSelectedTextChange?: (text: string) => void,
     onPromptsChange?: (prompts: IPreconfiguredPrompt[]) => void,
+    onSelectedTextChange?: (text: string) => void,
+    onStreamingChange?: (isStreaming: boolean) => void,
+    onTitleChange?: (title: string) => void,
   }): void {
-    this.onMessagesChange = callbacks.onMessagesChange;
-    this.onLoadingChange = callbacks.onLoadingChange;
     this.onErrorChange = callbacks.onErrorChange;
-    this.onHistoryIndexChange = callbacks.onHistoryIndexChange;
+    this.onFollowUpQuestionsChange = callbacks.onFollowUpQuestionsChange;
     this.onHandlingResponseChange = callbacks.onHandlingResponseChange;
+    this.onHistoryIndexChange = callbacks.onHistoryIndexChange;
+    this.onLoadingChange = callbacks.onLoadingChange;
+    this.onMessagesChange = callbacks.onMessagesChange;
     this.onModelOverrideChange = callbacks.onModelOverrideChange;
-    this.onTitleChange = callbacks.onTitleChange;
-    this.onStreamingChange = callbacks.onStreamingChange;
-    this.onSelectedTextChange = callbacks.onSelectedTextChange;
     this.onPromptsChange = callbacks.onPromptsChange;
+    this.onSelectedTextChange = callbacks.onSelectedTextChange;
+    this.onStreamingChange = callbacks.onStreamingChange;
+    this.onTitleChange = callbacks.onTitleChange;
     // Also add to multiple callbacks set for title changes
     if (callbacks.onTitleChange !== undefined) {
       this.onTitleChangeCallbacks.add(callbacks.onTitleChange);
@@ -280,6 +284,13 @@ export class ChatService {
       this.chatDeletedListener = this.ipcAdapter.onChatDeleted(handleChatDeleted);
       this.chatStreamChunkListener = this.ipcAdapter.onChatStreamChunk(handleStreamChunk);
       this.chatStreamEndListener = this.ipcAdapter.onChatStreamEnd(handleStreamEnd);
+      this.chatFollowUpQuestionsListener = this.ipcAdapter.onChatFollowUpQuestions((data: IChatFollowUpQuestions) => {
+        // Only invoke callback for the chat that owns this service (same as CHAT_STREAM_END)
+        if (this.currentChatId !== data.chatId) {
+          return;
+        }
+        this.onFollowUpQuestionsChange?.(data.chatId, data.questions);
+      });
     } catch (error) {
       const errorText = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to initialize chat listeners: %s', errorText);
@@ -324,6 +335,11 @@ export class ChatService {
       this.ipcAdapter.offChatStreamEnd(this.chatStreamEndListener);
       this.chatStreamEndListener = null;
     }
+
+    if (this.chatFollowUpQuestionsListener) {
+      this.ipcAdapter.offChatFollowUpQuestions(this.chatFollowUpQuestionsListener);
+      this.chatFollowUpQuestionsListener = null;
+    }
   }
 
   /**
@@ -349,6 +365,7 @@ export class ChatService {
         return 'Failed to create chat session';
       }
       chatId = newChatId;
+      this.currentChatId = chatId;
     }
 
     this.setHandlingResponse(true);

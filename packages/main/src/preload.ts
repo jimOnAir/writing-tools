@@ -127,5 +127,17 @@ if (typeof window !== 'undefined') {
     offChatStreamEnd: (listener: TIpcRenderListener) => {
       return ipcRenderer.off(EIpcRendererEvent.CHAT_STREAM_END, listener);
     },
+    onChatFollowUpQuestions: (cb: (message: any) => void) => {
+      const chatFollowUpQuestionsListener = (_: IpcRendererEvent, message: any) => {
+        cb(message);
+      };
+
+      ipcRenderer.on(EIpcRendererEvent.CHAT_FOLLOW_UP_QUESTIONS, chatFollowUpQuestionsListener);
+
+      return chatFollowUpQuestionsListener;
+    },
+    offChatFollowUpQuestions: (listener: TIpcRenderListener) => {
+      return ipcRenderer.off(EIpcRendererEvent.CHAT_FOLLOW_UP_QUESTIONS, listener);
+    },
   });
 }

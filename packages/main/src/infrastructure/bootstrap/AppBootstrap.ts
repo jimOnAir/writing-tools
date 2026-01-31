@@ -2,10 +2,12 @@ import type { ILogger } from '@writing-tools/shared';
 import { app, globalShortcut } from 'electron';
 import isDev from 'electron-is-dev';
 import * as path from 'node:path';
+import { FollowUpQuestionsService } from 'src/domains/chat/FollowUpQuestionsService';
 import { TitleGenerationService } from 'src/domains/chat/TitleGenerationService';
 
 import type { IChatRepository, IChatService } from '../../domains/chat';
 import { ChatRepository, ChatService } from '../../domains/chat';
+import type { IFollowUpQuestionsService } from '../../domains/chat/IFollowUpQuestionsService';
 import type { IMessageRepository } from '../../domains/chat/IMessageRepository';
 import type { IMessageService } from '../../domains/chat/IMessageService';
 import type { ITitleGenerationService } from '../../domains/chat/ITitleGenerationService';
@@ -48,6 +50,7 @@ export class AppBootstrap {
   private readonly chatRepository: IChatRepository;
   private readonly chatService: IChatService;
   private readonly dbConnection: DatabaseConnection;
+  private readonly followUpQuestionsService: IFollowUpQuestionsService;
   private readonly ipcChatHandler: IIpcChatHandler;
   private readonly ipcEnvHandler: IIpcEnvHandler;
   private readonly ipcMessageHandler: IIpcMessageHandler;
@@ -122,6 +125,10 @@ export class AppBootstrap {
       this.logger,
       this.windowService,
     );
+    this.followUpQuestionsService = new FollowUpQuestionsService(
+      this.logger,
+      this.modelService,
+    );
     this.ipcPromptSelectorHandler = new IpcPromptSelectorHandler(
       this.chatService,
       this.settingsService,
@@ -147,6 +154,7 @@ export class AppBootstrap {
 
     this.ipcMessageHandler = new IpcMessageHandler(
       this.chatService,
+      this.followUpQuestionsService,
       this.logger,
       this.messageService,
       this.modelService,

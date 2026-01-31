@@ -1,4 +1,4 @@
-import type { EIpcChannel, TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, EIpcEvent, IChatMessage, IChatStreamChunk, IChatStreamEnd } from '@writing-tools/shared';
+import type { EIpcChannel, TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, EIpcEvent, IChatMessage, IChatFollowUpQuestions, IChatStreamChunk, IChatStreamEnd } from '@writing-tools/shared';
 
 import type { TIpcRenderListener } from './TIpcRenderListener';
 
@@ -26,6 +26,8 @@ declare global {
       offChatStreamChunk: (listener: TIpcRenderListener) => void,
       onChatStreamEnd: (callback: (data: IChatStreamEnd) => void) => TIpcRenderListener,
       offChatStreamEnd: (listener: TIpcRenderListener) => void,
+      onChatFollowUpQuestions: (callback: (data: IChatFollowUpQuestions) => void) => TIpcRenderListener,
+      offChatFollowUpQuestions: (listener: TIpcRenderListener) => void,
     };
     // Exposed for before-quit handler to save tabs
     __multiChatService?: {

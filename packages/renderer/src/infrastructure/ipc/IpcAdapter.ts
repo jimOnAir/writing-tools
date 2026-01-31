@@ -1,4 +1,4 @@
-import type { TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, IChatWindowData, IChatMessage, TOpenTab, TChatResponse, IChatStreamChunk, IChatStreamEnd } from '@writing-tools/shared';
+import type { TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, IChatWindowData, IChatMessage, TOpenTab, TChatResponse, IChatFollowUpQuestions, IChatStreamChunk, IChatStreamEnd } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
@@ -117,6 +117,16 @@ export interface IIpcAdapter {
    * Unregister a chat stream end listener
    */
   offChatStreamEnd: (listener: TIpcRenderListener) => void;
+
+  /**
+   * Register a listener for chat follow-up questions events
+   */
+  onChatFollowUpQuestions: (callback: (data: IChatFollowUpQuestions) => void) => TIpcRenderListener;
+
+  /**
+   * Unregister a chat follow-up questions listener
+   */
+  offChatFollowUpQuestions: (listener: TIpcRenderListener) => void;
 }
 
 /**
@@ -229,6 +239,14 @@ export class ElectronIpcAdapter implements IIpcAdapter {
 
   public offChatStreamEnd(listener: TIpcRenderListener): void {
     this.getElectronAPI().offChatStreamEnd(listener);
+  }
+
+  public onChatFollowUpQuestions(callback: (data: IChatFollowUpQuestions) => void): TIpcRenderListener {
+    return this.getElectronAPI().onChatFollowUpQuestions(callback);
+  }
+
+  public offChatFollowUpQuestions(listener: TIpcRenderListener): void {
+    this.getElectronAPI().offChatFollowUpQuestions(listener);
   }
 
   private getElectronAPI(): NonNullable<typeof window.electronAPI> {

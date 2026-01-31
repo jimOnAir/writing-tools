@@ -4,6 +4,7 @@ import { ipcMain } from 'electron';
 
 import type { IChatService } from '../../domains/chat';
 import type { IMessageService } from '../../domains/chat/IMessageService';
+import type { IFollowUpQuestionsService } from '../../domains/chat/IFollowUpQuestionsService';
 import type { ITitleGenerationService } from '../../domains/chat/ITitleGenerationService';
 import type { IModelService } from '../../domains/llm';
 import type { ISettingsService } from '../../domains/settings/ISettingsService';
@@ -19,6 +20,7 @@ export class IpcMessageHandler implements IIpcMessageHandler {
 
   public constructor(
     private readonly chatService: IChatService,
+    private readonly followUpQuestionsService: IFollowUpQuestionsService,
     private readonly logger: ILogger,
     private readonly messageService: IMessageService,
     private readonly modelService: IModelService,
@@ -160,7 +162,7 @@ export class IpcMessageHandler implements IIpcMessageHandler {
       }
 
       // Send stream end event
-      mainWindow.webContents.send('CHAT_STREAM_END', {
+      mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_END, {
         chatId,
         fullContent: trimmedContent,
       });
@@ -169,18 +171,48 @@ export class IpcMessageHandler implements IIpcMessageHandler {
 
       // Generate title after first exchange
       void this.titleGenerationService.generateTitleIfNeeded(chatId);
+
+      // Generate follow-up questions (last user + last assistant); push to renderer when done
+      void this.generateAndSendFollowUpQuestions(chatId, [...messages, assistantMessage], mainWindow);
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
       this.logger.error('Streaming error for chatId=%s: %s', String(chatId), errorText);
 
       // Send error to renderer
-      mainWindow.webContents.send('CHAT_STREAM_END', {
+      mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_END, {
         chatId,
         error: errorText,
         fullContent,
       });
     } finally {
       this.processingChatIds.delete(chatId);
+    }
+  }
+
+  private async generateAndSendFollowUpQuestions(
+    chatId: number,
+    messagesWithAssistant: IChatMessage[],
+    mainWindow: Electron.BrowserWindow,
+  ): Promise<void> {
+    try {
+      const questions = await this.followUpQuestionsService.generate(messagesWithAssistant, chatId);
+
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(EIpcRendererEvent.CHAT_FOLLOW_UP_QUESTIONS, {
+          chatId,
+          questions,
+        });
+      }
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to generate or send follow-up questions: %s', errorText);
+
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(EIpcRendererEvent.CHAT_FOLLOW_UP_QUESTIONS, {
+          chatId,
+          questions: [],
+        });
+      }
     }
   }
 

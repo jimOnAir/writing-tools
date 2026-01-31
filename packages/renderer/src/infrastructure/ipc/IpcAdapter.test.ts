@@ -26,6 +26,8 @@ describe('ElectronIpcAdapter', () => {
     offChatStreamChunk: jest.Mock,
     onChatStreamEnd: jest.Mock,
     offChatStreamEnd: jest.Mock,
+    onChatFollowUpQuestions: jest.Mock,
+    offChatFollowUpQuestions: jest.Mock,
   };
 
   beforeEach(() => {
@@ -49,6 +51,8 @@ describe('ElectronIpcAdapter', () => {
       offChatStreamChunk: jest.fn(),
       onChatStreamEnd: jest.fn(() => ({ remove: jest.fn() })),
       offChatStreamEnd: jest.fn(),
+      onChatFollowUpQuestions: jest.fn(() => ({ remove: jest.fn() })),
+      offChatFollowUpQuestions: jest.fn(),
     };
 
     Object.defineProperty(globalThis, 'electronAPI', {
