@@ -424,7 +424,7 @@ export class ChatService {
     try {
       const response = await this.ipcAdapter.invoke(message.channel, message);
 
-      if ('error' in response && response.error !== undefined) {
+      if ('error' in response) {
         throw new Error(response.error);
       }
 
@@ -502,7 +502,7 @@ export class ChatService {
     try {
       const response = await this.ipcAdapter.invoke(message.channel, message);
 
-      if ('error' in response && response.error !== undefined) {
+      if ('error' in response) {
         throw new Error(response.error);
       }
 
@@ -671,7 +671,7 @@ export class ChatService {
     if (this.modelOverride !== null) {
       return;
     }
-    const model = chatInfo.model ?? '';
+    const model = chatInfo.model;
     const provider = chatInfo.provider === 'lmstudio' ? 'lmstudio' : 'ollama';
     if (model !== '') {
       this.setModelOverride({ model, provider });
@@ -682,12 +682,6 @@ export class ChatService {
    * Get scroll position (persisted across tab switches)
    */
   public getScrollPosition(): number {
-    // #region agent log
-    if (typeof globalThis.fetch === 'function') {
-      globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ChatService.ts:getScrollPosition', message: 'getScrollPosition', data: { scrollPosition: this.scrollPosition, currentChatId: this.currentChatId }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H5' }) }).catch(() => {});
-    }
-
-    // #endregion
     return this.scrollPosition;
   }
 
@@ -695,11 +689,6 @@ export class ChatService {
    * Set scroll position (persisted across tab switches)
    */
   public setScrollPosition(position: number): void {
-    // #region agent log
-    if (typeof globalThis.fetch === 'function') {
-      globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ChatService.ts:setScrollPosition', message: 'setScrollPosition', data: { position, currentChatId: this.currentChatId }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H5' }) }).catch(() => {});
-    }
-    // #endregion
     this.scrollPosition = Math.max(0, position);
   }
 

@@ -97,7 +97,7 @@ export class MultiChatService {
       const chatIdText = data.chatId === undefined ? 'undefined' : String(data.chatId);
       this.logger.info('MultiChatService received CHAT_WINDOW_DATA: prompt=%s, chatId=%s', promptText, chatIdText);
 
-      if (data.prompt === undefined || data.prompt === '' || data.chatId === undefined) {
+      if (data.prompt === '' || data.chatId === undefined) {
         return;
       }
 
@@ -260,30 +260,22 @@ export class MultiChatService {
       this.scrollPositionByChatId.delete(chatId);
     }
 
-    // #region agent log
-    if (typeof globalThis.fetch === 'function') {
-      globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MultiChatService.ts:openChatTab', message: 'openChatTab new tab', data: { chatId, scrollPositionOnNewService: tab.chatService.getScrollPosition() }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H5' }) }).catch(() => {});
-    }
-    // #endregion
-
     // Save tabs to database (chatId is now set)
     this.saveTabsIfNotRestoring();
 
     // Load messages for this chat
     const tabChatService = tab.chatService;
-    if (tabChatService) {
-      void tabChatService.loadChatMessages(chatId).then(() => {
-        // Fetch title after loading messages
-        void tabChatService.getChatInfo(chatId).then(chatInfo => {
-          if (chatInfo) {
-            tab.title = chatInfo.title || null;
-            this.notifyTabsChange();
-            // Save tabs after title is updated
-            this.saveTabsIfNotRestoring();
-          }
-        });
+    void tabChatService.loadChatMessages(chatId).then(() => {
+      // Fetch title after loading messages
+      void tabChatService.getChatInfo(chatId).then(chatInfo => {
+        if (chatInfo) {
+          tab.title = chatInfo.title || null;
+          this.notifyTabsChange();
+          // Save tabs after title is updated
+          this.saveTabsIfNotRestoring();
+        }
       });
-    }
+    });
 
     return tab;
   }
@@ -309,16 +301,7 @@ export class MultiChatService {
       this.scrollPositionByChatId.set(tab.chatId, tab.chatService.getScrollPosition());
     }
 
-    // #region agent log
-    const closedScroll = tab.chatService?.getScrollPosition?.() ?? -1;
-    if (typeof globalThis.fetch === 'function') {
-      globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MultiChatService.ts:closeChatTab', message: 'closeChatTab before splice', data: { tabId, chatId: tab.chatId, closedScrollPosition: closedScroll }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H5' }) }).catch(() => {});
-    }
-    // #endregion
-
-    if (tab.chatService !== undefined) {
-      tab.chatService.cleanupListeners();
-    }
+    tab.chatService.cleanupListeners();
     if (tab.removeTitleChangeCallback !== undefined) {
       tab.removeTitleChangeCallback();
     }
@@ -580,11 +563,6 @@ export class MultiChatService {
           const tab = this.openChatTab(savedTab.chatId);
           const restoredScroll = (savedTab as { scrollPosition?: number }).scrollPosition ?? 0;
           tab.chatService.setScrollPosition(restoredScroll);
-          // #region agent log
-          if (typeof globalThis.fetch === 'function') {
-            globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MultiChatService.ts:restoreTabs', message: 'restoreTabs setScrollPosition', data: { chatId: savedTab.chatId, restoredScroll }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
-          }
-          // #endregion
           if (savedTab.isActive) {
             activeTabId = tab.tabId;
           }
@@ -645,45 +623,6 @@ export class MultiChatService {
    */
   private isTabEmpty(tab: ITabInfo): boolean {
     return tab.chatId === null && tab.chatService.getMessages().length === 0;
-  }
-
-  /**
-   * Remove all empty chat tabs
-   * @param allowRemovingLastTab - If true, allows removing the last tab (useful when we're about to create a new tab)
-   */
-  private removeEmptyTabs(allowRemovingLastTab = false): void {
-    const emptyTabs = this.tabs.filter(emptyTab => this.isTabEmpty(emptyTab));
-
-    for (const emptyTab of emptyTabs) {
-      // Don't remove if it's the only tab (unless explicitly allowed)
-      if (!allowRemovingLastTab && this.tabs.length <= 1) {
-        break;
-      }
-
-      const tabIndex = this.tabs.findIndex(t => t.tabId === emptyTab.tabId);
-      if (tabIndex !== -1 && emptyTab.chatService) {
-        emptyTab.chatService.cleanupListeners();
-        if (emptyTab.removeTitleChangeCallback) {
-          emptyTab.removeTitleChangeCallback();
-        }
-        this.tabs.splice(tabIndex, 1);
-
-        // If the removed tab was active, switch to another tab (if available)
-        if (this.activeTabId === emptyTab.tabId) {
-          if (this.tabs.length > 0) {
-            const newIndex = Math.max(0, tabIndex - 1);
-            this.switchToTab(this.tabs[newIndex].tabId);
-          } else {
-            this.activeTabId = null;
-            this.notifyActiveTabChange();
-          }
-        }
-      }
-    }
-
-    if (emptyTabs.length > 0) {
-      this.notifyTabsChange();
-    }
   }
 
   /**
