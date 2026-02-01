@@ -657,4 +657,102 @@ describe('ChatService', () => {
       expect(onErrorChange).not.toHaveBeenCalled();
     });
   });
+
+  describe('retryLastMessage', () => {
+    it('returns null and does not invoke when currentChatId is null', async () => {
+      const result = await chatService.retryLastMessage();
+
+      expect(result).toBeNull();
+      expect(mockIpcAdapter.invoke).not.toHaveBeenCalled();
+    });
+
+    it('returns null and does not invoke when last message is user', async () => {
+      chatService.initializeListeners();
+
+      const onMessagesChange = jest.fn();
+      chatService.setCallbacks({ onMessagesChange });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const messagesCallback = (mockIpcAdapter.onChatLoadMessagesData as jest.Mock).mock.calls[0]?.[0] as (
+        data: { chatId: number, messages: IChatMessage[] },
+      ) => void;
+
+      const messages: IChatMessage[] = [
+        { id: '1', role: 'user', content: 'Hello', timestamp: new Date() },
+      ];
+      messagesCallback({ chatId: 1, messages });
+
+      const result = await chatService.retryLastMessage();
+
+      expect(result).toBeNull();
+      expect(mockIpcAdapter.invoke).not.toHaveBeenCalled();
+    });
+
+    it('removes last assistant message, adds placeholder, invokes IPC and returns null on success', async () => {
+      chatService.initializeListeners();
+
+      const onMessagesChange = jest.fn();
+      chatService.setCallbacks({ onMessagesChange });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const messagesCallback = (mockIpcAdapter.onChatLoadMessagesData as jest.Mock).mock.calls[0]?.[0] as (
+        data: { chatId: number, messages: IChatMessage[] },
+      ) => void;
+
+      const messages: IChatMessage[] = [
+        { id: '1', role: 'user', content: 'Hello', timestamp: new Date() },
+        { id: '2', role: 'assistant', content: 'Error: Connection failed', timestamp: new Date() },
+      ];
+      messagesCallback({ chatId: 1, messages });
+
+      mockIpcAdapter.invoke.mockResolvedValue({ started: true });
+
+      const result = await chatService.retryLastMessage();
+
+      expect(result).toBeNull();
+      expect(mockIpcAdapter.invoke).toHaveBeenCalledWith(
+        EIpcChannel.MESSAGE,
+        expect.objectContaining({
+          event: EIpcEvent.MESSAGE_SEND_STREAM,
+          payload: expect.objectContaining({
+            chatId: 1,
+            messages: [{ id: '1', role: 'user', content: 'Hello', timestamp: expect.any(Date) }],
+          }),
+        }),
+      );
+      const currentMessages = chatService.getMessages();
+      expect(currentMessages).toHaveLength(2);
+      expect(currentMessages[1]?.role).toBe('assistant');
+      expect(currentMessages[1]?.content).toBe('');
+    });
+
+    it('on IPC error updates placeholder to error, sets error and returns error string', async () => {
+      chatService.initializeListeners();
+
+      const onMessagesChange = jest.fn();
+      const onErrorChange = jest.fn();
+      chatService.setCallbacks({ onMessagesChange, onErrorChange });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const messagesCallback = (mockIpcAdapter.onChatLoadMessagesData as jest.Mock).mock.calls[0]?.[0] as (
+        data: { chatId: number, messages: IChatMessage[] },
+      ) => void;
+
+      const messages: IChatMessage[] = [
+        { id: '1', role: 'user', content: 'Hello', timestamp: new Date() },
+        { id: '2', role: 'assistant', content: 'Error: Connection failed', timestamp: new Date() },
+      ];
+      messagesCallback({ chatId: 1, messages });
+
+      mockIpcAdapter.invoke.mockResolvedValue({ error: 'Request already processing', started: false });
+
+      const result = await chatService.retryLastMessage();
+
+      expect(result).toBe('Request already processing');
+      expect(onErrorChange).toHaveBeenCalledWith('Failed to send message: Request already processing');
+      const currentMessages = chatService.getMessages();
+      expect(currentMessages).toHaveLength(2);
+      expect(currentMessages[1]?.content).toBe('Error: Request already processing');
+    });
+  });
 });

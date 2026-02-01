@@ -56,6 +56,7 @@ const createMockChatService = (): jest.Mocked<ChatService> => {
     loadChatMessages: jest.fn().mockResolvedValue(undefined),
     navigateHistoryDown: jest.fn().mockReturnValue(null),
     navigateHistoryUp: jest.fn().mockReturnValue(null),
+    retryLastMessage: jest.fn().mockResolvedValue(null),
     seedModelOverrideFromChatInfo: jest.fn(),
     sendMessage: jest.fn().mockResolvedValue(null),
     setCallbacks: jest.fn(),
@@ -373,6 +374,125 @@ describe('ChatComponent', () => {
     }
 
     expect(screen.getByText('Test error')).toBeInTheDocument();
+  });
+
+  test('uses error style for assistant message when content starts with "Error:"', () => {
+    const errorMessages: IChatMessage[] = [
+      {
+        id: '1',
+        role: 'user' as const,
+        content: 'Hello',
+        timestamp: new Date(),
+      },
+      {
+        id: '2',
+        role: 'assistant' as const,
+        content: 'Error: Connection refused',
+        timestamp: new Date(),
+      },
+    ];
+
+    let onMessagesChange: ((messages: IChatMessage[]) => void) | undefined;
+
+    mockChatService.setCallbacks.mockImplementation((callbacks) => {
+      onMessagesChange = callbacks.onMessagesChange;
+    });
+
+    const { container } = render(
+      <ChatComponent chatId={null} chatService={mockChatService} settingsService={mockSettingsService} />,
+    );
+
+    const messagesCallback = onMessagesChange;
+    if (messagesCallback !== undefined) {
+      act(() => {
+        messagesCallback(errorMessages);
+      });
+    }
+
+    const errorBubble = container.querySelector(String.raw`.bg-red-900\/30`);
+    expect(errorBubble).toBeInTheDocument();
+    expect(errorBubble?.textContent).toContain('Error: Connection refused');
+  });
+
+  test('shows Retry button for last assistant error message and calls retryLastMessage on click', () => {
+    const errorMessages: IChatMessage[] = [
+      {
+        id: '1',
+        role: 'user' as const,
+        content: 'Hello',
+        timestamp: new Date(),
+      },
+      {
+        id: '2',
+        role: 'assistant' as const,
+        content: 'Error: Connection refused',
+        timestamp: new Date(),
+      },
+    ];
+
+    let onMessagesChange: ((messages: IChatMessage[]) => void) | undefined;
+
+    mockChatService.setCallbacks.mockImplementation((callbacks) => {
+      onMessagesChange = callbacks.onMessagesChange;
+    });
+
+    render(<ChatComponent chatId={null} chatService={mockChatService} settingsService={mockSettingsService} />);
+
+    const messagesCallback = onMessagesChange;
+    if (messagesCallback !== undefined) {
+      act(() => {
+        messagesCallback(errorMessages);
+      });
+    }
+
+    const retryButton = screen.getByRole('button', { name: 'Retry sending the last message' });
+    expect(retryButton).toBeInTheDocument();
+
+    fireEvent.click(retryButton);
+
+    expect(mockChatService.retryLastMessage).toHaveBeenCalledWith(undefined);
+  });
+
+  test('calls retryLastMessage with model options when effective model is set', () => {
+    mockChatService.getModelOverride.mockReturnValue({ model: 'llama3', provider: 'ollama' });
+
+    const errorMessages: IChatMessage[] = [
+      {
+        id: '1',
+        role: 'user' as const,
+        content: 'Hello',
+        timestamp: new Date(),
+      },
+      {
+        id: '2',
+        role: 'assistant' as const,
+        content: 'Error: Timeout',
+        timestamp: new Date(),
+      },
+    ];
+
+    let onMessagesChange: ((messages: IChatMessage[]) => void) | undefined;
+
+    mockChatService.setCallbacks.mockImplementation((callbacks) => {
+      onMessagesChange = callbacks.onMessagesChange;
+    });
+
+    render(<ChatComponent chatId={null} chatService={mockChatService} settingsService={mockSettingsService} />);
+
+    const messagesCallback = onMessagesChange;
+    if (messagesCallback !== undefined) {
+      act(() => {
+        messagesCallback(errorMessages);
+      });
+    }
+
+    const retryButton = screen.getByRole('button', { name: 'Retry sending the last message' });
+    fireEvent.click(retryButton);
+
+    expect(mockChatService.retryLastMessage).toHaveBeenCalledWith({
+      model: 'llama3',
+      provider: 'ollama',
+    });
   });
 
   test('loads messages when chatId is provided', async () => {

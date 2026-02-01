@@ -15,13 +15,11 @@ interface ChatComponentProps {
   readonly settingsService: SettingsService;
 }
 
-// TODO: add edit users message
-// TODO: add resending message
 const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, settingsService }) => {
   const [messages, setMessages] = useState<IChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null); // TODO: Proper error handing, now it's just written as message
+  const [error, setError] = useState<string | null>(null);
   const [_, setIsHandlingResponse] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [chatTitle, setChatTitle] = useState<string | null>(null);
@@ -74,19 +72,9 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
   useEffect(() => {
     const scrollEl = scrollContainerRef.current;
     const pos = chatService.getScrollPosition();
-    // #region agent log
-    if (typeof globalThis.fetch === 'function') {
-      globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ChatComponent.tsx:restoreScroll', message: 'restore scroll effect', data: { chatId, hasScrollEl: scrollEl !== null, messagesLength: messages.length, hasRestoredRef: hasRestoredScrollRef.current, scrollPositionFromService: pos, willApply: scrollEl !== null && messages.length > 0 && !hasRestoredScrollRef.current }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2-H4' }) }).catch(() => {});
-    }
-    // #endregion
     if (scrollEl !== null && messages.length > 0 && !hasRestoredScrollRef.current) {
       hasRestoredScrollRef.current = true;
       scrollEl.scrollTop = pos;
-      // #region agent log
-      if (typeof globalThis.fetch === 'function') {
-        globalThis.fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ChatComponent.tsx:restoreScrollApplied', message: 'scroll applied', data: { chatId, scrollTopSet: pos, scrollHeight: scrollEl.scrollHeight }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
-      }
-      // #endregion
     }
   }, [chatService, messages.length, chatId]);
 
@@ -432,7 +420,6 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
           )}
         </div>
       )}
-      {/* TODO: make responsive */}
       <div
         ref={scrollContainerRef}
         className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 ${BackgroundStyles.chatContainer} mb-3 rounded`}
@@ -447,6 +434,8 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
               // Check if this is the last message and it's streaming
               const isLastMessage = index === messages.length - 1;
               const isStreamingMessage = isStreaming && isLastMessage && message.role === 'assistant';
+              const isErrorMessage = message.role === 'assistant' && message.content.startsWith('Error:');
+              const messageBubbleStyle = isErrorMessage ? MessageStyles.error : MessageStyles[message.role];
 
               return (
                 <div
@@ -457,7 +446,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`min-w-[200px] max-w-[80%] p-3 ${MessageStyles[message.role]}`}
+                      className={`min-w-[200px] max-w-[80%] p-3 ${messageBubbleStyle}`}
                     >
                       {/* TODO: long markdown doesn't fit */}
                       <div
@@ -477,7 +466,31 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
                     <div
                       className={`flex gap-2 ${message.role === 'user' ? 'justify-end' : 'justify-start'} opacity-0 transition-opacity duration-150 group-hover:opacity-100`}
                     >
-                      {message.role === 'assistant' && message.statistics !== undefined && ( // TODO: resend button in case of error
+                      {isLastMessage && isErrorMessage && (
+                        <Tooltip content="Retry sending the last message">
+                          <button
+                            type="button"
+                            className={`${ButtonStyles.base} ${ButtonSizeStyles.small} ${ButtonStyles.ghost} whitespace-nowrap`}
+                            disabled={isLoading}
+                            onClick={() => {
+                              void chatService.retryLastMessage(
+                                effectiveModel !== '' ? { model: effectiveModel, provider: effectiveProvider } : undefined,
+                              );
+                            }}
+                            aria-label="Retry sending the last message"
+                          >
+                            <span
+                              className="relative inline-block w-3 h-3"
+                              style={{ fontSize: '20px', lineHeight: '20px' }}
+                            >
+                              <span className="absolute inset-0 flex items-center justify-center">
+                                ↻
+                              </span>
+                            </span>
+                          </button>
+                        </Tooltip>
+                      )}
+                      {message.role === 'assistant' && message.statistics !== undefined && (
                         <Tooltip content={formatStatistics(message.statistics)}>
                           <button
                             type="button"
@@ -485,48 +498,52 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
                             aria-label="Show message statistics"
                           >
                             <span
-                              className="inline-block w-3 h-3"
-                              style={{ fontSize: '14px', lineHeight: '14px' }}
+                              className="relative inline-block w-3 h-3"
+                              style={{ fontSize: '20px', lineHeight: '20px' }}
                             >
-                              ℹ
+                              <span className="absolute inset-0 flex items-center justify-center">
+                                ℹ
+                              </span>
                             </span>
                           </button>
                         </Tooltip>
                       )}
-                      <Tooltip content="Copy message">
-                        <button
-                          type="button"
-                          className={`${ButtonStyles.base} ${ButtonSizeStyles.small} ${ButtonStyles.ghost} whitespace-nowrap`}
-                          onClick={() => {
-                            void handleCopyMessage(message.id, message.content);
-                          }}
-                          aria-label="Copy message to clipboard"
-                        >
-                          <span
-                            className="relative inline-block w-3 h-3"
-                            style={{ fontSize: '20px', lineHeight: '20px' }}
+                      {!isErrorMessage && (
+                        <Tooltip content="Copy message">
+                          <button
+                            type="button"
+                            className={`${ButtonStyles.base} ${ButtonSizeStyles.small} ${ButtonStyles.ghost} whitespace-nowrap`}
+                            onClick={() => {
+                              void handleCopyMessage(message.id, message.content);
+                            }}
+                            aria-label="Copy message to clipboard"
                           >
                             <span
-                              className={`
-                                absolute inset-0 flex items-center justify-center
-                                transition-all duration-150
-                                ${copiedMessageId === message.id ? 'opacity-0 scale-75' : 'opacity-100 scale-100'}
-                              `}
+                              className="relative inline-block w-3 h-3"
+                              style={{ fontSize: '20px', lineHeight: '20px' }}
                             >
-                              ⧉
+                              <span
+                                className={`
+                                  absolute inset-0 flex items-center justify-center
+                                  transition-all duration-150
+                                  ${copiedMessageId === message.id ? 'opacity-0 scale-75' : 'opacity-100 scale-100'}
+                                `}
+                              >
+                                ⧉
+                              </span>
+                              <span
+                                className={`
+                                  absolute inset-0 flex items-center justify-center
+                                  transition-all duration-150
+                                  ${copiedMessageId === message.id ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}
+                                `}
+                              >
+                                ✓
+                              </span>
                             </span>
-                            <span
-                              className={`
-                                absolute inset-0 flex items-center justify-center
-                                transition-all duration-150
-                                ${copiedMessageId === message.id ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}
-                              `}
-                            >
-                              ✓
-                            </span>
-                          </span>
-                        </button>
-                      </Tooltip>
+                          </button>
+                        </Tooltip>
+                      )}
                     </div>
                   )}
                 </div>

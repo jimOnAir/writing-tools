@@ -451,6 +451,81 @@ export class ChatService {
   }
 
   /**
+   * Retry the last message (remove failed assistant message and re-invoke streaming).
+   * Use when the last message is an assistant error message.
+   * @param options - Optional model/provider override for this request
+   */
+  public async retryLastMessage(
+    options?: { model?: string, provider?: 'ollama' | 'lmstudio' },
+  ): Promise<string | null> {
+    if (this.currentChatId === null || this.isLoading) {
+      return null;
+    }
+
+    const lastMessage = this.messages.at(-1);
+    if (lastMessage === undefined || lastMessage.role !== 'assistant') {
+      return null;
+    }
+
+    this.messages = this.messages.slice(0, -1);
+    this.onMessagesChange?.(this.messages);
+
+    this.setHandlingResponse(true);
+    const streamingMessageId = `${Date.now().toString()}-response`;
+    const streamingMessage: IChatMessage = {
+      id: streamingMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+    };
+    this.addMessage(streamingMessage);
+    this.streamingMessageId = streamingMessageId;
+    this.streamingContent = '';
+    this.setStreaming(true);
+    this.setLoading(true);
+    this.setError(null);
+
+    const payload: { chatId: number, messages: IChatMessage[], model?: string, provider?: 'ollama' | 'lmstudio' } = {
+      chatId: this.currentChatId,
+      messages: this.messages.slice(0, -1),
+    };
+    if (options?.model !== undefined && options.model !== '') {
+      payload.model = options.model;
+      payload.provider = options.provider;
+    }
+    const message: TIpcEvent<EIpcChannel.MESSAGE, EIpcEvent.MESSAGE_SEND_STREAM> = {
+      channel: EIpcChannel.MESSAGE,
+      event: EIpcEvent.MESSAGE_SEND_STREAM,
+      payload,
+    };
+
+    try {
+      const response = await this.ipcAdapter.invoke(message.channel, message);
+
+      if ('error' in response && response.error !== undefined) {
+        throw new Error(response.error);
+      }
+
+      this.logger.info('Retry streaming started for chatId=%s', String(this.currentChatId));
+
+      return null;
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : String(err);
+
+      this.logger.error('Failed to retry streaming: %s', errorText);
+      this.setError(`Failed to send message: ${errorText}`);
+      this.updateStreamingMessage(`Error: ${errorText}`);
+      this.streamingMessageId = null;
+      this.streamingContent = '';
+      this.setStreaming(false);
+      this.setLoading(false);
+      this.setHandlingResponse(false);
+
+      return errorText;
+    }
+  }
+
+  /**
    * Navigate message history (Arrow Up)
    */
   public navigateHistoryUp(): string | null {
