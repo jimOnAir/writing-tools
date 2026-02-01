@@ -17,17 +17,15 @@ export class TrayService implements ITrayService {
   public createTray(): void {
     this.tray ??= new Tray(getAppIcon());
 
+    this.tray.on('click', () => {
+      this.showApp();
+    });
+
     const menuItems: MenuItemConstructorOptions[] = [
       {
         label: 'Show',
         click: () => {
-          this.windowService.getMainWindow().catch((error: unknown) => {
-            if (error instanceof Error) {
-              this.logger.error(error.message);
-            } else {
-              this.logger.error(String(error));
-            }
-          });
+          this.showApp();
         },
       },
       {
@@ -44,5 +42,15 @@ export class TrayService implements ITrayService {
     const contextMenu = Menu.buildFromTemplate(menuItems);
     this.tray.setContextMenu(contextMenu);
     this.tray.setIgnoreDoubleClickEvents(false);
+  }
+
+  private showApp(): void {
+    void this.windowService.getMainWindow().catch((error: unknown) => {
+      if (error instanceof Error) {
+        this.logger.error('Failed to show app: %s', error.message);
+      } else {
+        this.logger.error('Failed to show app: %s', String(error));
+      }
+    });
   }
 }

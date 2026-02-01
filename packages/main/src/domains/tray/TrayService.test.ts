@@ -9,6 +9,7 @@ import { TrayService } from './TrayService';
 // Mock electron modules
 jest.mock('electron', () => ({
   Tray: jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
     setContextMenu: jest.fn(),
     setIgnoreDoubleClickEvents: jest.fn(),
   })),
@@ -49,6 +50,7 @@ describe('TrayService', () => {
     } as unknown as jest.Mocked<ILogger>;
 
     mockTray = {
+      on: jest.fn(),
       setContextMenu: jest.fn(),
       setIgnoreDoubleClickEvents: jest.fn(),
     } as unknown as jest.Mocked<Tray>;
@@ -107,6 +109,20 @@ describe('TrayService', () => {
       expect(menuTemplate[SHOW_INDEX]?.label).toBe('Show');
       expect(menuTemplate[SEPARATOR_INDEX]?.type).toBe('separator');
       expect(menuTemplate[QUIT_INDEX]?.label).toBe('Quit');
+    });
+
+    it('handles left click on tray icon to show app', () => {
+      trayService.createTray();
+
+      const onMock = mockTray.on as jest.Mock;
+      expect(onMock).toHaveBeenCalledWith('click', expect.any(Function));
+      const clickHandler = onMock.mock.calls.find((call: unknown[]) => call[0] === 'click')?.[1];
+      expect(clickHandler).toBeDefined();
+
+      const getMainWindowMock = mockWindowService.getMainWindow as jest.Mock;
+      clickHandler();
+
+      expect(getMainWindowMock).toHaveBeenCalled();
     });
 
     it('handles Show menu item click', () => {
