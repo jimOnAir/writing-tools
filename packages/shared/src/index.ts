@@ -18,4 +18,6 @@ export { DefaultSettings } from './const/DefaultSettings';
 export { EIpcChannel } from './enum/EIpcChannel';
 export { EIpcEvent } from './enum/EIpcEvent';
 export { EIpcRendererEvent } from './enum/EIpcRendererEvent';
+export { EStreamingErrorType } from './enum/EStreamingErrorType';
+export { classifyStreamingError } from './utils/classifyStreamingError';
 export { Logger, logger } from './utils/logger';

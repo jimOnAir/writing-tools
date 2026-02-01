@@ -1,5 +1,5 @@
 import type { IChatFollowUpQuestions, IChatMessage, TChatResponse, TIpcEvent, IChatInfo, IChatStreamChunk, IChatStreamEnd, ILogger, IMessageStatistics, IPreconfiguredPrompt, IPromptSelectorData } from '@writing-tools/shared';
-import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
+import { classifyStreamingError, EStreamingErrorType, EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
@@ -16,6 +16,7 @@ export class ChatService {
   private messages: IChatMessage[] = [];
   private isLoading = false;
   private error: string | null = null;
+  private errorType: EStreamingErrorType | undefined = undefined;
   private historyIndex = -1;
   private isHandlingOllamaResponse = false;
   private isStreaming = false;
@@ -41,7 +42,7 @@ export class ChatService {
   // Callbacks for component state updates
   private onMessagesChange?: (messages: IChatMessage[]) => void;
   private onLoadingChange?: (isLoading: boolean) => void;
-  private onErrorChange?: (error: string | null) => void;
+  private onErrorChange?: (error: string | null, errorType?: EStreamingErrorType) => void;
   private onHistoryIndexChange?: (index: number) => void;
   private onHandlingResponseChange?: (isHandling: boolean) => void;
   private onModelOverrideChange?: (override: { model: string, provider: 'ollama' | 'lmstudio' } | null) => void;
@@ -63,7 +64,7 @@ export class ChatService {
    * Register callbacks for state changes
    */
   public setCallbacks(callbacks: {
-    onErrorChange?: (error: string | null) => void,
+    onErrorChange?: (error: string | null, errorType?: EStreamingErrorType) => void,
     onFollowUpQuestionsChange?: (chatId: number, questions: string[]) => void,
     onHandlingResponseChange?: (isHandling: boolean) => void,
     onHistoryIndexChange?: (index: number) => void,
@@ -139,10 +140,14 @@ export class ChatService {
 
       // Handle error response
       if (isErrorResponse(response)) {
+        const errorText = response.error ?? 'Unknown error';
+        const type = classifyStreamingError(errorText);
+        this.setError(`Streaming error: ${errorText}`, type);
         const errorMessage: IChatMessage = {
+          content: `Error: ${errorText}`,
+          errorType: type,
           id: `${Date.now().toString()}-error`,
           role: 'assistant',
-          content: `Error: ${response.error}`,
           timestamp: new Date(),
         };
         this.addMessage(errorMessage);
@@ -214,9 +219,30 @@ export class ChatService {
       if (this.currentChatId === null || this.currentChatId === data.chatId) {
         this.logger.info('Loading messages for chat: chatId=%s, messageCount=%s', String(data.chatId), String(data.messages.length));
         this.currentChatId = data.chatId;
-        this.setMessages(data.messages);
+
+        const hasUserMessage = data.messages.some(m => m.role === 'user');
+        const hasAssistantMessage = data.messages.some(m => m.role === 'assistant');
+        const hasStreamingError = this.error !== null && this.error.startsWith('Streaming error:');
+
+        // If we have a streaming error and DB lacks assistant message, append error message
+        // (CHAT_LOAD_MESSAGES_DATA can arrive after CHAT_STREAM_END - would otherwise replace error with [user])
+        let messagesToSet = data.messages;
+        if (hasStreamingError && hasUserMessage && !hasAssistantMessage && this.error !== null) {
+          const errorText = this.error.replace(/^Streaming error: /, '');
+          const errorMessage: IChatMessage = {
+            content: `Error: ${errorText}`,
+            errorType: this.errorType,
+            id: `${Date.now().toString()}-error`,
+            role: 'assistant',
+            timestamp: new Date(),
+          };
+          messagesToSet = [...data.messages, errorMessage];
+        }
+
+        this.setMessages(messagesToSet);
         this.setLoading(false);
-        this.setError(null);
+        // Do NOT clear error here - CHAT_LOAD_MESSAGES_DATA is pushed by DbWatcher when messages change.
+        // It can arrive after a streaming error, racing with CHAT_STREAM_END. Clearing would hide the error.
       } else {
         this.logger.info('Ignoring CHAT_LOAD_MESSAGES_DATA: chatId=%s does not match currentChatId=%s', String(data.chatId), String(this.currentChatId));
       }
@@ -268,10 +294,23 @@ export class ChatService {
 
       // Handle error
       if (data.error !== undefined) {
-        this.setError(`Streaming error: ${data.error}`);
-        // Update the message to show the error
+        const errorType = data.errorType ?? classifyStreamingError(data.error);
+        this.setError(`Streaming error: ${data.error}`, errorType);
+        // Update the streaming message if it exists, or add error message if placeholder was removed (e.g. by CHAT_LOAD_MESSAGES_DATA race)
         if (this.streamingMessageId !== null) {
-          this.updateStreamingMessage(`Error: ${data.error}`);
+          const hasPlaceholder = this.messages.some((msg) => msg.id === this.streamingMessageId);
+          if (hasPlaceholder) {
+            this.updateStreamingMessage(`Error: ${data.error}`, undefined, errorType);
+          } else {
+            const errorMessage: IChatMessage = {
+              content: `Error: ${data.error}`,
+              errorType,
+              id: `${Date.now().toString()}-error`,
+              role: 'assistant',
+              timestamp: new Date(),
+            };
+            this.addMessage(errorMessage);
+          }
         }
       } else {
         // Finalize the message with the full content
@@ -434,12 +473,13 @@ export class ChatService {
       return null;
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
+      const errorType = classifyStreamingError(errorText);
 
       this.logger.error('Failed to start streaming: %s', errorText);
-      this.setError(`Failed to send message: ${errorText}`);
+      this.setError(`Failed to send message: ${errorText}`, errorType);
 
-      // Update the placeholder message to show error
-      this.updateStreamingMessage(`Error: ${errorText}`);
+      // Update the placeholder message to show error with error type
+      this.updateStreamingMessage(`Error: ${errorText}`, undefined, errorType);
       this.streamingMessageId = null;
       this.streamingContent = '';
       this.setStreaming(false);
@@ -511,10 +551,11 @@ export class ChatService {
       return null;
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
+      const errorType = classifyStreamingError(errorText);
 
       this.logger.error('Failed to retry streaming: %s', errorText);
-      this.setError(`Failed to send message: ${errorText}`);
-      this.updateStreamingMessage(`Error: ${errorText}`);
+      this.setError(`Failed to send message: ${errorText}`, errorType);
+      this.updateStreamingMessage(`Error: ${errorText}`, undefined, errorType);
       this.streamingMessageId = null;
       this.streamingContent = '';
       this.setStreaming(false);
@@ -596,6 +637,13 @@ export class ChatService {
    */
   public getError(): string | null {
     return this.error;
+  }
+
+  /**
+   * Get error type (for display variants, e.g. network vs generic)
+   */
+  public getErrorType(): EStreamingErrorType | undefined {
+    return this.errorType;
   }
 
   /**
@@ -795,15 +843,34 @@ export class ChatService {
       }
 
       this.currentChatId = chatId;
-      this.setMessages(response.messages);
-      // Check if we're waiting for an LLM response (user message exists but no assistant message yet)
-      // This happens when a prompt is selected - the user message is saved immediately,
-      // but the LLM response is still in flight
       const hasUserMessage = response.messages.some(m => m.role === 'user');
       const hasAssistantMessage = response.messages.some(m => m.role === 'assistant');
-      const shouldShowLoading = hasUserMessage && !hasAssistantMessage;
+      const hasStreamingError = this.error !== null && this.error.startsWith('Streaming error:');
+
+      // If we have a streaming error and DB lacks assistant message, append error message and don't show loading
+      // (loadChatMessages can arrive after CHAT_STREAM_END - would otherwise replace error with [user] and show loading)
+      let messagesToSet = response.messages;
+      let shouldShowLoading = hasUserMessage && !hasAssistantMessage;
+
+      if (hasStreamingError && hasUserMessage && !hasAssistantMessage && this.error !== null) {
+        const errorText = this.error.replace(/^Streaming error: /, '');
+        const errorMessage: IChatMessage = {
+          content: `Error: ${errorText}`,
+          errorType: this.errorType,
+          id: `${Date.now().toString()}-error`,
+          role: 'assistant',
+          timestamp: new Date(),
+        };
+        messagesToSet = [...response.messages, errorMessage];
+        shouldShowLoading = false;
+      }
+
+      this.setMessages(messagesToSet);
       this.setLoading(shouldShowLoading);
-      this.setError(null);
+      // Preserve streaming errors - they are cleared only when user sends a new message
+      if (this.error === null || !this.error.startsWith('Streaming error:')) {
+        this.setError(null);
+      }
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
       this.logger.error('Failed to load messages: %s', errorText);
@@ -924,9 +991,10 @@ export class ChatService {
     this.onLoadingChange?.(isLoading);
   }
 
-  private setError(error: string | null): void {
+  private setError(error: string | null, errorType?: EStreamingErrorType): void {
     this.error = error;
-    this.onErrorChange?.(error);
+    this.errorType = error === null ? undefined : errorType;
+    this.onErrorChange?.(error, this.errorType);
   }
 
   private setHistoryIndex(index: number): void {
@@ -955,7 +1023,7 @@ export class ChatService {
     this.onMessagesChange?.(this.messages);
   }
 
-  private updateStreamingMessage(content: string, statistics?: IMessageStatistics): void {
+  private updateStreamingMessage(content: string, statistics?: IMessageStatistics, errorType?: EStreamingErrorType): void {
     if (this.streamingMessageId === null) {
       return;
     }
@@ -968,6 +1036,9 @@ export class ChatService {
           ...msg,
           content,
         };
+        if (errorType !== undefined) {
+          updatedMessage.errorType = errorType;
+        }
         if (statistics !== undefined) {
           updatedMessage.statistics = statistics;
         }

@@ -1,5 +1,6 @@
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { IChatMessage } from '@writing-tools/shared';
+import { EStreamingErrorType } from '@writing-tools/shared';
 import React from 'react';
 
 import type { ChatService } from '../domains/chat';
@@ -358,7 +359,7 @@ describe('ChatComponent', () => {
   });
 
   test('displays error message from onErrorChange callback', () => {
-    let onErrorChange: ((error: string | null) => void) | undefined;
+    let onErrorChange: ((error: string | null, errorType?: EStreamingErrorType) => void) | undefined;
 
     mockChatService.setCallbacks.mockImplementation((callbacks) => {
       onErrorChange = callbacks.onErrorChange;
@@ -374,6 +375,85 @@ describe('ChatComponent', () => {
     }
 
     expect(screen.getByText('Test error')).toBeInTheDocument();
+  });
+
+  test('does not show inline error div for streaming errors (shown as message instead)', () => {
+    let onErrorChange: ((error: string | null, errorType?: EStreamingErrorType) => void) | undefined;
+
+    mockChatService.setCallbacks.mockImplementation((callbacks) => {
+      onErrorChange = callbacks.onErrorChange;
+    });
+
+    render(<ChatComponent chatId={null} chatService={mockChatService} settingsService={mockSettingsService} />);
+
+    const callback = onErrorChange;
+    if (callback !== undefined) {
+      act(() => {
+        callback('Streaming error: fetch failed', EStreamingErrorType.NETWORK);
+      });
+    }
+
+    expect(
+      screen.queryByText('Connection failed. Please ensure Ollama (or LM Studio) is running and reachable.'),
+    ).not.toBeInTheDocument();
+  });
+
+  test('shows inline error div for non-streaming errors', () => {
+    let onErrorChange: ((error: string | null, errorType?: EStreamingErrorType) => void) | undefined;
+
+    mockChatService.setCallbacks.mockImplementation((callbacks) => {
+      onErrorChange = callbacks.onErrorChange;
+    });
+
+    render(<ChatComponent chatId={null} chatService={mockChatService} settingsService={mockSettingsService} />);
+
+    const callback = onErrorChange;
+    if (callback !== undefined) {
+      act(() => {
+        callback('Failed to load messages: Load failed');
+      });
+    }
+
+    expect(screen.getByText('Failed to load messages: Load failed')).toBeInTheDocument();
+  });
+
+  test('displays error type label and contextual message when message has errorType NETWORK', () => {
+    const errorMessages: IChatMessage[] = [
+      {
+        content: 'Hello',
+        errorType: undefined,
+        id: '1',
+        role: 'user' as const,
+        timestamp: new Date(),
+      },
+      {
+        content: 'Error: fetch failed',
+        errorType: EStreamingErrorType.NETWORK,
+        id: '2',
+        role: 'assistant' as const,
+        timestamp: new Date(),
+      },
+    ];
+
+    let onMessagesChange: ((messages: IChatMessage[]) => void) | undefined;
+
+    mockChatService.setCallbacks.mockImplementation((callbacks) => {
+      onMessagesChange = callbacks.onMessagesChange;
+    });
+
+    render(<ChatComponent chatId={null} chatService={mockChatService} settingsService={mockSettingsService} />);
+
+    const messagesCallback = onMessagesChange;
+    if (messagesCallback !== undefined) {
+      act(() => {
+        messagesCallback(errorMessages);
+      });
+    }
+
+    expect(screen.getByText('Connection error')).toBeInTheDocument();
+    expect(
+      screen.getByText('Connection failed. Please ensure Ollama (or LM Studio) is running and reachable.'),
+    ).toBeInTheDocument();
   });
 
   test('uses error style for assistant message when content starts with "Error:"', () => {

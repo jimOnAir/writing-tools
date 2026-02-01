@@ -1,11 +1,11 @@
-import type { IChatMessage, IPreconfiguredPrompt } from '@writing-tools/shared';
+import type { EStreamingErrorType, IChatMessage, IPreconfiguredPrompt } from '@writing-tools/shared';
 
 // Domain-specific types for chat
 // Most types are imported from @writing-tools/shared
 // This file is reserved for any chat-domain-specific type extensions
 
 export type ChatServiceCallbacks = {
-  onErrorChange?: (error: string | null) => void,
+  onErrorChange?: (error: string | null, errorType?: EStreamingErrorType) => void,
   onHandlingResponseChange?: (isHandling: boolean) => void,
   onHistoryIndexChange?: (index: number) => void,
   onLoadingChange?: (isLoading: boolean) => void,

@@ -1,5 +1,6 @@
 import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 import type { IChatInfo, IChatMessage, TChatResponse, IChatStreamChunk, IChatStreamEnd } from '@writing-tools/shared';
+import { EStreamingErrorType } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
@@ -208,6 +209,30 @@ describe('ChatService', () => {
 
       expect(onErrorChange).toHaveBeenCalled();
     });
+
+    it('preserves streaming error as message when loadChatMessages returns user-only (race)', async () => {
+      (chatService as unknown as { error: string | null }).error = 'Streaming error: fetch failed';
+      (chatService as unknown as { errorType: EStreamingErrorType }).errorType = EStreamingErrorType.NETWORK;
+
+      mockIpcAdapter.invoke.mockResolvedValue({
+        messages: [{ id: '1', role: 'user', content: 'Hello', timestamp: new Date() }],
+      });
+
+      const onMessagesChange = jest.fn();
+      const onLoadingChange = jest.fn();
+      chatService.setCallbacks({ onMessagesChange, onLoadingChange });
+
+      await chatService.loadChatMessages(1);
+
+      const finalMessages = onMessagesChange.mock.calls.at(-1)?.[0] as IChatMessage[];
+      expect(finalMessages).toHaveLength(2);
+      expect(finalMessages[1]).toMatchObject({
+        content: 'Error: fetch failed',
+        errorType: EStreamingErrorType.NETWORK,
+        role: 'assistant',
+      });
+      expect(onLoadingChange).toHaveBeenLastCalledWith(false);
+    });
   });
 
   describe('getMessages', () => {
@@ -351,11 +376,12 @@ describe('ChatService', () => {
       expect(onMessagesChange).toHaveBeenCalled();
     });
 
-    it('handles Ollama response with error', () => {
+    it('handles Ollama response with error and calls onErrorChange for chat UI banner', () => {
       chatService.initializeListeners();
 
+      const onErrorChange = jest.fn();
       const onMessagesChange = jest.fn();
-      chatService.setCallbacks({ onMessagesChange });
+      chatService.setCallbacks({ onErrorChange, onMessagesChange });
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const responseCallback = (mockIpcAdapter.onOllamaResponse as jest.Mock).mock.calls[0]?.[0] as (response?: TChatResponse) => void;
@@ -364,7 +390,24 @@ describe('ChatService', () => {
 
       jest.advanceTimersByTime(100);
 
+      expect(onErrorChange).toHaveBeenCalledWith('Streaming error: Test error', EStreamingErrorType.STREAMING);
       expect(onMessagesChange).toHaveBeenCalled();
+    });
+
+    it('classifies fetch failed as NETWORK error type in Ollama response', () => {
+      chatService.initializeListeners();
+
+      const onErrorChange = jest.fn();
+      chatService.setCallbacks({ onErrorChange });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const responseCallback = (mockIpcAdapter.onOllamaResponse as jest.Mock).mock.calls[0]?.[0] as (response?: TChatResponse) => void;
+
+      responseCallback({ error: 'fetch failed' });
+
+      jest.advanceTimersByTime(100);
+
+      expect(onErrorChange).toHaveBeenCalledWith('Streaming error: fetch failed', EStreamingErrorType.NETWORK);
     });
 
     it('does not add duplicate assistant message when last message is already assistant (prompt select race)', () => {
@@ -615,12 +658,78 @@ describe('ChatService', () => {
       // Send stream end with error
       streamEndCallback({
         chatId: 1,
-        fullContent: '',
         error: 'Connection failed',
+        fullContent: '',
       });
 
-      expect(onErrorChange).toHaveBeenCalledWith('Streaming error: Connection failed');
+      expect(onErrorChange).toHaveBeenCalledWith('Streaming error: Connection failed', EStreamingErrorType.STREAMING);
       expect(onLoadingChange).toHaveBeenCalledWith(false);
+    });
+
+    it('passes errorType to onErrorChange when stream end has error', () => {
+      chatService.initializeListeners();
+
+      const onErrorChange = jest.fn();
+      chatService.setCallbacks({ onErrorChange });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const messagesCallback = (mockIpcAdapter.onChatLoadMessagesData as jest.Mock).mock.calls[0]?.[0] as (
+        data: { chatId: number, messages: IChatMessage[] },
+      ) => void;
+
+      messagesCallback({ chatId: 1, messages: [] });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const streamEndCallback = (mockIpcAdapter.onChatStreamEnd as jest.Mock).mock.calls[0]?.[0] as (
+        data: IChatStreamEnd,
+      ) => void;
+
+      (chatService as unknown as { currentChatId: number | null }).currentChatId = 1;
+
+      streamEndCallback({
+        chatId: 1,
+        error: 'fetch failed',
+        errorType: EStreamingErrorType.NETWORK,
+        fullContent: '',
+      });
+
+      expect(onErrorChange).toHaveBeenCalledWith('Streaming error: fetch failed', EStreamingErrorType.NETWORK);
+    });
+
+    it('adds error message when CHAT_LOAD_MESSAGES_DATA removed placeholder before stream end (race)', () => {
+      chatService.initializeListeners();
+
+      const onMessagesChange = jest.fn();
+      chatService.setCallbacks({ onMessagesChange });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const messagesCallback = (mockIpcAdapter.onChatLoadMessagesData as jest.Mock).mock.calls[0]?.[0] as (
+        data: { chatId: number, messages: IChatMessage[] },
+      ) => void;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const streamEndCallback = (mockIpcAdapter.onChatStreamEnd as jest.Mock).mock.calls[0]?.[0] as (
+        data: IChatStreamEnd,
+      ) => void;
+
+      messagesCallback({ chatId: 1, messages: [{ id: '1', role: 'user', content: 'Hello', timestamp: new Date() }] });
+
+      (chatService as unknown as { currentChatId: number | null }).currentChatId = 1;
+      (chatService as unknown as { streamingMessageId: string | null }).streamingMessageId = 'placeholder-1';
+
+      streamEndCallback({
+        chatId: 1,
+        error: 'fetch failed',
+        errorType: EStreamingErrorType.NETWORK,
+        fullContent: '',
+      });
+
+      const finalMessages = onMessagesChange.mock.calls.at(-1)?.[0] as IChatMessage[];
+      expect(finalMessages).toHaveLength(2);
+      expect(finalMessages[1]).toMatchObject({
+        content: 'Error: fetch failed',
+        errorType: EStreamingErrorType.NETWORK,
+        role: 'assistant',
+      });
     });
 
     it('ignores stream end events for different chat', () => {
@@ -749,7 +858,7 @@ describe('ChatService', () => {
       const result = await chatService.retryLastMessage();
 
       expect(result).toBe('Request already processing');
-      expect(onErrorChange).toHaveBeenCalledWith('Failed to send message: Request already processing');
+      expect(onErrorChange).toHaveBeenCalledWith('Failed to send message: Request already processing', EStreamingErrorType.STREAMING);
       const currentMessages = chatService.getMessages();
       expect(currentMessages).toHaveLength(2);
       expect(currentMessages[1]?.content).toBe('Error: Request already processing');

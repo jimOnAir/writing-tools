@@ -1,5 +1,5 @@
 import type { IChatMessage, ILogger, TIpcEvent } from '@writing-tools/shared';
-import { EIpcChannel, EIpcEvent, EIpcRendererEvent } from '@writing-tools/shared';
+import { classifyStreamingError, EIpcChannel, EIpcEvent, EIpcRendererEvent } from '@writing-tools/shared';
 import { ipcMain } from 'electron';
 
 import type { IChatService } from '../../domains/chat';
@@ -93,6 +93,7 @@ export class IpcMessageHandler implements IIpcMessageHandler {
             mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_END, {
               chatId,
               error: error.message,
+              errorType: classifyStreamingError(error.message),
               fullContent: error.fullContent,
             });
           } else {
@@ -101,6 +102,7 @@ export class IpcMessageHandler implements IIpcMessageHandler {
             mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_END, {
               chatId,
               error: errorText,
+              errorType: classifyStreamingError(errorText),
               fullContent: '',
             });
           }

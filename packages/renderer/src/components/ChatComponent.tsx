@@ -1,4 +1,5 @@
 import type { IChatInfo, IChatMessage, IPreconfiguredPrompt, ISettings } from '@writing-tools/shared';
+import { EStreamingErrorType } from '@writing-tools/shared';
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 
 import type { ChatService } from '../domains/chat';
@@ -21,6 +22,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<EStreamingErrorType | undefined>(undefined);
   const [_, setIsHandlingResponse] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [chatTitle, setChatTitle] = useState<string | null>(null);
@@ -43,8 +45,16 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
 
   // Register callbacks
   useEffect(() => {
+    const initialError = chatService.getError();
+    if (initialError !== null) {
+      setError(initialError);
+      setErrorType(chatService.getErrorType());
+    }
     chatService.setCallbacks({
-      onErrorChange: setError,
+      onErrorChange: (msg, type) => {
+        setError(msg);
+        setErrorType(type);
+      },
       onFollowUpQuestionsChange: (dataChatId, questions) => {
         const currentChatId = chatId ?? chatService.getCurrentChatId();
         if (dataChatId === currentChatId) {
@@ -442,6 +452,18 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
               const isStreamingMessage = isStreaming && isLastMessage && message.role === 'assistant';
               const isErrorMessage = message.role === 'assistant' && message.content.startsWith('Error:');
               const messageBubbleStyle = isErrorMessage ? MessageStyles.error : MessageStyles[message.role];
+              let errorTypeLabel: string | null = null;
+              let errorDisplayContent = message.content;
+              if (isErrorMessage) {
+                if (message.errorType === EStreamingErrorType.NETWORK) {
+                  errorTypeLabel = 'Connection error';
+                  errorDisplayContent = 'Connection failed. Please ensure Ollama (or LM Studio) is running and reachable.';
+                } else if (message.errorType === EStreamingErrorType.STREAMING) {
+                  errorTypeLabel = 'Streaming error';
+                } else {
+                  errorTypeLabel = 'Error';
+                }
+              }
 
               return (
                 <div
@@ -454,11 +476,16 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
                     <div
                       className={`min-w-[200px] max-w-[80%] p-3 ${messageBubbleStyle}`}
                     >
+                      {errorTypeLabel !== null && (
+                        <div className={`text-xs font-medium ${ColorPalette.text.muted} mb-1`}>
+                          {errorTypeLabel}
+                        </div>
+                      )}
                       {/* TODO: long markdown doesn't fit */}
                       <div
                         className="whitespace-pre-wrap markdown-content markdown-message"
                         dangerouslySetInnerHTML={{
-                          __html: renderMarkdown(message.content) + (isStreamingMessage ? '<span class="streaming-cursor">▋</span>' : ''),
+                          __html: renderMarkdown(errorDisplayContent) + (isStreamingMessage ? '<span class="streaming-cursor">▋</span>' : ''),
                         }}
                       />
                       {!isStreamingMessage && (
@@ -601,7 +628,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
         )}
       </div>
 
-      {error && (
+      {error !== null && !error.startsWith('Streaming error:') && (
         <div className={`${NotificationStyles.errorInline} mb-3 flex-shrink-0`}>
           {error}
         </div>
