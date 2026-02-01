@@ -1,12 +1,13 @@
-import type { IChatMessage, ILogger, IMessageStatistics, TIpcEvent } from '@writing-tools/shared';
+import type { IChatMessage, ILogger, TIpcEvent } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent, EIpcRendererEvent } from '@writing-tools/shared';
 import { ipcMain } from 'electron';
 
 import type { IChatService } from '../../domains/chat';
-import type { IMessageService } from '../../domains/chat/IMessageService';
 import type { IFollowUpQuestionsService } from '../../domains/chat/IFollowUpQuestionsService';
+import type { ILlmStreamingService } from '../../domains/chat/ILlmStreamingService';
+import type { IMessageService } from '../../domains/chat/IMessageService';
 import type { ITitleGenerationService } from '../../domains/chat/ITitleGenerationService';
-import type { IModelService } from '../../domains/llm';
+import { LlmStreamingError } from '../../domains/chat/LlmStreamingError';
 import type { ISettingsService } from '../../domains/settings/ISettingsService';
 import type { IWindowService } from '../../domains/windows';
 
@@ -22,8 +23,8 @@ export class IpcMessageHandler implements IIpcMessageHandler {
     private readonly chatService: IChatService,
     private readonly followUpQuestionsService: IFollowUpQuestionsService,
     private readonly logger: ILogger,
+    private readonly llmStreamingService: ILlmStreamingService,
     private readonly messageService: IMessageService,
-    private readonly modelService: IModelService,
     private readonly settingsService: ISettingsService,
     private readonly titleGenerationService: ITitleGenerationService,
     private readonly windowService: IWindowService,
@@ -52,7 +53,6 @@ export class IpcMessageHandler implements IIpcMessageHandler {
     messages: IChatMessage[],
     override: { model?: string, provider?: 'ollama' | 'lmstudio' },
   ) {
-    // Prevent duplicate processing for the same chatId
     if (this.processingChatIds.has(chatId)) {
       this.logger.warn('handleChatSendMessageStream: Already processing chatId=%s, ignoring duplicate request', String(chatId));
 
@@ -61,31 +61,68 @@ export class IpcMessageHandler implements IIpcMessageHandler {
     this.processingChatIds.add(chatId);
 
     try {
-      // Save all messages before sending to LLM
       for (const message of messages) {
         try {
           this.messageService.saveMessage(chatId, message);
         } catch (error: unknown) {
           const errorText = error instanceof Error ? error.message : String(error);
           this.logger.error('Failed to save message before streaming: %s', errorText);
-          // Continue even if save fails
         }
       }
 
-      // Persist model override to chat for restore on reopen
       if (override.model !== undefined && override.model !== '') {
         const settings = await this.settingsService.loadSettings();
         const provider = override.provider ?? (settings.provider ?? 'ollama');
         this.chatService.updateChatModel(chatId, override.model, provider);
       }
 
-      // Get the main window to send stream events
       const { window: mainWindow } = await this.windowService.getMainWindow();
 
-      // Start streaming in the background
-      void this.streamLLMResponse(chatId, messages, mainWindow, override);
+      void this.llmStreamingService
+        .streamToWindow({
+          chatId,
+          mainWindow,
+          messages: messages.map((m) => ({ content: m.content, role: m.role })),
+          override,
+        })
+        .then((result) => {
+          mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_END, {
+            chatId,
+            fullContent: result.fullContent,
+          });
 
-      // Return immediately to indicate streaming has started
+          void this.titleGenerationService.generateTitleIfNeeded(chatId);
+
+          const assistantMessage: IChatMessage = {
+            content: result.fullContent,
+            id: `${Date.now().toString()}-response`,
+            role: 'assistant',
+            statistics: result.statistics,
+            timestamp: new Date(),
+          };
+          void this.generateAndSendFollowUpQuestions(chatId, [...messages, assistantMessage], mainWindow);
+        })
+        .catch((error: unknown) => {
+          if (error instanceof LlmStreamingError) {
+            mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_END, {
+              chatId,
+              error: error.message,
+              fullContent: error.fullContent,
+            });
+          } else {
+            const errorText = error instanceof Error ? error.message : String(error);
+            this.logger.error('Failed to start streaming: %s', errorText);
+            mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_END, {
+              chatId,
+              error: errorText,
+              fullContent: '',
+            });
+          }
+        })
+        .finally(() => {
+          this.processingChatIds.delete(chatId);
+        });
+
       return { started: true } as const;
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
@@ -93,99 +130,6 @@ export class IpcMessageHandler implements IIpcMessageHandler {
       this.processingChatIds.delete(chatId);
 
       return { error: errorText, started: false } as const;
-    }
-  }
-
-  private async streamLLMResponse( // TODO: move to separate service
-    chatId: number,
-    messages: IChatMessage[],
-    mainWindow: Electron.BrowserWindow,
-    override: { model?: string, provider?: 'ollama' | 'lmstudio' },
-  ): Promise<void> {
-    let fullContent = '';
-    let statistics: IMessageStatistics | undefined;
-
-    try {
-      const chat = this.chatService.getChat(chatId);
-      let streamOptions: { model: string, provider: 'ollama' | 'lmstudio' } | undefined;
-      if (override.model !== undefined && override.model !== '') {
-        const settings = await this.settingsService.loadSettings();
-        streamOptions = {
-          model: override.model,
-          provider: override.provider ?? (settings.provider ?? 'ollama'),
-        };
-      } else if (chat !== null) {
-        streamOptions = {
-          model: chat.model,
-          provider: chat.provider as 'ollama' | 'lmstudio',
-        };
-      }
-      const streamGenerator = this.modelService.sendMessagesStream(messages.map((message => {
-        return {
-          role: message.role,
-          content: message.content,
-        };
-      })), streamOptions);
-
-      for await (const chunk of streamGenerator) {
-        fullContent += chunk.content;
-
-        // Capture statistics from the final chunk
-        if (chunk.done && 'statistics' in chunk && chunk.statistics !== undefined) {
-          statistics = chunk.statistics;
-        }
-
-        // Send chunk to renderer with statistics if available
-        mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_CHUNK, {
-          chatId,
-          content: chunk.content,
-          done: chunk.done,
-          statistics: 'statistics' in chunk ? chunk.statistics : undefined,
-        });
-      }
-
-      // Save assistant response
-      const trimmedContent = fullContent.trimEnd();
-      const assistantMessage: IChatMessage = {
-        id: `${Date.now().toString()}-response`,
-        role: 'assistant',
-        content: trimmedContent,
-        timestamp: new Date(),
-        statistics,
-      };
-
-      try {
-        this.messageService.saveMessage(chatId, assistantMessage);
-      } catch (error: unknown) {
-        const errorText = error instanceof Error ? error.message : String(error);
-        this.logger.error('Failed to save streamed assistant response: %s', errorText);
-      }
-
-      // Send stream end event
-      mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_END, {
-        chatId,
-        fullContent: trimmedContent,
-      });
-
-      this.logger.info('Streaming completed for chatId=%s', String(chatId));
-
-      // Generate title after first exchange
-      void this.titleGenerationService.generateTitleIfNeeded(chatId);
-
-      // Generate follow-up questions (last user + last assistant); push to renderer when done
-      void this.generateAndSendFollowUpQuestions(chatId, [...messages, assistantMessage], mainWindow);
-    } catch (error: unknown) {
-      const errorText = error instanceof Error ? error.message : String(error);
-      this.logger.error('Streaming error for chatId=%s: %s', String(chatId), errorText);
-
-      // Send error to renderer
-      mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_END, {
-        chatId,
-        error: errorText,
-        fullContent,
-      });
-    } finally {
-      this.processingChatIds.delete(chatId);
     }
   }
 

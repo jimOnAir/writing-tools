@@ -34,6 +34,7 @@ interface LMStudioChatRequest {
   model: string;
   messages: ChatMessage[];
   stream: boolean;
+  stream_options?: { include_usage?: boolean };
 }
 
 interface LMStudioStreamChunkData {
@@ -151,6 +152,7 @@ export class LMStudioClient {
         model,
         messages,
         stream: true,
+        stream_options: { include_usage: true },
       };
 
       const response = await fetch(url, {
@@ -204,6 +206,21 @@ export class LMStudioClient {
 
             try {
               const data = JSON.parse(jsonStr) as LMStudioStreamChunkData;
+
+              // Handle usage-only chunk (stream_options.include_usage sends final chunk with empty choices)
+              if (data.choices.length === 0 && data.usage !== undefined) {
+                statistics = {
+                  generatedAt: new Date(),
+                  lmstudio: {
+                    completionTokens: data.usage.completion_tokens,
+                    promptTokens: data.usage.prompt_tokens,
+                    totalTokens: data.usage.total_tokens,
+                  },
+                  model: data.model,
+                  provider: 'lmstudio',
+                };
+                continue;
+              }
 
               if (data.choices.length > 0) {
                 const choice = data.choices[0];

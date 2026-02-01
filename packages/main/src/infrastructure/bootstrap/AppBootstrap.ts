@@ -8,9 +8,11 @@ import { TitleGenerationService } from 'src/domains/chat/TitleGenerationService'
 import type { IChatRepository, IChatService } from '../../domains/chat';
 import { ChatRepository, ChatService } from '../../domains/chat';
 import type { IFollowUpQuestionsService } from '../../domains/chat/IFollowUpQuestionsService';
+import type { ILlmStreamingService } from '../../domains/chat/ILlmStreamingService';
 import type { IMessageRepository } from '../../domains/chat/IMessageRepository';
 import type { IMessageService } from '../../domains/chat/IMessageService';
 import type { ITitleGenerationService } from '../../domains/chat/ITitleGenerationService';
+import { LlmStreamingService } from '../../domains/chat/LlmStreamingService';
 import { MessageRepository } from '../../domains/chat/MessageRepository';
 import { MessageService } from '../../domains/chat/MessageService';
 import type { ILMStudioModelService, IModelService, IOllamaModelService } from '../../domains/llm';
@@ -52,6 +54,7 @@ export class AppBootstrap {
   private readonly dbConnection: DatabaseConnection;
   private readonly followUpQuestionsService: IFollowUpQuestionsService;
   private readonly ipcChatHandler: IIpcChatHandler;
+  private readonly llmStreamingService: ILlmStreamingService;
   private readonly ipcEnvHandler: IIpcEnvHandler;
   private readonly ipcMessageHandler: IIpcMessageHandler;
   private readonly ipcModelHandler: IIpcModelHandler;
@@ -114,6 +117,13 @@ export class AppBootstrap {
     this.chatService = new ChatService(
       this.chatRepository,
     );
+    this.llmStreamingService = new LlmStreamingService(
+      this.chatService,
+      this.logger,
+      this.messageService,
+      this.modelService,
+      this.settingsService,
+    );
 
     this.ipcEnvHandler = new IpcEnvHandler();
     this.ipcSettingsHandler = new IpcSettingsHandler(this.settingsService);
@@ -131,12 +141,13 @@ export class AppBootstrap {
     );
     this.ipcPromptSelectorHandler = new IpcPromptSelectorHandler(
       this.chatService,
-      this.settingsService,
-      this.windowService,
-      this.modelService,
+      this.followUpQuestionsService,
       this.logger,
+      this.llmStreamingService,
       this.messageService,
+      this.settingsService,
       this.titleGenerationService,
+      this.windowService,
     );
     this.ipcChatHandler = new IpcChatHandler(
       this.chatService,
@@ -156,8 +167,8 @@ export class AppBootstrap {
       this.chatService,
       this.followUpQuestionsService,
       this.logger,
+      this.llmStreamingService,
       this.messageService,
-      this.modelService,
       this.settingsService,
       this.titleGenerationService,
       this.windowService,

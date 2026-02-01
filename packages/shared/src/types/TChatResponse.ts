@@ -1,6 +1,9 @@
+import type { IMessageStatistics } from '../interfaces/IMessageStatistics';
+
 export type TChatSuccessResponse = {
   chatId?: number,
   result: string,
+  statistics?: IMessageStatistics,
 };
 
 export type TChatFailedResponse = {

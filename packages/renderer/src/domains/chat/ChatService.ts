@@ -128,6 +128,13 @@ export class ChatService {
         this.logger.info('Ignoring chatId from response: chatId=%s (not handling response for this service)', String(response.chatId));
       }
 
+      // Only process if this response is for our chat
+      if (response.chatId !== undefined && this.currentChatId !== null && response.chatId !== this.currentChatId) {
+        this.logger.info('Ignoring OLLAMA_RESPONSE: chatId=%s does not match currentChatId=%s', String(response.chatId), String(this.currentChatId));
+
+        return;
+      }
+
       this.setHandlingResponse(true);
 
       // Handle error response
@@ -156,6 +163,10 @@ export class ChatService {
         const lastMessage = this.messages.at(-1);
         if (lastMessage !== undefined && lastMessage.role === 'assistant') {
           this.logger.info('Skipping duplicate assistant message: last message is already assistant');
+          // Merge statistics if we have them in the response but the message lacks them (e.g. race: loadChatMessages returned before statistics were saved)
+          if (response.statistics !== undefined && lastMessage.statistics === undefined) {
+            this.updateMessageStatistics(lastMessage.id, response.statistics);
+          }
           this.setLoading(false);
           setTimeout(() => {
             this.setHandlingResponse(false);
@@ -165,9 +176,10 @@ export class ChatService {
         }
 
         const assistantMessage: IChatMessage = {
+          content: response.result,
           id: `${Date.now().toString()}-response`,
           role: 'assistant',
-          content: response.result,
+          statistics: response.statistics,
           timestamp: new Date(),
         };
 
@@ -866,6 +878,17 @@ export class ChatService {
   private setStreaming(isStreaming: boolean): void {
     this.isStreaming = isStreaming;
     this.onStreamingChange?.(isStreaming);
+  }
+
+  private updateMessageStatistics(messageId: string, statistics: IMessageStatistics): void {
+    const updatedMessages = this.messages.map(msg =>
+      msg.id === messageId
+        ? { ...msg, statistics }
+        : msg,
+    );
+
+    this.messages = updatedMessages;
+    this.onMessagesChange?.(this.messages);
   }
 
   private updateStreamingMessage(content: string, statistics?: IMessageStatistics): void {
