@@ -12,7 +12,7 @@ export class FollowUpQuestionsService {
 
   public async generate(messages: IChatMessage[], chatId?: number | null): Promise<string[]> {
     if (messages.length < 2) {
-      this.logger.debug('Follow-up questions skipped: need at least 2 messages (user + assistant), got %d', messages.length);
+      this.logger.debug('Follow-up questions skipped: need at least 2 messages (user + assistant), got %d', messages.length.toString());
 
       return [];
     }
@@ -43,7 +43,7 @@ export class FollowUpQuestionsService {
 
       const questions = this.parseQuestions(response.response);
 
-      this.logger.info('Generated %d follow-up questions for chatId=%s', questions.length, String(chatId ?? 'unknown'));
+      this.logger.info('Generated %d follow-up questions for chatId=%s', questions.length.toString(), String(chatId ?? 'unknown'));
 
       return questions;
     } catch (error: unknown) {
