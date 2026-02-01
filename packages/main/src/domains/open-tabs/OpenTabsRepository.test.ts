@@ -78,9 +78,14 @@ describe('OpenTabsRepository', () => {
       }),
     });
 
+    // Support loadOpenTabs: select().from(openTabs).all() and saveOpenTabs: select().from(chats).where().all()
     mockDrizzleDb.select.mockReturnValue({
       from: jest.fn().mockReturnValue({
+        all: jest.fn().mockReturnValue([]),
         orderBy: jest.fn().mockReturnValue({
+          all: jest.fn().mockReturnValue([]),
+        }),
+        where: jest.fn().mockReturnValue({
           all: jest.fn().mockReturnValue([]),
         }),
       }),
@@ -97,6 +102,15 @@ describe('OpenTabsRepository', () => {
         { chatId: 2, tabOrder: 1, isActive: false },
         { chatId: null, tabOrder: 2, isActive: false },
       ];
+      mockDrizzleDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          all: jest.fn().mockReturnValue([]),
+          orderBy: jest.fn().mockReturnValue({ all: jest.fn().mockReturnValue([]) }),
+          where: jest.fn().mockReturnValue({
+            all: jest.fn().mockReturnValue([{ id: 1 }, { id: 2 }]),
+          }),
+        }),
+      });
 
       repository.saveOpenTabs(tabs);
 
@@ -106,6 +120,15 @@ describe('OpenTabsRepository', () => {
     });
 
     it('should clear existing tabs before saving new ones', () => {
+      mockDrizzleDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          all: jest.fn().mockReturnValue([]),
+          orderBy: jest.fn().mockReturnValue({ all: jest.fn().mockReturnValue([]) }),
+          where: jest.fn().mockReturnValue({
+            all: jest.fn().mockReturnValue([{ id: 1 }]),
+          }),
+        }),
+      });
       const tabs: TOpenTab[] = [
         { chatId: 1, tabOrder: 0, isActive: true },
       ];
@@ -124,6 +147,15 @@ describe('OpenTabsRepository', () => {
     });
 
     it('should convert isActive boolean to integer', () => {
+      mockDrizzleDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          all: jest.fn().mockReturnValue([]),
+          orderBy: jest.fn().mockReturnValue({ all: jest.fn().mockReturnValue([]) }),
+          where: jest.fn().mockReturnValue({
+            all: jest.fn().mockReturnValue([{ id: 1 }, { id: 2 }]),
+          }),
+        }),
+      });
       const tabs: TOpenTab[] = [
         { chatId: 1, tabOrder: 0, isActive: true },
         { chatId: 2, tabOrder: 1, isActive: false },
@@ -143,6 +175,35 @@ describe('OpenTabsRepository', () => {
 
       expect(valuesCall[0].isActive).toBe(1);
       expect(valuesCall[1].isActive).toBe(0);
+    });
+
+    it('should skip tabs with non-existent chatId and log warning', () => {
+      const mockWhereAll = jest.fn().mockReturnValue([]);
+      const mockFrom = jest.fn().mockReturnValue({
+        all: jest.fn().mockReturnValue([]),
+        orderBy: jest.fn().mockReturnValue({ all: jest.fn().mockReturnValue([]) }),
+        where: jest.fn().mockReturnValue({ all: mockWhereAll }),
+      });
+      mockDrizzleDb.select.mockReturnValue({ from: mockFrom });
+
+      const tabs: TOpenTab[] = [
+        { chatId: 1, tabOrder: 0, isActive: true },
+        { chatId: 999, tabOrder: 1, isActive: false },
+        { chatId: null, tabOrder: 2, isActive: false },
+      ];
+      // Simulate only chat id 1 exists in DB
+      mockWhereAll.mockReturnValueOnce([{ id: 1 }]);
+
+      repository.saveOpenTabs(tabs);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Skipped %s tab(s) with non-existent chatId to avoid FOREIGN KEY violation',
+        '1',
+      );
+      expect(mockDrizzleDb.insert).toHaveBeenCalled();
+      const insertedValues = mockDrizzleDb.insert.mock.results[0].value.values.mock.calls[0][0];
+      expect(insertedValues).toHaveLength(2);
+      expect(insertedValues.map((v: { chatId: number | null }) => v.chatId)).toEqual([1, null]);
     });
   });
 

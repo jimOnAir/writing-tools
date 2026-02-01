@@ -766,6 +766,25 @@ describe('MultiChatService', () => {
   });
 
   describe('Keyboard shortcuts', () => {
+    it('creates new chat tab and switches to it when Ctrl+N is pressed', () => {
+      multiChatService.initializeListeners();
+
+      const initialCount = multiChatService.getAllTabs().length;
+
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'n', ctrlKey: true, bubbles: true }),
+      );
+
+      expect(multiChatService.getAllTabs()).toHaveLength(initialCount + 1);
+      const activeTabId = multiChatService.getActiveTabId();
+      expect(activeTabId).not.toBeNull();
+      const activeTab = multiChatService.getActiveTab();
+      expect(activeTab).not.toBeNull();
+      expect(activeTab?.tabId).toBe(activeTabId);
+
+      multiChatService.cleanupListeners();
+    });
+
     // Tests for Ctrl+W functionality
     it('closes current chat tab when Ctrl+W is pressed (when tabs exist)', async () => {
       const initialTabCount = multiChatService.getAllTabs().length;
@@ -922,7 +941,7 @@ describe('MultiChatService', () => {
       expect(multiChatService.getAllTabs().length).toBe(1);
 
       // Call removeEmptyTabs - this should remove the empty tab
-      (multiChatService as any).removeEmptyTabs(true); // allow removing last tab
+      multiChatService.removeEmptyTabs(true); // allow removing last tab
 
       // After removal we have 0 tabs (no auto-creation of new tab)
       const tabs = multiChatService.getAllTabs();

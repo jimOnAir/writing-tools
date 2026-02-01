@@ -1,8 +1,8 @@
 import type { ILogger } from '@writing-tools/shared';
-import { asc, eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import type { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
-import { openTabs } from '../../infrastructure/database/schema';
+import { chats, openTabs } from '../../infrastructure/database/schema';
 
 import type { IOpenTabsRepository, TOpenTab } from './IOpenTabsRepository';
 
@@ -16,16 +16,38 @@ export class OpenTabsRepository implements IOpenTabsRepository {
     const db = this.dbConnection.getDatabase();
     const now = new Date().toISOString();
 
+    // Only persist tabs whose chatId is null or exists in chats (avoid FOREIGN KEY violation)
+    const nonNullChatIds = [...new Set(
+      tabs.map(tab => tab.chatId).filter((id): id is number => id !== null),
+    )];
+    let existingChatIds = new Set<number>();
+    if (nonNullChatIds.length > 0) {
+      const rows = db.select({ id: chats.id })
+        .from(chats)
+        .where(inArray(chats.id, nonNullChatIds))
+        .all();
+      existingChatIds = new Set(rows.map(row => row.id));
+    }
+    const validTabs = tabs.filter(
+      tab => tab.chatId === null || existingChatIds.has(tab.chatId),
+    );
+    if (validTabs.length < tabs.length) {
+      this.logger.warn(
+        'Skipped %s tab(s) with non-existent chatId to avoid FOREIGN KEY violation',
+        String(tabs.length - validTabs.length),
+      );
+    }
+
     // Delete all existing tabs first
     db.delete(openTabs)
       .run();
-    if (tabs.length === 0) {
+    if (validTabs.length === 0) {
       return;
     }
     // Insert open tabs (tabOrder >= 0) and scroll-only rows (tabOrder === -1) for closed chats
     db.insert(openTabs)
       .values(
-        tabs.map(tab => ({
+        validTabs.map(tab => ({
           chatId: tab.chatId,
           createdAt: now,
           isActive: tab.isActive ? 1 : 0,
@@ -34,7 +56,7 @@ export class OpenTabsRepository implements IOpenTabsRepository {
         })),
       ).run();
 
-    this.logger.info('Saved %s open tabs', tabs.length.toString());
+    this.logger.info('Saved %s open tabs', validTabs.length.toString());
   }
 
   public loadOpenTabs(): { openTabs: TOpenTab[], scrollPositionsByChatId: Record<number, number> } {
@@ -59,7 +81,9 @@ export class OpenTabsRepository implements IOpenTabsRepository {
           scrollPosition: row.scrollPosition,
           tabOrder: row.tabOrder,
         });
-      } else if (row.chatId !== null) {
+      } else if (row.chatId === null) {
+        // Scroll-only row with null chatId is skipped
+      } else {
         scrollPositionsByChatId[row.chatId] = row.scrollPosition;
       }
     }

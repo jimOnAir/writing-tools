@@ -17,8 +17,6 @@ export interface ITabInfo {
   removeTitleChangeCallback?: () => void;
 }
 
-// TODO: create new chat with CTRL+N
-
 /**
  * Service for managing multiple chat tabs
  * Handles tab creation, switching, closing, and IPC event routing
@@ -140,7 +138,12 @@ export class MultiChatService {
 
     const handleKeydown = (event: KeyboardEvent) => {
       const isCtrlPressed = event.ctrlKey || event.metaKey;
-      if (isCtrlPressed && event.key === 'w') {
+      if (isCtrlPressed && event.key === 'n') {
+        event.preventDefault();
+        this.logger.info('Ctrl+N pressed, creating new chat tab');
+        const newTab = this.createNewChatTab();
+        this.switchToTab(newTab.tabId);
+      } else if (isCtrlPressed && event.key === 'w') {
         event.preventDefault();
 
         const activeTab = this.getActiveTab();
@@ -616,6 +619,23 @@ export class MultiChatService {
 
     // Save tabs to database after reorder
     this.saveTabsIfNotRestoring();
+  }
+
+  /**
+   * Remove tabs that are empty (new chat with no messages).
+   * When allowRemovingLastTab is false, does not remove empty tabs if that would leave zero tabs.
+   */
+  public removeEmptyTabs(allowRemovingLastTab = false): void {
+    const emptyTabIds = this.tabs.filter(t => this.isTabEmpty(t)).map(t => t.tabId);
+    if (emptyTabIds.length === 0) {
+      return;
+    }
+    if (!allowRemovingLastTab && emptyTabIds.length >= this.tabs.length) {
+      return;
+    }
+    for (const tabId of emptyTabIds) {
+      this.closeChatTab(tabId);
+    }
   }
 
   /**

@@ -21,7 +21,9 @@ export class DbWatcherMessageSubscriber {
 
   public subscribe(): void {
     this.dbWatcherService.on(MESSAGES_TABLE, (value: TTableEvent) => {
-      void this.handleMessagesEvent(value);
+      setImmediate(() => {
+        void this.handleMessagesEvent(value);
+      });
     });
     this.logger.info('DbWatcherMessageSubscriber subscribed to %s events', MESSAGES_TABLE);
   }
