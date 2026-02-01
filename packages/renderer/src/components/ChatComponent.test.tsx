@@ -109,7 +109,7 @@ describe('ChatComponent', () => {
 
     expect(screen.getByText('No messages yet')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Type your message...')).toBeInTheDocument();
-    expect(screen.getByText('Send')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
   });
 
   test('shows prompt-selector UI when chatService has prompt data (selectedText)', () => {
@@ -145,7 +145,7 @@ describe('ChatComponent', () => {
     render(<ChatComponent chatId={null} chatService={mockChatService} settingsService={mockSettingsService} />);
 
     const textarea = screen.getByPlaceholderText('Type your message...');
-    const sendButton = screen.getByText('Send');
+    const sendButton = screen.getByRole('button', { name: 'Send' });
 
     // Type a message and send it
     fireEvent.change(textarea, { target: { value: 'Hello!' } });
@@ -171,7 +171,7 @@ describe('ChatComponent', () => {
     render(<ChatComponent chatId={null} chatService={mockChatService} settingsService={mockSettingsService} />);
 
     const textarea = screen.getByPlaceholderText('Type your message...');
-    const sendButton = screen.getByText('Send');
+    const sendButton = screen.getByRole('button', { name: 'Send' });
 
     // Type a message and send it
     fireEvent.change(textarea, { target: { value: 'Test message' } });
@@ -608,7 +608,7 @@ describe('ChatComponent', () => {
     render(<ChatComponent chatId={null} chatService={mockChatService} settingsService={mockSettingsService} />);
 
     const textarea = screen.getByPlaceholderText('Type your message...');
-    const sendButton = screen.getByText('Send');
+    const sendButton = screen.getByRole('button', { name: 'Send' });
 
     // Empty input
     fireEvent.change(textarea, { target: { value: '' } });
@@ -634,7 +634,7 @@ describe('ChatComponent', () => {
     render(<ChatComponent chatId={null} chatService={mockChatService} settingsService={mockSettingsService} />);
 
     const textarea = screen.getByPlaceholderText('Type your message...');
-    const sendButton = screen.getByText('Send');
+    const sendButton = screen.getByRole('button', { name: 'Send' });
 
     fireEvent.change(textarea, { target: { value: 'Message while loading' } });
 
@@ -661,7 +661,7 @@ describe('ChatComponent', () => {
     render(<ChatComponent chatId={null} chatService={mockChatService} settingsService={mockSettingsService} />);
 
     const textarea = screen.getByPlaceholderText('Type your message...');
-    const sendButton = screen.getByText('Send');
+    const sendButton = screen.getByRole('button', { name: 'Send' });
 
     fireEvent.change(textarea, { target: { value: 'Message that fails' } });
     fireEvent.click(sendButton);

@@ -7,6 +7,7 @@ import { BackgroundStyles, ButtonSizeStyles, ButtonStyles, CardStyles, ColorPale
 import { formatStatistics } from '../utils/formatStatistics';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
+import { SendIcon } from './icons';
 import { Tooltip } from './Tooltip';
 
 interface ChatComponentProps {
@@ -370,31 +371,36 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
         </div>
 
         <h2 className={TypographyStyles.h3}>Or enter your own prompt</h2>
-        <div className={LayoutStyles.inputGroup}>
-          <textarea
-            className={`${InputStyles} resize-none`}
-            onChange={(e) => {
-              setCustomPrompt(e.target.value);
-            }}
-            onKeyDown={handlePromptKeyPress}
-            placeholder="Enter your custom prompt..."
-            rows={2}
-            value={customPrompt}
-          />
-          <button
-            className={`${ButtonStyles.base} ${ButtonSizeStyles.default} ${
-              customPrompt.trim() === ''
-                ? ButtonStyles.disabled
-                : ButtonStyles.primary
-            } whitespace-nowrap`}
-            disabled={customPrompt.trim() === ''}
-            onClick={() => {
-              void handleCustomPromptSubmit();
-            }}
-            type="button"
-          >
-            Send
-          </button>
+        <div className={`${LayoutStyles.inputGroup} w-full`}>
+          <div className="min-w-0 flex-1">
+            <textarea
+              className={`${InputStyles} w-full resize-none`}
+              onChange={(e) => {
+                setCustomPrompt(e.target.value);
+              }}
+              onKeyDown={handlePromptKeyPress}
+              placeholder="Enter your custom prompt..."
+              rows={4}
+              value={customPrompt}
+            />
+          </div>
+          <Tooltip content="Send">
+            <button
+              aria-label="Send"
+              className={`${ButtonStyles.base} ${ButtonSizeStyles.default} flex-shrink-0 ${
+                customPrompt.trim() === ''
+                  ? ButtonStyles.disabled
+                  : ButtonStyles.primary
+              } whitespace-nowrap`}
+              disabled={customPrompt.trim() === ''}
+              onClick={() => {
+                void handleCustomPromptSubmit();
+              }}
+              type="button"
+            >
+              <SendIcon size={20} />
+            </button>
+          </Tooltip>
         </div>
       </div>
     );
@@ -632,49 +638,55 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
         )}
       </div>
 
-      <div className={`${LayoutStyles.inputGroup} flex-shrink-0`}>
-        <textarea
-          value={inputValue}
-          ref={inputRef}
-          onChange={(e) => {
-            setInputValue(e.target.value);
-          }}
-          onCompositionStart={() => {
-            isComposingRef.current = true;
-          }}
-          onCompositionEnd={() => {
-            isComposingRef.current = false;
-          }}
-          onKeyDown={handleKeyPress}
-          placeholder="Type your message..."
-          className={`${InputStyles} resize-none`}
-          rows={2}
-          disabled={isLoading}
-        />
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            void handleSendMessage();
-          }}
-          disabled={isLoading || !inputValue.trim()}
-          className={`${ButtonStyles.base} ${ButtonSizeStyles.default} ${
-            isLoading || !inputValue.trim()
-              ? ButtonStyles.disabled
-              : ButtonStyles.primary
-          } whitespace-nowrap`}
-        >
-          {isLoading ? (
-            <span className="flex items-center">
-              <SpinnerIcon />
-              {/* TODO: Think on better naming  */}
-              Sending...
-            </span>
-          ) : (
-            'Send' // TODO: replace with icon
-          )}
-        </button>
+      <div className={`${LayoutStyles.inputGroup} flex-shrink-0 w-full`}>
+        <div className="min-w-0 flex-1">
+          <textarea
+            ref={inputRef}
+            value={inputValue}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+            }}
+            onCompositionStart={() => {
+              isComposingRef.current = true;
+            }}
+            onCompositionEnd={() => {
+              isComposingRef.current = false;
+            }}
+            onKeyDown={handleKeyPress}
+            placeholder="Type your message..."
+            className={`${InputStyles} w-full resize-none`}
+            rows={4}
+            disabled={isLoading}
+          />
+        </div>
+        <Tooltip content="Send">
+          <button
+            aria-label="Send"
+            className={`${ButtonStyles.base} ${ButtonSizeStyles.default} flex h-10 w-10 flex-shrink-0 items-center justify-center p-0 ${
+              isLoading || !inputValue.trim()
+                ? ButtonStyles.disabled
+                : ButtonStyles.primary
+            }`}
+            disabled={isLoading || !inputValue.trim()}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              void handleSendMessage();
+            }}
+            type="button"
+          >
+            {isLoading ? (
+              <span className="flex [&_svg]:m-0">
+                <SpinnerIcon />
+              </span>
+            ) : (
+              <SendIcon
+                className={`shrink-0 ${ColorPalette.text.primary}`}
+                size={20}
+              />
+            )}
+          </button>
+        </Tooltip>
       </div>
     </div>
   );
