@@ -3,7 +3,6 @@ export enum EIpcRendererEvent { // TODO: split to request - response and backend
   CHAT_DELETED = 'CHAT_DELETED',
   CHAT_FOLLOW_UP_QUESTIONS = 'CHAT_FOLLOW_UP_QUESTIONS',
   CHAT_LOAD_MESSAGES_DATA = 'CHAT_LOAD_MESSAGES_DATA',
-  CHAT_SAVE_TABS_REQUEST = 'CHAT_SAVE_TABS_REQUEST', // TODO: remove explicit requests, opened chats must be tracked on CHAT_OPEN
   CHAT_STREAM_CHUNK = 'CHAT_STREAM_CHUNK',
   CHAT_STREAM_END = 'CHAT_STREAM_END',
   CHAT_TITLE_UPDATED = 'CHAT_TITLE_UPDATED', // TODO: combine with CHAT_CREATED

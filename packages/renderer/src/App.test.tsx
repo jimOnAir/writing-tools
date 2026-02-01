@@ -42,8 +42,6 @@ const mockElectronAPI = {
   offChatCreated: jest.fn(),
   onChatDeleted: jest.fn(() => jest.fn()),
   offChatDeleted: jest.fn(),
-  onChatSaveTabsRequest: jest.fn(() => jest.fn()),
-  offChatSaveTabsRequest: jest.fn(),
   onChatStreamChunk: jest.fn(() => jest.fn()),
   offChatStreamChunk: jest.fn(),
   onChatStreamEnd: jest.fn(() => jest.fn()),

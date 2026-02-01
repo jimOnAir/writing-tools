@@ -30,7 +30,6 @@ export class MultiChatService {
   private activeTabId: string | null = null;
   private chatWindowDataListener: TIpcRenderListener | null = null;
   private chatDeletedListener: TIpcRenderListener | null = null;
-  private chatSaveTabsRequestListener: TIpcRenderListener | null = null;
   private promptSelectorDataListener: TIpcRenderListener | null = null;
   private isRestoringTabs = false;
   private saveTabsTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -139,13 +138,6 @@ export class MultiChatService {
     this.chatDeletedListener = this.ipcAdapter.onChatDeleted(handleChatDeleted);
     this.promptSelectorDataListener = this.ipcAdapter.onPromptSelectorData(handlePromptSelectorData);
 
-    const handleChatSaveTabsRequest = () => {
-      this.logger.info('MultiChatService received CHAT_SAVE_TABS_REQUEST');
-      void this.saveTabs();
-    };
-
-    this.chatSaveTabsRequestListener = this.ipcAdapter.onChatSaveTabsRequest(handleChatSaveTabsRequest);
-
     const handleKeydown = (event: KeyboardEvent) => {
       const isCtrlPressed = event.ctrlKey || event.metaKey;
       if (isCtrlPressed && event.key === 'w') {
@@ -174,10 +166,6 @@ export class MultiChatService {
     if (this.chatDeletedListener !== null) {
       this.ipcAdapter.offChatDeleted(this.chatDeletedListener);
       this.chatDeletedListener = null;
-    }
-    if (this.chatSaveTabsRequestListener !== null) {
-      this.ipcAdapter.offChatSaveTabsRequest(this.chatSaveTabsRequestListener);
-      this.chatSaveTabsRequestListener = null;
     }
     if (this.promptSelectorDataListener !== null) {
       this.ipcAdapter.offPromptSelectorData(this.promptSelectorDataListener);

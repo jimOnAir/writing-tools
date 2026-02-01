@@ -47,8 +47,6 @@ describe('MultiChatService', () => {
       offChatDeleted: jest.fn(),
       onChatLoadMessagesData: jest.fn(() => mockListener),
       offChatLoadMessagesData: jest.fn(),
-      onChatSaveTabsRequest: jest.fn(() => mockListener),
-      offChatSaveTabsRequest: jest.fn(),
       onChatTitleUpdated: jest.fn(() => mockListener),
       offChatTitleUpdated: jest.fn(),
       onChatWindowData: jest.fn(() => mockListener),

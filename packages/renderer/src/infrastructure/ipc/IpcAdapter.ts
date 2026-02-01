@@ -89,16 +89,6 @@ export interface IIpcAdapter {
   offChatDeleted: (listener: TIpcRenderListener) => void;
 
   /**
-   * Register a listener for chat save tabs request events
-   */
-  onChatSaveTabsRequest: (callback: () => void) => TIpcRenderListener;
-
-  /**
-   * Unregister a chat save tabs request listener
-   */
-  offChatSaveTabsRequest: (listener: TIpcRenderListener) => void;
-
-  /**
    * Register a listener for chat stream chunk events
    */
   onChatStreamChunk: (callback: (data: IChatStreamChunk) => void) => TIpcRenderListener;
@@ -196,14 +186,6 @@ export class ElectronIpcAdapter implements IIpcAdapter {
 
   public offChatDeleted(listener: TIpcRenderListener): void {
     this.getElectronAPI().offChatDeleted(listener);
-  }
-
-  public onChatSaveTabsRequest(callback: () => void): TIpcRenderListener {
-    return this.getElectronAPI().onChatSaveTabsRequest(callback);
-  }
-
-  public offChatSaveTabsRequest(listener: TIpcRenderListener): void {
-    this.getElectronAPI().offChatSaveTabsRequest(listener);
   }
 
   public async loadTabs(): Promise<{ scrollPositionsByChatId?: Record<number, number>, tabs: TOpenTab[] } | { error: string }> {

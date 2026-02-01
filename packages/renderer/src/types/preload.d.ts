@@ -20,8 +20,6 @@ declare global {
       offChatCreated: (listener: TIpcRenderListener) => void,
       onChatDeleted: (callback: (data: { chatId: number }) => void) => TIpcRenderListener,
       offChatDeleted: (listener: TIpcRenderListener) => void,
-      onChatSaveTabsRequest: (callback: () => void) => TIpcRenderListener,
-      offChatSaveTabsRequest: (listener: TIpcRenderListener) => void,
       onChatStreamChunk: (callback: (data: IChatStreamChunk) => void) => TIpcRenderListener,
       offChatStreamChunk: (listener: TIpcRenderListener) => void,
       onChatStreamEnd: (callback: (data: IChatStreamEnd) => void) => TIpcRenderListener,
