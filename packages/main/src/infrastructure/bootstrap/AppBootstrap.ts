@@ -15,6 +15,13 @@ import type { ITitleGenerationService } from '../../domains/chat/ITitleGeneratio
 import { LlmStreamingService } from '../../domains/chat/LlmStreamingService';
 import { MessageRepository } from '../../domains/chat/MessageRepository';
 import { MessageService } from '../../domains/chat/MessageService';
+import type { IDbWatcherService } from '../../domains/db-watcher';
+import {
+  DbWatcherChatSubscriber,
+  DbWatcherMessageSubscriber,
+  DbWatcherRepository,
+  DbWatcherService,
+} from '../../domains/db-watcher';
 import type { ILMStudioModelService, IModelService, IOllamaModelService } from '../../domains/llm';
 import { LMStudioModelService, ModelService, OllamaModelService } from '../../domains/llm';
 import type { IOpenTabsRepository } from '../../domains/open-tabs';
@@ -52,6 +59,10 @@ export class AppBootstrap {
   private readonly chatRepository: IChatRepository;
   private readonly chatService: IChatService;
   private readonly dbConnection: DatabaseConnection;
+  private readonly dbWatcherChatSubscriber: DbWatcherChatSubscriber;
+  private readonly dbWatcherMessageSubscriber: DbWatcherMessageSubscriber;
+  private readonly dbWatcherRepository: DbWatcherRepository;
+  private readonly dbWatcherService: IDbWatcherService;
   private readonly followUpQuestionsService: IFollowUpQuestionsService;
   private readonly ipcChatHandler: IIpcChatHandler;
   private readonly llmStreamingService: ILlmStreamingService;
@@ -130,23 +141,37 @@ export class AppBootstrap {
     this.ipcModelHandler = new IpcModelHandler(this.modelService);
     this.titleGenerationService = new TitleGenerationService(
       this.chatService,
-      this.modelService,
-      this.messageService,
       this.logger,
-      this.windowService,
+      this.messageService,
+      this.modelService,
     );
     this.followUpQuestionsService = new FollowUpQuestionsService(
       this.logger,
       this.modelService,
     );
+    this.dbWatcherRepository = new DbWatcherRepository(this.dbConnection, this.logger);
+    this.dbWatcherService = new DbWatcherService(
+      this.dbConnection,
+      this.dbWatcherRepository,
+      this.logger,
+    );
+    this.dbWatcherChatSubscriber = new DbWatcherChatSubscriber(
+      this.dbWatcherService as DbWatcherService,
+      this.logger,
+    );
+    this.dbWatcherMessageSubscriber = new DbWatcherMessageSubscriber(
+      this.dbWatcherService as DbWatcherService,
+      this.followUpQuestionsService,
+      this.logger,
+      this.messageService,
+      this.titleGenerationService,
+    );
     this.ipcPromptSelectorHandler = new IpcPromptSelectorHandler(
       this.chatService,
-      this.followUpQuestionsService,
       this.logger,
       this.llmStreamingService,
       this.messageService,
       this.settingsService,
-      this.titleGenerationService,
       this.windowService,
     );
     this.ipcChatHandler = new IpcChatHandler(
@@ -165,12 +190,10 @@ export class AppBootstrap {
 
     this.ipcMessageHandler = new IpcMessageHandler(
       this.chatService,
-      this.followUpQuestionsService,
       this.logger,
       this.llmStreamingService,
       this.messageService,
       this.settingsService,
-      this.titleGenerationService,
       this.windowService,
     );
   }
@@ -206,6 +229,9 @@ export class AppBootstrap {
           this.logger.error('Failed to initialize database: %s', errorText);
           throw new Error(`Failed to initialize database:  ${errorText}`);
         }
+
+        this.dbWatcherChatSubscriber.subscribe();
+        this.dbWatcherMessageSubscriber.subscribe();
 
         this.trayService.createTray();
 

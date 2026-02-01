@@ -3,10 +3,8 @@ import { EIpcChannel, EIpcRendererEvent } from '@writing-tools/shared';
 import { ipcMain } from 'electron';
 
 import type { IChatService } from '../../domains/chat/IChatService';
-import type { IFollowUpQuestionsService } from '../../domains/chat/IFollowUpQuestionsService';
 import type { ILlmStreamingService } from '../../domains/chat/ILlmStreamingService';
 import type { IMessageService } from '../../domains/chat/IMessageService';
-import type { ITitleGenerationService } from '../../domains/chat/ITitleGenerationService';
 import { LlmStreamingError } from '../../domains/chat/LlmStreamingError';
 import type { ISettingsService } from '../../domains/settings/ISettingsService';
 import type { IWindowService } from '../../domains/windows/IWindowService';
@@ -20,12 +18,10 @@ export class IpcPromptSelectorHandler implements IIpcPromptSelectorHandler {
 
   public constructor(
     private readonly chatService: IChatService,
-    private readonly followUpQuestionsService: IFollowUpQuestionsService,
     private readonly logger: ILogger,
     private readonly llmStreamingService: ILlmStreamingService,
     private readonly messageService: IMessageService,
     private readonly settingsService: ISettingsService,
-    private readonly titleGenerationService: ITitleGenerationService,
     private readonly windowService: IWindowService,
   ) {}
 
@@ -95,17 +91,7 @@ export class IpcPromptSelectorHandler implements IIpcPromptSelectorHandler {
             result: result.fullContent,
             statistics: result.statistics,
           });
-
-          void this.titleGenerationService.generateTitleIfNeeded(chatId);
-
-          const assistantMessage: IChatMessage = {
-            content: result.fullContent,
-            id: `${Date.now().toString()}-response`,
-            role: 'assistant',
-            statistics: result.statistics,
-            timestamp: new Date(),
-          };
-          void this.generateAndSendFollowUpQuestions(chatId, [userMessage, assistantMessage], mainWindow);
+          // Title generation and follow-up questions are sent by DbWatcherService when message is saved
         })
         .catch((error: unknown) => {
           if (error instanceof LlmStreamingError) {
@@ -164,33 +150,6 @@ export class IpcPromptSelectorHandler implements IIpcPromptSelectorHandler {
       });
 
       return { error: errorText, started: false } as const;
-    }
-  }
-
-  private async generateAndSendFollowUpQuestions(
-    chatId: number,
-    messagesWithAssistant: IChatMessage[],
-    mainWindow: Electron.BrowserWindow,
-  ): Promise<void> {
-    try {
-      const questions = await this.followUpQuestionsService.generate(messagesWithAssistant, chatId);
-
-      if (!mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(EIpcRendererEvent.CHAT_FOLLOW_UP_QUESTIONS, {
-          chatId,
-          questions,
-        });
-      }
-    } catch (error: unknown) {
-      const errorText = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to generate or send follow-up questions: %s', errorText);
-
-      if (!mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(EIpcRendererEvent.CHAT_FOLLOW_UP_QUESTIONS, {
-          chatId,
-          questions: [],
-        });
-      }
     }
   }
 }

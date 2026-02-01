@@ -1,19 +1,17 @@
-import { EIpcRendererEvent, type ILogger } from '@writing-tools/shared';
+import type { ILogger } from '@writing-tools/shared';
 
 import type { IModelService } from '../llm';
-import type { IWindowService } from '../windows';
 
 import type { IChatService } from './IChatService';
 import type { IMessageService } from './IMessageService';
 import type { ITitleGenerationService } from './ITitleGenerationService';
 
 export class TitleGenerationService implements ITitleGenerationService {
-  constructor(
+  public constructor(
     private readonly chatService: IChatService,
-    private readonly modelService: IModelService,
-    private readonly messageService: IMessageService,
     private readonly logger: ILogger,
-    private readonly windowService: IWindowService,
+    private readonly messageService: IMessageService,
+    private readonly modelService: IModelService,
   ) {}
 
   public async generateTitleIfNeeded(chatId: number) {
@@ -62,9 +60,8 @@ export class TitleGenerationService implements ITitleGenerationService {
       const title = await this.generateChatTitle(userMessage.content, assistantMessage.content);
 
       if (title !== null && title.trim() !== '') {
-        // ChatService.updateChatTitle now handles CHAT_TITLE_UPDATED event notification
+        // CHAT_TITLE_UPDATED is sent by DbWatcherService when chats row is updated
         this.chatService.updateChatTitle(chatId, title);
-        void this.notifyChatTitleUpdated(chatId, title);
 
         this.logger.info('Title generated and saved: chatId=%s, title="%s"', String(chatId), title);
       } else {
@@ -113,31 +110,6 @@ Title:`;
       this.logger.error('Error generating chat title: %s', errorText);
 
       return null;
-    }
-  }
-
-  /**
-   * Notify main window about chat title update
-   */
-  private async notifyChatTitleUpdated(chatId: number, title: string): Promise<void> {
-    try {
-      const { window: mainWindow, created: mainWindowCreated } = await this.windowService.getMainWindow();
-      // Only send notification if window already existed (created === false)
-      // If window was just created (created === true), don't send notification and close it
-      if (!mainWindowCreated && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(EIpcRendererEvent.CHAT_TITLE_UPDATED, { // TODO: Implement notifications through DB triggers
-          chatId,
-          title,
-        });
-        this.logger.info('CHAT_TITLE_UPDATED event sent: chatId=%s, title="%s"', String(chatId), title);
-      } else if (mainWindowCreated) {
-        // Window was created unnecessarily - close it to prevent it from showing
-        mainWindow.close();
-      }
-    } catch (error: unknown) {
-      const errorText = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to send CHAT_TITLE_UPDATED event: %s', errorText);
-      // Don't throw - event notification failure shouldn't break chat functionality
     }
   }
 }

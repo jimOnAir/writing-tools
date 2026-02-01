@@ -1,6 +1,6 @@
 import type { TIpcEvent, ILogger } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent, EIpcRendererEvent } from '@writing-tools/shared';
-import { BrowserWindow, ipcMain } from 'electron';
+import { ipcMain } from 'electron';
 
 import type { IChatService } from '../../domains/chat/IChatService';
 import type { IMessageService } from '../../domains/chat/IMessageService';
@@ -67,9 +67,8 @@ export class IpcChatHandler implements IIpcChatHandler {
         providerValue,
         modelValue,
       );
-      // ChatService now handles CHAT_CREATED event notification
-      void this.notifyChatCreated(chatId);
 
+      // CHAT_CREATED is sent by DbWatcherService when chat row is inserted
       return { chatId };
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
@@ -118,10 +117,9 @@ export class IpcChatHandler implements IIpcChatHandler {
       }
 
       // Delete the chat (messages cascade delete automatically)
-      // ChatService now handles CHAT_DELETED event notification
+      // CHAT_DELETED is sent by DbWatcherService when chat row is deleted
       this.chatService.deleteChat(chatId);
       this.openTabsService.deleteTabsByChatId(chatId);
-      this.notifyChatDeleted(chatId);
 
       return { success: true };
     } catch (error: unknown) {
@@ -147,7 +145,7 @@ export class IpcChatHandler implements IIpcChatHandler {
       const messages = this.messageService.loadChatMessages(chatId);
 
       // Send messages to mainWindow
-      mainWindow.webContents.send('CHAT_LOAD_MESSAGES_DATA', {
+      mainWindow.webContents.send(EIpcRendererEvent.CHAT_LOAD_MESSAGES_DATA, {
         chatId,
         messages,
       });
@@ -158,56 +156,6 @@ export class IpcChatHandler implements IIpcChatHandler {
       this.logger.error('Failed to open chat: %s', errorText);
 
       return { success: false, error: errorText };
-    }
-  }
-
-  /**
-     * Notify all windows about chat deletion
-     */
-  private notifyChatDeleted(chatId: number): void {
-    try {
-      // Notify all existing windows (don't create windows just to notify)
-      const allWindows = BrowserWindow.getAllWindows();
-      for (const win of allWindows) {
-        if (!win.isDestroyed()) {
-          try {
-            win.webContents.send(EIpcRendererEvent.CHAT_DELETED, {
-              chatId,
-            });
-          } catch {
-            // Window might be destroyed, ignore
-          }
-        }
-      }
-      this.logger.info('CHAT_DELETED event sent: chatId=%s', String(chatId));
-    } catch (error: unknown) {
-      const errorText = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to send CHAT_DELETED event: %s', errorText);
-      // Don't throw - event notification failure shouldn't break chat functionality
-    }
-  }
-
-  /**
-   * Notify all windows about chat creation
-   */
-  private async notifyChatCreated(chatId: number): Promise<void> {
-    try {
-      const { window: mainWindow, created: mainWindowCreated } = await this.windowService.getMainWindow();
-      // Only send notification if window already existed (created === false)
-      // If window was just created (created === true), don't send notification and close it
-      if (!mainWindowCreated && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(EIpcRendererEvent.CHAT_CREATED, {
-          chatId,
-        });
-        this.logger.info('CHAT_CREATED event sent: chatId=%s', String(chatId));
-      } else if (mainWindowCreated) {
-        // Window was created unnecessarily - close it to prevent it from showing
-        mainWindow.close();
-      }
-    } catch (error: unknown) {
-      const errorText = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to send CHAT_CREATED event: %s', errorText);
-      // Don't throw - event notification failure shouldn't break chat functionality
     }
   }
 }
