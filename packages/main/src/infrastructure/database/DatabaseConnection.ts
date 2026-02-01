@@ -8,6 +8,9 @@ import * as path from 'node:path';
 import { runInitialMigration } from './migrate';
 import * as schema from './schema';
 
+const CACHE_SIZE_KB = 50_000; // 50MB page cache (SQLite uses negative value for KB)
+const MMAP_SIZE_BYTES = 256 * 1024 * 1024; // 256MB memory-mapped I/O
+
 export class DatabaseConnection {
   private db: Database.Database | null = null;
   private drizzleDb: BetterSQLite3Database<typeof schema> | null = null;
@@ -22,17 +25,10 @@ export class DatabaseConnection {
       await this.ensureDatabaseDirectory();
       const dbPath = this.getDatabasePath();
       this.db = new Database(dbPath);
+      this.applyPragmas(this.db);
       runInitialMigration(this.db);
       this.drizzleDb = drizzle(this.db, { schema });
       this.logger.info('Database connection initialized at: %s', dbPath);
-
-      // TODO: enable WAL     // db.pragma('journal_mode = WAL');
-      // TODO: enable FK constrains      // db.pragma('foreign_keys = ON');
-      // TODO: enable db.pragma('synchronous = NORMAL'); // Normal synchronous mode for better performance
-      // TODO: enable db.pragma('temp_store = MEMORY'); // Use memory for temporary tables
-      // TODO: enable db.pragma('cache_size = -50000'); // Set page cache size to 50MB (negative value means KB)
-      // TODO: enable db.pragma('mmap_size = 268435456'); // Set memory-mapped file I/O to 256MB
-      // TODO: enable db.pragma('optimize'); // Run internal query planner cleanup
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to initialize database connection: %s', errorText);
@@ -58,11 +54,22 @@ export class DatabaseConnection {
 
   public close(): void {
     if (this.db !== null) {
+      this.db.pragma('analysis_limit = 400');
+      this.db.pragma('optimize');
       this.db.close();
       this.db = null;
       this.drizzleDb = null;
       this.logger.info('Database connection closed');
     }
+  }
+
+  private applyPragmas(db: Database.Database): void {
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+    db.pragma('synchronous = NORMAL');
+    db.pragma('temp_store = MEMORY');
+    db.pragma(`cache_size = -${CACHE_SIZE_KB}`);
+    db.pragma(`mmap_size = ${MMAP_SIZE_BYTES}`);
   }
 
   private getDatabasePath(): string {
