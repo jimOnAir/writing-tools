@@ -16,7 +16,7 @@ interface SettingsProps {
   readonly settingsService: SettingsService;
   readonly isModal?: boolean;
 }
-
+// TODO: fix lmstudio models are shown for ollama
 const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false }) => {
   const [settings, setSettings] = useState<ISettings>(useMemo(() => ({ ...DefaultSettings }), []));
   // originalSettings is managed via callback in SettingsService, but component doesn't need to track it

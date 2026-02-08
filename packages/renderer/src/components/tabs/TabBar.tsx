@@ -9,7 +9,7 @@ import { Tab } from './Tab';
 interface TabBarProps {
   readonly multiChatService: MultiChatService;
 }
-
+// TODO: add some top margin
 export const TabBar: React.FC<TabBarProps> = ({ multiChatService }) => {
   const [tabs, setTabs] = useState<readonly ITabInfo[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);

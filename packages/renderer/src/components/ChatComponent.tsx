@@ -17,13 +17,17 @@ interface ChatComponentProps {
   readonly settingsService: SettingsService;
 }
 
+// TODO: streaming and loading state are not working as expected
+// TODO: add context length indicator
+// TODO: make follow up questions more visible
+
 const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, settingsService }) => {
   const [messages, setMessages] = useState<IChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [errorType, setErrorType] = useState<EStreamingErrorType | undefined>(undefined);
-  const [_, setIsHandlingResponse] = useState(false);
+  const [_errorType, setErrorType] = useState<EStreamingErrorType | undefined>(undefined);
+  const [_isHandlingResponse, setIsHandlingResponse] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [chatTitle, setChatTitle] = useState<string | null>(null);
   const [chatInfo, setChatInfo] = useState<IChatInfo | null>(null);

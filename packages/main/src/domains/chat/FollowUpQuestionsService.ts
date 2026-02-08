@@ -4,6 +4,7 @@ import type { IModelService } from '../llm';
 
 const MAX_QUESTIONS = 5;
 
+// TOOD: always send original message if it from prompt selector, or send all messages
 export class FollowUpQuestionsService {
   public constructor(
     private readonly logger: ILogger,

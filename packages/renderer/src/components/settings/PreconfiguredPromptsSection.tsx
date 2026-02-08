@@ -16,7 +16,7 @@ export interface PreconfiguredPromptsSectionProps {
   readonly onReorder: (fromIndex: number, toIndex: number) => void;
   readonly onUpdate: (index: number, field: keyof IPreconfiguredPrompt, value: string) => void;
 }
-
+// TOOD: Add optional global shortcut for prompts
 export const PreconfiguredPromptsSection: React.FC<PreconfiguredPromptsSectionProps> = ({
   prompts,
   settings,

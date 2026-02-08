@@ -137,6 +137,7 @@ export class MultiChatService {
     this.promptSelectorDataListener = this.ipcAdapter.onPromptSelectorData(handlePromptSelectorData);
 
     const handleKeydown = (event: KeyboardEvent) => {
+      // TODO: switch tab by ctrl+tab and ctrl+shift+tab
       const isCtrlPressed = event.ctrlKey || event.metaKey;
       if (isCtrlPressed && event.key === 'n') {
         event.preventDefault();
