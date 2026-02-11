@@ -785,6 +785,67 @@ describe('MultiChatService', () => {
       multiChatService.cleanupListeners();
     });
 
+    it('switches to next tab when Ctrl+Tab is pressed (with wrap)', () => {
+      const tab1 = multiChatService.createNewChatTab();
+      const tab2 = multiChatService.createNewChatTab();
+      const tab3 = multiChatService.createNewChatTab();
+      multiChatService.switchToTab(tab1.tabId);
+
+      multiChatService.initializeListeners();
+
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Tab', ctrlKey: true, shiftKey: false, bubbles: true }),
+      );
+      expect(multiChatService.getActiveTabId()).toBe(tab2.tabId);
+
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Tab', ctrlKey: true, shiftKey: false, bubbles: true }),
+      );
+      expect(multiChatService.getActiveTabId()).toBe(tab3.tabId);
+
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Tab', ctrlKey: true, shiftKey: false, bubbles: true }),
+      );
+      expect(multiChatService.getActiveTabId()).toBe(tab1.tabId);
+
+      multiChatService.cleanupListeners();
+    });
+
+    it('switches to previous tab when Ctrl+Shift+Tab is pressed (with wrap)', () => {
+      const tab1 = multiChatService.createNewChatTab();
+      const tab2 = multiChatService.createNewChatTab();
+      const tab3 = multiChatService.createNewChatTab();
+      multiChatService.switchToTab(tab2.tabId);
+
+      multiChatService.initializeListeners();
+
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Tab', ctrlKey: true, shiftKey: true, bubbles: true }),
+      );
+      expect(multiChatService.getActiveTabId()).toBe(tab1.tabId);
+
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Tab', ctrlKey: true, shiftKey: true, bubbles: true }),
+      );
+      expect(multiChatService.getActiveTabId()).toBe(tab3.tabId);
+
+      multiChatService.cleanupListeners();
+    });
+
+    it('does not switch tab when Ctrl+Tab is pressed with only one tab', () => {
+      const tab = multiChatService.createNewChatTab();
+      multiChatService.initializeListeners();
+
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Tab', ctrlKey: true, shiftKey: false, bubbles: true }),
+      );
+
+      expect(multiChatService.getActiveTabId()).toBe(tab.tabId);
+      expect(multiChatService.getAllTabs()).toHaveLength(1);
+
+      multiChatService.cleanupListeners();
+    });
+
     // Tests for Ctrl+W functionality
     it('closes current chat tab when Ctrl+W is pressed (when tabs exist)', async () => {
       const initialTabCount = multiChatService.getAllTabs().length;

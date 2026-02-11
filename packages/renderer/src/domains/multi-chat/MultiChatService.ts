@@ -137,9 +137,19 @@ export class MultiChatService {
     this.promptSelectorDataListener = this.ipcAdapter.onPromptSelectorData(handlePromptSelectorData);
 
     const handleKeydown = (event: KeyboardEvent) => {
-      // TODO: switch tab by ctrl+tab and ctrl+shift+tab
       const isCtrlPressed = event.ctrlKey || event.metaKey;
-      if (isCtrlPressed && event.key === 'n') {
+      if (isCtrlPressed && event.key === 'Tab') {
+        event.preventDefault();
+        if (this.tabs.length <= 1) {
+          return;
+        }
+        const currentIndex = this.tabs.findIndex(t => t.tabId === this.activeTabId);
+        const idx = Math.max(0, currentIndex);
+        const nextIndex = (idx + 1) % this.tabs.length;
+        const prevIndex = (idx - 1 + this.tabs.length) % this.tabs.length;
+        const targetTab = this.tabs[event.shiftKey ? prevIndex : nextIndex];
+        this.switchToTab(targetTab.tabId);
+      } else if (isCtrlPressed && event.key === 'n') {
         event.preventDefault();
         this.logger.info('Ctrl+N pressed, creating new chat tab');
         const newTab = this.createNewChatTab();
