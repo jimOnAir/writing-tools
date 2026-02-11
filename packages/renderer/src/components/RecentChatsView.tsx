@@ -8,6 +8,7 @@ import { renderMarkdown } from '../utils/markdownRenderer';
 import { getPlatform } from '../utils/platformDetection';
 
 import { PlusIcon } from './icons';
+import { Tooltip } from './Tooltip';
 
 const RECENT_CHATS_LIMIT = 10;
 
@@ -36,7 +37,6 @@ function formatDate(dateString: string): string {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: isDifferentYear ? 'numeric' : undefined });
   }
 }
-
 export const RecentChatsView: React.FC<RecentChatsViewProps> = ({ chatListState, onChatSelect, onCreateNewChat }) => {
   const [platform, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
   const { chats, error, isLoading } = chatListState;
@@ -87,7 +87,8 @@ export const RecentChatsView: React.FC<RecentChatsViewProps> = ({ chatListState,
         <button
           type="button"
           onClick={onCreateNewChat}
-          className={`mb-8 w-full flex-shrink-0 ${nativeStyles.tabs.newChatButton} flex items-center justify-center gap-2 py-3 rounded-xl whitespace-nowrap`}
+          className={`mb-8 w-full flex-shrink-0 ${nativeStyles.tabs.newChatButton}
+            flex items-center justify-center gap-2 py-3 rounded-xl whitespace-nowrap`}
           aria-label="New Chat"
         >
           <PlusIcon size={18} />
@@ -102,23 +103,25 @@ export const RecentChatsView: React.FC<RecentChatsViewProps> = ({ chatListState,
               const displayTitle = hasTitle ? chat.title : 'New Chat';
 
               return (
-                <button
-                  key={chat.id}
-                  type="button"
-                  onClick={() => {
-                    onChatSelect(chat.id);
-                  }}
-                  className={`${BackgroundStyles.cardHover} p-4 rounded-xl w-full text-left transition-all duration-300 block`}
-                  aria-label={`Open chat: ${displayTitle}`}
-                >
-                  <div
-                    className={`${TypographyStyles.h3} ${ColorPalette.text.primary} truncate markdown-content chat-title mb-1 min-w-0 overflow-hidden`}
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(displayTitle) }}
-                  />
-                  <div className={`text-xs ${ColorPalette.text.muted} mt-0.5`}>
-                    {formatDate(chat.updated_at)}
-                  </div>
-                </button>
+                <Tooltip key={chat.id} content={displayTitle}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChatSelect(chat.id);
+                    }}
+                    className={`${BackgroundStyles.cardHover} p-4 rounded-xl w-full text-left transition-all duration-300 block`}
+                    aria-label={`Open chat: ${displayTitle}`}
+                  >
+                    <div
+                      className={`${TypographyStyles.h3} ${ColorPalette.text.primary}
+                        truncate markdown-content chat-title mb-1 min-w-0 overflow-hidden`}
+                      dangerouslySetInnerHTML={{ __html: renderMarkdown(displayTitle) }}
+                    />
+                    <div className={`text-xs ${ColorPalette.text.muted} mt-0.5`}>
+                      {formatDate(chat.updated_at)}
+                    </div>
+                  </button>
+                </Tooltip>
               );
             })}
           </div>
