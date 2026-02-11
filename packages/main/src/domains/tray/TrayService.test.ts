@@ -17,6 +17,7 @@ jest.mock('electron', () => ({
     buildFromTemplate: jest.fn(),
   },
   app: {
+    on: jest.fn(),
     quit: jest.fn(),
   },
 }));
@@ -59,7 +60,9 @@ describe('TrayService', () => {
     trayMock.mockImplementation(() => mockTray);
 
     mockWindowService = {
+      getExistingMainWindow: jest.fn().mockResolvedValue(null),
       getMainWindow: jest.fn().mockResolvedValue({ created: false, window: {} as Electron.BrowserWindow }),
+      registerOnMainWindowReady: jest.fn(),
     } as unknown as jest.Mocked<IWindowService>;
 
     trayService = new TrayService(mockWindowService, mockLogger);
@@ -111,7 +114,7 @@ describe('TrayService', () => {
       expect(menuTemplate[QUIT_INDEX]?.label).toBe('Quit');
     });
 
-    it('handles left click on tray icon to show app', () => {
+    it('handles left click on tray icon to toggle window', async () => {
       trayService.createTray();
 
       const onMock = mockTray.on as jest.Mock;
@@ -119,10 +122,45 @@ describe('TrayService', () => {
       const clickHandler = onMock.mock.calls.find((call: unknown[]) => call[0] === 'click')?.[1];
       expect(clickHandler).toBeDefined();
 
+      const getExistingMainWindowMock = mockWindowService.getExistingMainWindow as jest.Mock;
       const getMainWindowMock = mockWindowService.getMainWindow as jest.Mock;
-      clickHandler();
 
+      clickHandler();
+      await Promise.resolve();
+
+      expect(getExistingMainWindowMock).toHaveBeenCalled();
       expect(getMainWindowMock).toHaveBeenCalled();
+    });
+
+    it('hides window when tray clicked and window is visible', async () => {
+      const mockWin = { focus: jest.fn(), hide: jest.fn(), isVisible: jest.fn(() => true), show: jest.fn() };
+      (mockWindowService.getExistingMainWindow as jest.Mock).mockResolvedValue(mockWin);
+
+      trayService.createTray();
+      const onMock = mockTray.on as jest.Mock;
+      const clickHandler = onMock.mock.calls.find((call: unknown[]) => call[0] === 'click')?.[1];
+
+      clickHandler();
+      await Promise.resolve();
+
+      expect(mockWin.hide).toHaveBeenCalled();
+      expect(mockWin.show).not.toHaveBeenCalled();
+    });
+
+    it('shows window when tray clicked and window is hidden', async () => {
+      const mockWin = { focus: jest.fn(), hide: jest.fn(), isVisible: jest.fn(() => false), show: jest.fn() };
+      (mockWindowService.getExistingMainWindow as jest.Mock).mockResolvedValue(mockWin);
+
+      trayService.createTray();
+      const onMock = mockTray.on as jest.Mock;
+      const clickHandler = onMock.mock.calls.find((call: unknown[]) => call[0] === 'click')?.[1];
+
+      clickHandler();
+      await Promise.resolve();
+
+      expect(mockWin.show).toHaveBeenCalled();
+      expect(mockWin.focus).toHaveBeenCalled();
+      expect(mockWin.hide).not.toHaveBeenCalled();
     });
 
     it('handles Show menu item click', () => {
@@ -160,6 +198,39 @@ describe('TrayService', () => {
       (quitItem.click as (() => void) | undefined)?.();
 
       expect(quitMock).toHaveBeenCalled();
+    });
+
+    it('registers minimize-to-tray callback and attaches close handler when window is provided', () => {
+      trayService.createTray();
+
+      const registerMock = mockWindowService.registerOnMainWindowReady as jest.Mock;
+      expect(registerMock).toHaveBeenCalledWith(expect.any(Function));
+
+      const callback = registerMock.mock.calls[0][0];
+      const mockWin = {
+        hide: jest.fn(),
+        on: jest.fn(),
+      } as unknown as Electron.BrowserWindow;
+      const mockEvent = { preventDefault: jest.fn() };
+
+      callback(mockWin);
+
+      const onMock = mockWin.on as jest.Mock;
+      expect(onMock).toHaveBeenCalledWith('close', expect.any(Function));
+
+      const closeHandler = onMock.mock.calls.find((call: unknown[]) => call[0] === 'close')?.[1];
+      expect(closeHandler).toBeDefined();
+
+      closeHandler(mockEvent);
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+      expect(mockWin.hide).toHaveBeenCalled();
+    });
+
+    it('registers before-quit listener in constructor', () => {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      const appOnMock = app.on as jest.Mock;
+
+      expect(appOnMock).toHaveBeenCalledWith('before-quit', expect.any(Function));
     });
   });
 });

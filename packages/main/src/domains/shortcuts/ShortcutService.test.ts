@@ -55,7 +55,9 @@ describe('ShortcutService', () => {
     } as unknown as jest.Mocked<ITextSelectionService>;
 
     mockWindowService = {
+      getExistingMainWindow: jest.fn(),
       getMainWindow: jest.fn(),
+      registerOnMainWindowReady: jest.fn(),
     } as unknown as jest.Mocked<IWindowService>;
 
     (mockWindowService.getMainWindow as jest.Mock).mockResolvedValue({

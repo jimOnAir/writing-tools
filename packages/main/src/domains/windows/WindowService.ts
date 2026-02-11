@@ -32,11 +32,26 @@ function getPreloadPath(): string {
 }
 
 export class WindowService implements IWindowService {
+  private readonly mainWindowReadyCallbacks: Array<(win: BrowserWindow) => void> = [];
+  private readonly notifiedWindows = new WeakSet<Electron.BrowserWindow>();
   private mainWindow: Electron.BrowserWindow | null = null;
+
+  public registerOnMainWindowReady(callback: (win: BrowserWindow) => void): void {
+    this.mainWindowReadyCallbacks.push(callback);
+  }
+
+  public getExistingMainWindow(): BrowserWindow | null {
+    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+      return this.mainWindow;
+    }
+
+    return this.findExistingMainWindow();
+  }
 
   public async getMainWindow(): Promise<WindowCreationResult> {
     // First check our tracked window
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+      this.invokeMainWindowReadyCallbacks(this.mainWindow);
       this.mainWindow.show();
       this.mainWindow.focus();
 
@@ -48,6 +63,7 @@ export class WindowService implements IWindowService {
     if (existingWindow) {
       // Re-track the window
       this.mainWindow = existingWindow;
+      this.invokeMainWindowReadyCallbacks(this.mainWindow);
       // Re-register closed handler
       this.mainWindow.on('closed', () => {
         this.mainWindow = null;
@@ -97,7 +113,19 @@ export class WindowService implements IWindowService {
       });
     });
 
+    this.invokeMainWindowReadyCallbacks(this.mainWindow);
+
     return { window: this.mainWindow, created: true };
+  }
+
+  private invokeMainWindowReadyCallbacks(win: Electron.BrowserWindow): void {
+    if (this.notifiedWindows.has(win)) {
+      return;
+    }
+    this.notifiedWindows.add(win);
+    for (const callback of this.mainWindowReadyCallbacks) {
+      callback(win);
+    }
   }
 
   /**

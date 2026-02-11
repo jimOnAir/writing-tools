@@ -119,7 +119,7 @@ describe('WindowService', () => {
       mockWindow.isDestroyed.mockReturnValue(false);
 
       // Clear the internal reference (simulating it was lost)
-      (windowService as unknown as { chatListWindow: Electron.BrowserWindow | null }).chatListWindow = null;
+      (windowService as unknown as { mainWindow: Electron.BrowserWindow | null }).mainWindow = null;
 
       // Get all windows mock to return our window
       const getAllWindowsMock = BrowserWindow.getAllWindows as jest.Mock;
@@ -156,13 +156,64 @@ describe('WindowService', () => {
       getAllWindowsMock.mockReturnValue([mockWindow1, mockWindow2]);
 
       // Clear internal reference first
-      (windowService as unknown as { chatListWindow: Electron.BrowserWindow | null }).chatListWindow = null;
+      (windowService as unknown as { mainWindow: Electron.BrowserWindow | null }).mainWindow = null;
 
       // Now getMainWindow should find mockWindow1 (empty URL or no view parameter) but not mockWindow2 (has view parameter)
       const result = await windowService.getMainWindow();
 
       expect(result.created).toBe(false);
       expect(result.window).toBe(mockWindow1);
+    });
+  });
+
+  describe('getExistingMainWindow', () => {
+    it('returns null when no window exists', async () => {
+      const windows = (globalThis as unknown as { __mockWindows__?: Electron.BrowserWindow[] }).__mockWindows__ ?? [];
+      (BrowserWindow.getAllWindows as jest.Mock).mockReturnValue(windows);
+
+      const result = await windowService.getExistingMainWindow();
+
+      expect(result).toBeNull();
+    });
+
+    it('returns window when it exists', async () => {
+      const created = await windowService.getMainWindow();
+      const existing = await windowService.getExistingMainWindow();
+
+      expect(existing).toBe(created.window);
+    });
+
+    it('does not show or focus the window', async () => {
+      const first = await windowService.getMainWindow();
+      const mockWindow = first.window as { focus: jest.Mock, show: jest.Mock };
+      mockWindow.focus.mockClear();
+      mockWindow.show.mockClear();
+
+      await windowService.getExistingMainWindow();
+
+      expect(mockWindow.show).not.toHaveBeenCalled();
+      expect(mockWindow.focus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('registerOnMainWindowReady', () => {
+    it('invokes callback when main window is created', async () => {
+      const callback = jest.fn();
+
+      windowService.registerOnMainWindowReady(callback);
+      const result = await windowService.getMainWindow();
+
+      expect(callback).toHaveBeenCalledWith(result.window);
+    });
+
+    it('invokes callback only once per window instance', async () => {
+      const callback = jest.fn();
+
+      windowService.registerOnMainWindowReady(callback);
+      await windowService.getMainWindow();
+      await windowService.getMainWindow();
+
+      expect(callback).toHaveBeenCalledTimes(1);
     });
   });
 

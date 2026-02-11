@@ -55,7 +55,6 @@ import { IpcPromptSelectorHandler } from '../ipc/IpcPromptSelectorHandler';
 import { IpcSettingsHandler } from '../ipc/IpcSettingsHandlers';
 import { IpcTabHandler } from '../ipc/IpcTabHandler';
 
-// TODO: minimize to tray
 export class AppBootstrap {
   private readonly chatRepository: IChatRepository;
   private readonly chatService: IChatService;
