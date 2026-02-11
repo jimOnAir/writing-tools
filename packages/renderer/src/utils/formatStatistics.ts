@@ -30,6 +30,25 @@ const formatDuration = (nanoseconds: number | undefined): string => {
 };
 
 /**
+ * Format tokens per second from token count and duration in nanoseconds
+ */
+const formatTokensPerSecond = (
+  tokens: number | undefined,
+  nanoseconds: number | undefined,
+): string => {
+  if (tokens === undefined || nanoseconds === undefined || nanoseconds === 0) {
+    return 'N/A';
+  }
+
+  const tokensPerSecond = tokens / (nanoseconds / 1e9);
+
+  return tokensPerSecond.toLocaleString('en-US', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 1,
+  });
+};
+
+/**
  * Format message statistics for display in tooltip
  */
 export const formatStatistics = (statistics: IMessageStatistics): string => {
@@ -58,8 +77,16 @@ export const formatStatistics = (statistics: IMessageStatistics): string => {
       lines.push(`**Prompt Eval Time:** ${formatDuration(ollama.promptEvalDuration)}`);
     }
 
+    if (ollama.promptEvalCount !== undefined && ollama.promptEvalDuration !== undefined) {
+      lines.push(`**Prompt Tokens/s:** ${formatTokensPerSecond(ollama.promptEvalCount, ollama.promptEvalDuration)}`);
+    }
+
     if (ollama.evalDuration !== undefined) {
       lines.push(`**Generation Time:** ${formatDuration(ollama.evalDuration)}`);
+    }
+
+    if (ollama.evalCount !== undefined && ollama.evalDuration !== undefined) {
+      lines.push(`**Output Tokens/s:** ${formatTokensPerSecond(ollama.evalCount, ollama.evalDuration)}`);
     }
 
     if (ollama.loadDuration !== undefined) {
@@ -83,10 +110,8 @@ export const formatStatistics = (statistics: IMessageStatistics): string => {
     // Unknown provider or missing statistics data
   }
 
-  if (statistics.generatedAt) {
-    const date = new Date(statistics.generatedAt);
-    lines.push(`**Generated:** ${date.toLocaleString()}`);
-  }
+  const date = new Date(statistics.generatedAt);
+  lines.push(`**Generated:** ${date.toLocaleString()}`);
 
-  return lines.length > 0 ? lines.join('\n\n') : 'No statistics available';
+  return lines.join('\n\n');
 };
