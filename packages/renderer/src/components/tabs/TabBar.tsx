@@ -9,7 +9,7 @@ import { Tab } from './Tab';
 interface TabBarProps {
   readonly multiChatService: MultiChatService;
 }
-// TODO: add some top margin
+
 export const TabBar: React.FC<TabBarProps> = ({ multiChatService }) => {
   const [tabs, setTabs] = useState<readonly ITabInfo[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -192,7 +192,7 @@ export const TabBar: React.FC<TabBarProps> = ({ multiChatService }) => {
   return (
     <div
       ref={tabBarRef}
-      className={`${nativeStyles.tabs.container} flex items-center gap-1 overflow-x-auto transition-all duration-300`}
+      className={`${nativeStyles.tabs.container} mt-2 flex items-center gap-1 overflow-x-auto transition-all duration-300`}
       onDragOver={handleTabBarDragOver}
       onDrop={handleTabBarDrop}
     >
