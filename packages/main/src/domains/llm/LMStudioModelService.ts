@@ -23,10 +23,10 @@ export class LMStudioModelService implements ILMStudioModelService {
     return client.listModels();
   };
 
-  public sendMessages = async (messages: Message[], options?: { maxTokens?: number }): Promise<LMStudioChatResponse> => {
+  public sendMessages = async (messages: Message[], options?: { maxTokens?: number, model?: string }): Promise<LMStudioChatResponse> => {
     const settings = await this.settingsService.loadSettings();
-    const { address, model, apiKey } = settings.lmstudio;
-
+    const { address, model: settingsModel, apiKey } = settings.lmstudio;
+    const model = options?.model ?? settingsModel;
     if (!model) {
       throw new Error('Model not specified');
     }
@@ -42,7 +42,7 @@ export class LMStudioModelService implements ILMStudioModelService {
       content: msg.content,
     }));
 
-    return client.chat(model, lmStudioMessages, options);
+    return client.chat(model, lmStudioMessages, { maxTokens: options?.maxTokens });
   };
 
   public sendMessagesStream = async function* (

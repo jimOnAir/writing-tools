@@ -20,8 +20,10 @@ export interface IModelService {
 
   /**
    * Send messages to the LLM and get response
+   * @param options.model - Override model (e.g. from chat session); when omitted, uses settings
+   * @param options.provider - Override provider (e.g. from chat session); when omitted, uses settings
    */
-  sendMessages: (messages: Message[], options?: { maxTokens?: number }) => Promise<LLMChatResponse>;
+  sendMessages: (messages: Message[], options?: { maxTokens?: number, model?: string, provider?: 'ollama' | 'lmstudio' }) => Promise<LLMChatResponse>;
 
   /**
    * Send messages to the LLM and get streaming response

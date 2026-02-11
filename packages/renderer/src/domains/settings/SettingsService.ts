@@ -51,8 +51,9 @@ export class SettingsService {
 
   /**
    * Load settings from main process
+   * @param options.skipClearModelOnFetch - When true, fetching available models after load will not clear the default model if it is not in the list (use when loading for chat dropdown only)
    */
-  public async loadSettings(): Promise<void> {
+  public async loadSettings(options?: { skipClearModelOnFetch?: boolean }): Promise<void> {
     try {
       const message: TIpcEvent<EIpcChannel.SETTINGS, EIpcEvent.SETTINGS_LOAD> = {
         channel: EIpcChannel.SETTINGS,
@@ -64,13 +65,12 @@ export class SettingsService {
       this.setSettings(loadedSettings);
       this.setOriginalSettings(loadedSettings);
 
-      // Fetch models when settings are loaded for the selected provider
       const provider = loadedSettings.provider || 'ollama';
       const address = provider === 'lmstudio'
         ? loadedSettings.lmstudio.address
         : loadedSettings.ollama.address;
       if (address) {
-        await this.fetchAvailableModels();
+        await this.fetchAvailableModels({ clearModelIfNotInList: options?.skipClearModelOnFetch !== true });
       }
     } catch (err) {
       const errorText = err instanceof Error ? err.message : String(err);
@@ -80,20 +80,70 @@ export class SettingsService {
   }
 
   /**
+   * Load settings from main process for display only (e.g. chat dropdown).
+   * Does NOT update the service's this.settings, so it never overwrites in-memory settings
+   * that the user may have edited in the Settings UI. Use this in the chat view so that
+   * opening or re-rendering chat does not overwrite the default model in settings.
+   */
+  public async loadSettingsForDisplay(): Promise<ISettings> {
+    const message: TIpcEvent<EIpcChannel.SETTINGS, EIpcEvent.SETTINGS_LOAD> = {
+      channel: EIpcChannel.SETTINGS,
+      event: EIpcEvent.SETTINGS_LOAD,
+      payload: {},
+    };
+
+    const loadedSettings = await this.ipcAdapter.invoke(message.channel, message) as ISettings;
+    const provider = loadedSettings.provider || 'ollama';
+    const address = provider === 'lmstudio'
+      ? loadedSettings.lmstudio.address
+      : loadedSettings.ollama.address;
+
+    if (address) {
+      await this.fetchModelsWithProviderAddress(
+        provider,
+        address,
+        false,
+      );
+    }
+
+    return loadedSettings;
+  }
+
+  /**
    * Save settings to main process
    */
   public async saveSettings(): Promise<boolean> {
     try {
+      // When saving, keep the non-selected provider's model from last saved (originalSettings) so we never persist a stale value that came from chat or wrong UI state
+      const provider = this.settings.provider ?? 'ollama';
+      const payload: ISettings = {
+        ...this.settings,
+        ollama: {
+          ...this.settings.ollama,
+          model: provider === 'ollama' ? this.settings.ollama.model : this.originalSettings.ollama.model,
+        },
+        lmstudio: {
+          ...this.settings.lmstudio,
+          model: provider === 'lmstudio' ? this.settings.lmstudio.model : this.originalSettings.lmstudio.model,
+        },
+      };
+
+      // #region agent log
+      if (typeof fetch !== 'undefined') {
+        fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'SettingsService.ts:saveSettings', message: 'renderer sending payload', data: { ollamaModel: payload?.ollama?.model, lmstudioModel: payload?.lmstudio?.model, provider: payload?.provider }, timestamp: Date.now(), hypothesisId: 'H-save' }) }).catch(() => undefined);
+      }
+      // #endregion
       const message: TIpcEvent<EIpcChannel.SETTINGS, EIpcEvent.SETTINGS_SAVE> = {
         channel: EIpcChannel.SETTINGS,
         event: EIpcEvent.SETTINGS_SAVE,
-        payload: this.settings,
+        payload,
       };
 
       const result = await this.ipcAdapter.invoke(message.channel, message);
 
       if (result.success) {
-        this.setOriginalSettings(this.settings);
+        this.setOriginalSettings(payload);
+        this.setSettings(payload);
         this.setSuccess('Settings saved successfully!');
         setTimeout(() => {
           this.setSuccess(null);
@@ -117,8 +167,9 @@ export class SettingsService {
 
   /**
    * Fetch available models from the selected provider
+   * @param options.clearModelIfNotInList - When false, do not clear the default model in settings if it is not in the fetched list (use when fetching for chat dropdown to avoid overwriting settings)
    */
-  public async fetchAvailableModels(): Promise<void> {
+  public async fetchAvailableModels(options?: { clearModelIfNotInList?: boolean }): Promise<void> {
     const provider = this.settings.provider || 'ollama';
     const address = provider === 'lmstudio'
       ? this.settings.lmstudio.address
@@ -128,6 +179,18 @@ export class SettingsService {
       return;
     }
 
+    await this.fetchModelsWithProviderAddress(
+      provider,
+      address,
+      options?.clearModelIfNotInList !== false,
+    );
+  }
+
+  private async fetchModelsWithProviderAddress(
+    provider: 'ollama' | 'lmstudio',
+    _address: string,
+    clearModelIfNotInList: boolean,
+  ): Promise<void> {
     this.setLoadingModels(true);
     this.setError(null);
 
@@ -141,15 +204,14 @@ export class SettingsService {
       const result = await this.ipcAdapter.invoke(message.channel, message);
 
       if (isErrorResponse(result)) {
-        // Even on error, models array is always present (empty array)
         throw new Error(result.error);
       } else {
-        this.setAvailableModels(result.models);
+        this.setAvailableModels(result.models, clearModelIfNotInList);
       }
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
       const providerName = provider === 'lmstudio' ? 'LM Studio' : 'Ollama';
-      this.setAvailableModels([]);
+      this.setAvailableModels([], clearModelIfNotInList);
       this.setError(`Failed to fetch available models from ${providerName}. Please check the address and ensure ${providerName} is running.`);
       logger.error('Failed to fetch models: %s', errorText);
     } finally {
@@ -198,6 +260,11 @@ export class SettingsService {
    * Update Ollama model
    */
   public updateOllamaModel(model: string): void {
+    // #region agent log
+    if (typeof fetch !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'SettingsService.ts:updateOllamaModel', message: 'called', data: { model }, timestamp: Date.now(), hypothesisId: 'H-update' }) }).catch(() => undefined);
+    }
+    // #endregion
     this.setSettings({
       ...this.settings,
       ollama: {
@@ -245,6 +312,11 @@ export class SettingsService {
    * Update LM Studio model
    */
   public updateLMStudioModel(model: string): void {
+    // #region agent log
+    if (typeof fetch !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'SettingsService.ts:updateLMStudioModel', message: 'called', data: { model }, timestamp: Date.now(), hypothesisId: 'H-update' }) }).catch(() => undefined);
+    }
+    // #endregion
     this.setSettings({
       ...this.settings,
       lmstudio: {
@@ -465,8 +537,15 @@ export class SettingsService {
 
   // Private setters that trigger callbacks
   private setSettings(settings: ISettings): void {
+    const prevO = this.settings?.ollama?.model;
+    const prevL = this.settings?.lmstudio?.model;
     this.settings = settings;
     this.onSettingsChange?.(settings);
+    // #region agent log
+    if (typeof fetch !== 'undefined' && (settings?.ollama?.model !== prevO || settings?.lmstudio?.model !== prevL)) {
+      fetch('http://127.0.0.1:7242/ingest/1426d91e-479d-41a6-b4cb-9d63e420a78a', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'SettingsService.ts:setSettings', message: 'model changed', data: { newOllama: settings?.ollama?.model, newLmstudio: settings?.lmstudio?.model }, timestamp: Date.now(), hypothesisId: 'H-set' }) }).catch(() => undefined);
+    }
+    // #endregion
   }
 
   private setOriginalSettings(settings: ISettings): void {
@@ -474,13 +553,13 @@ export class SettingsService {
     this.onOriginalSettingsChange?.(settings);
   }
 
-  private setAvailableModels(models: string[]): void {
+  private setAvailableModels(models: string[], clearModelIfNotInList = true): void {
     this.availableModels = models;
     this.onAvailableModelsChange?.(models);
 
-    // Clear current model if it doesn't exist in available models
-    // Only do this if models were successfully fetched (array is not empty)
-    if (models.length > 0) {
+    // Clear current model if it doesn't exist in available models (only when requested, e.g. from Settings context)
+    // Skip when fetching for chat dropdown so using a custom model in chat does not overwrite settings default
+    if (clearModelIfNotInList && models.length > 0) {
       const provider = this.settings.provider || 'ollama';
       const currentModel = provider === 'lmstudio'
         ? this.settings.lmstudio.model

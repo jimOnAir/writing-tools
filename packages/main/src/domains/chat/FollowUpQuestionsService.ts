@@ -2,6 +2,8 @@ import type { IChatMessage, ILogger } from '@writing-tools/shared';
 
 import type { IModelService } from '../llm';
 
+import type { IFollowUpQuestionsGenerateOptions } from './IFollowUpQuestionsService';
+
 const MAX_QUESTIONS = 5;
 
 // TOOD: always send original message if it from prompt selector, or send all messages
@@ -11,7 +13,7 @@ export class FollowUpQuestionsService {
     private readonly modelService: IModelService,
   ) {}
 
-  public async generate(messages: IChatMessage[], chatId?: number | null): Promise<string[]> {
+  public async generate(messages: IChatMessage[], chatId?: number | null, messageId?: number | null,  options?: IFollowUpQuestionsGenerateOptions): Promise<string[]> {
     if (messages.length < 2) {
       this.logger.debug('Follow-up questions skipped: need at least 2 messages (user + assistant), got %d', messages.length.toString());
 
@@ -34,7 +36,7 @@ export class FollowUpQuestionsService {
           content: prompt,
           role: 'user',
         },
-      ], { maxTokens: 150 });
+      ], { maxTokens: 150, model: options?.model, provider: options?.provider });
 
       if (!response.success) {
         this.logger.error('Failed to generate follow-up questions: %s', response.error);
@@ -44,7 +46,7 @@ export class FollowUpQuestionsService {
 
       const questions = this.parseQuestions(response.response);
 
-      this.logger.info('Generated %d follow-up questions for chatId=%s', questions.length.toString(), String(chatId ?? 'unknown'));
+      this.logger.info('Generated %d follow-up questions for chatId=%s, messageId=%s', questions.length.toString(), String(chatId ?? 'unknown'), String(messageId ?? 'unknown'));
 
       return questions;
     } catch (error: unknown) {

@@ -3,6 +3,7 @@ import os from 'node:os';
 
 import type { ITextSelectionService } from './ITextSelectionService';
 
+// TODO: Copy reach text
 export class TextSelectionService implements ITextSelectionService {
   public getSelectedText(): string | null {
     try {

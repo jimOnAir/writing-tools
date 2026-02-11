@@ -104,7 +104,7 @@ describe('OllamaModelService', () => {
       const result = await ollamaModelService.sendMessages(messages);
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(mockOllamaClient.chat).toHaveBeenCalledWith('test-model', messages, undefined);
+      expect(mockOllamaClient.chat).toHaveBeenCalledWith('test-model', messages, { maxTokens: undefined });
       expect(result).toEqual({ response: 'Test response', success: true });
     });
 

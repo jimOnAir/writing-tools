@@ -17,11 +17,7 @@ export class SettingsRepository implements ISettingsRepository {
   ) {}
 
   public async loadSettings(): Promise<ISettings> {
-    // If settings are already loaded, return cached version
-    if (this.settingsLoaded && this.currentSettings !== null) {
-      return this.currentSettings;
-    }
-
+    // Always read from file so we never return stale cache (e.g. from a previous bug that saved chat model as default)
     try {
       await this.ensureSettingsDirectory();
       const settingsPath = this.getSettingsFilePath();

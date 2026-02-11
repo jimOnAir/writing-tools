@@ -126,15 +126,21 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
     }
   }, [chatService, chatId]);
 
-  // Settings and available models for model dropdown
+  // Settings for display and available models for model dropdown (do not register onSettingsChange so chat never overwrites the service's settings)
   useEffect(() => {
     settingsService.setCallbacks({
       onAvailableModelsChange: setAvailableModels,
       onLoadingModelsChange: setLoadingModels,
-      onSettingsChange: setSettings,
     });
-    void settingsService.loadSettings();
-    void settingsService.fetchAvailableModels();
+    const load = async () => {
+      try {
+        const loaded = await settingsService.loadSettingsForDisplay();
+        setSettings(loaded);
+      } catch {
+        setSettings(null);
+      }
+    };
+    void load();
   }, [settingsService]);
 
   // Scroll to bottom only during streaming to keep the latest content visible

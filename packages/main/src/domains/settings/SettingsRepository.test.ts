@@ -95,7 +95,7 @@ describe('SettingsRepository', () => {
       expect(settings).toEqual(DefaultSettings);
     });
 
-    it('returns cached settings on subsequent calls', async () => {
+    it('reads from file on every load (no cache)', async () => {
       const savedSettings: Partial<ISettings> = {
         provider: 'ollama',
       };
@@ -108,8 +108,7 @@ describe('SettingsRepository', () => {
       const settings2 = await repository.loadSettings();
 
       expect(settings1).toEqual(settings2);
-      // readFile should only be called once due to caching
-      expect(fs.readFile).toHaveBeenCalledTimes(1);
+      expect(fs.readFile).toHaveBeenCalledTimes(2);
     });
 
     it('creates directory if it does not exist', async () => {
@@ -150,7 +149,7 @@ describe('SettingsRepository', () => {
       );
     });
 
-    it('updates in-memory cache after saving', async () => {
+    it('load returns saved settings from file', async () => {
       const settings: ISettings = {
         ...DefaultSettings,
         provider: 'lmstudio',
@@ -159,10 +158,10 @@ describe('SettingsRepository', () => {
       (fs.access as jest.Mock).mockResolvedValue(undefined);
       (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
       (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+      (fs.readFile as jest.Mock).mockResolvedValue(JSON.stringify(settings));
 
       await repository.saveSettings(settings);
 
-      // Load should return cached version
       const loaded = await repository.loadSettings();
       expect(loaded.provider).toBe('lmstudio');
     });

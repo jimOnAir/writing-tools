@@ -161,6 +161,7 @@ export class AppBootstrap {
       this.logger,
     );
     this.dbWatcherMessageSubscriber = new DbWatcherMessageSubscriber(
+      this.chatRepository,
       this.dbWatcherService as DbWatcherService,
       this.followUpQuestionsService,
       this.logger,

@@ -23,10 +23,10 @@ export class OllamaModelService implements IOllamaModelService {
     return client.listModels();
   };
 
-  public sendMessages = async (messages: Message[], options?: { maxTokens?: number }): Promise<OllamaChatResponse> => {
+  public sendMessages = async (messages: Message[], options?: { maxTokens?: number, model?: string }): Promise<OllamaChatResponse> => {
     const settings = await this.settingsService.loadSettings();
-    const { address, model, apiKey } = settings.ollama;
-
+    const { address, model: settingsModel, apiKey } = settings.ollama;
+    const model = options?.model ?? settingsModel;
     if (!model) {
       throw new Error('Model not specified');
     }
@@ -36,7 +36,7 @@ export class OllamaModelService implements IOllamaModelService {
       apiKey,
     }, this.logger);
 
-    return client.chat(model, messages, options);
+    return client.chat(model, messages, { maxTokens: options?.maxTokens });
   };
 
   public sendMessagesStream = async function* (

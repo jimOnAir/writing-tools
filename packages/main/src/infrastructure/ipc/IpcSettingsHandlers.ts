@@ -34,6 +34,20 @@ export class IpcSettingsHandler implements IIpcSettingsHandler {
 
   private async handleSettingsSave(settings: ISettings) {
     try {
+      // #region agent log
+      try {
+        const fs = await import('node:fs');
+        const path = await import('node:path');
+        const logDir = path.join(process.cwd(), '.cursor');
+        const logPath = path.join(logDir, 'debug.log');
+        if (!fs.existsSync(logDir)) {
+          fs.mkdirSync(logDir, { recursive: true });
+        }
+        fs.appendFileSync(logPath, JSON.stringify({ location: 'IpcSettingsHandlers.ts:handleSettingsSave', message: 'main process saving', data: { ollamaModel: settings?.ollama?.model, lmstudioModel: settings?.lmstudio?.model, provider: settings?.provider }, timestamp: Date.now(), hypothesisId: 'H-save' }) + '\n');
+      } catch {
+        // ignore log errors
+      }
+      // #endregion
       await this.settingsService.saveSettings(settings);
 
       return { success: true };

@@ -74,6 +74,7 @@ const createMockSettingsService = (): jest.Mocked<SettingsService> => {
     getSettings: jest.fn().mockReturnValue({ ollama: {}, lmstudio: {}, provider: 'ollama' }),
     hasUnsavedChanges: jest.fn().mockReturnValue(false),
     loadSettings: jest.fn().mockResolvedValue(undefined),
+    loadSettingsForDisplay: jest.fn().mockResolvedValue({ ollama: {}, lmstudio: {}, provider: 'ollama' }),
     saveSettings: jest.fn().mockResolvedValue(true),
     setCallbacks: jest.fn(),
     updateLMStudioAddress: jest.fn(),

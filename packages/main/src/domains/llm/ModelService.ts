@@ -31,8 +31,8 @@ export class ModelService implements IModelService {
     }
   };
 
-  public sendMessages = async (messages: Message[], options?: { maxTokens?: number }): Promise<LLMChatResponse> => {
-    const provider = await this.getProvider();
+  public sendMessages = async (messages: Message[], options?: { maxTokens?: number, model?: string, provider?: 'ollama' | 'lmstudio' }): Promise<LLMChatResponse> => {
+    const provider = await this.getProvider(options?.provider);
 
     return provider.sendMessages(messages, options);
   };

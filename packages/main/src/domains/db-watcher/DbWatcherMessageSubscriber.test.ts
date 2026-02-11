@@ -3,6 +3,7 @@
 import type { ILogger } from '@writing-tools/shared';
 import { EIpcRendererEvent } from '@writing-tools/shared';
 
+import type { IChatRepository } from '../chat/IChatRepository';
 import type { IFollowUpQuestionsService } from '../chat/IFollowUpQuestionsService';
 import type { IMessageService } from '../chat/IMessageService';
 import type { ITitleGenerationService } from '../chat/ITitleGenerationService';
@@ -25,6 +26,7 @@ const mockDatabaseConnection = {
 };
 
 describe('DbWatcherMessageSubscriber', () => {
+  let chatRepository: jest.Mocked<IChatRepository>;
   let followUpQuestionsService: jest.Mocked<IFollowUpQuestionsService>;
   let messageService: jest.Mocked<IMessageService>;
   let mockLogger: jest.Mocked<ILogger>;
@@ -34,6 +36,14 @@ describe('DbWatcherMessageSubscriber', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    chatRepository = {
+      createChat: jest.fn(),
+      getAllChats: jest.fn(),
+      getChat: jest.fn().mockReturnValue(null),
+      updateChatTitle: jest.fn(),
+      updateChatModel: jest.fn(),
+      deleteChat: jest.fn(),
+    } as unknown as jest.Mocked<IChatRepository>;
     mockLogger = {
       debug: jest.fn(),
       error: jest.fn(),
@@ -66,6 +76,7 @@ describe('DbWatcherMessageSubscriber', () => {
       mockLogger,
     );
     subscriber = new DbWatcherMessageSubscriber(
+      chatRepository,
       service,
       followUpQuestionsService,
       mockLogger,
@@ -101,19 +112,51 @@ describe('DbWatcherMessageSubscriber', () => {
       messages,
     });
     expect(titleGenerationService.generateTitleIfNeeded).toHaveBeenCalledWith(5);
-    expect(followUpQuestionsService.generate).toHaveBeenCalledWith(messages, 5);
+    expect(followUpQuestionsService.generate).toHaveBeenCalledWith(messages, 5, undefined);
     expect(mockSendToAllWindows).toHaveBeenCalledWith(EIpcRendererEvent.CHAT_FOLLOW_UP_QUESTIONS, {
       chatId: 5,
       questions: ['Q1?', 'Q2?'],
     });
   });
 
+  it('passes chat model and provider to followUpQuestionsService when chat has them', async () => {
+    const messages = [
+      { content: 'Hi', id: '1', role: 'user' as const, timestamp: new Date() },
+      { content: 'Hello!', id: '2', role: 'assistant' as const, timestamp: new Date() },
+    ];
+    messageService.loadChatMessages.mockReturnValue(messages);
+    chatRepository.getChat.mockReturnValue({
+      id: 7,
+      model: 'my-model',
+      provider: 'ollama',
+      title: 'Test',
+      updatedAt: new Date(),
+    });
+    followUpQuestionsService.generate.mockResolvedValue(['Q1?']);
+
+    service.emit('messages', {
+      operation: EDbOperation.INSERT,
+      payload: { chat_id: 7, id: '2' },
+    });
+    await flushPromises();
+
+    expect(followUpQuestionsService.generate).toHaveBeenCalledWith(messages, 7, {
+      model: 'my-model',
+      provider: 'ollama',
+    });
+  });
+
   it('sends CHAT_FOLLOW_UP_QUESTIONS with empty array on followUpQuestionsService error', async () => {
+    const messages = [
+      { content: 'Hi', id: '1', role: 'user' as const, timestamp: new Date() },
+      { content: 'Bye', id: '2', role: 'assistant' as const, timestamp: new Date() },
+    ];
+    messageService.loadChatMessages.mockReturnValue(messages);
     followUpQuestionsService.generate.mockRejectedValue(new Error('LLM error'));
 
     service.emit('messages', {
       operation: EDbOperation.INSERT,
-      payload: { chat_id: 3 },
+      payload: { chat_id: 3, id: '2' },
     });
     await flushPromises();
 
