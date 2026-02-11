@@ -145,6 +145,87 @@ describe('LMStudioClient', () => {
       });
     });
 
+    it('extracts statistics from usage in response', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: {
+              content: 'Response with stats',
+            },
+          },
+        ],
+        model: 'test-model',
+        usage: {
+          completion_tokens: 50,
+          prompt_tokens: 20,
+          total_tokens: 70,
+        },
+      };
+
+      nock(baseUrl)
+        .post('/v1/chat/completions')
+        .reply(HTTP_OK, mockResponse);
+
+      const result = await client.chat('test-model', [
+        { role: 'user', content: 'Hello' },
+      ]);
+
+      expect(result).toMatchObject({
+        response: 'Response with stats',
+        statistics: {
+          generatedAt: expect.any(Date),
+          lmstudio: {
+            completionTokens: 50,
+            promptTokens: 20,
+            totalTokens: 70,
+          },
+          model: 'test-model',
+          provider: 'lmstudio',
+        },
+        success: true,
+      });
+    });
+
+    it('extracts statistics from stats field when usage is absent (LM Studio native format)', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: {
+              content: 'Response',
+            },
+          },
+        ],
+        model: 'test-model',
+        stats: {
+          input_tokens: 15,
+          total_output_tokens: 25,
+        },
+      };
+
+      nock(baseUrl)
+        .post('/v1/chat/completions')
+        .reply(HTTP_OK, mockResponse);
+
+      const result = await client.chat('test-model', [
+        { role: 'user', content: 'Hello' },
+      ]);
+
+      expect(result).toMatchObject({
+        response: 'Response',
+        statistics: {
+          generatedAt: expect.any(Date),
+          lmstudio: {
+            completionTokens: 25,
+            promptTokens: 15,
+            totalTokens: 40,
+          },
+          model: 'test-model',
+          provider: 'lmstudio',
+        },
+        success: true,
+      });
+    });
+
     it('handles empty choices array', async () => {
       nock(baseUrl)
         .post('/v1/chat/completions')

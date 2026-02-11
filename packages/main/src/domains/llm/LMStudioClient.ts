@@ -44,12 +44,20 @@ interface LMStudioStreamChunkData {
     },
     finish_reason: string | null,
   }>;
+  model?: string;
+  /**
+   * LM Studio native format (input_tokens, total_output_tokens)
+   * Used when usage is not provided (e.g. older LM Studio or different response structure)
+   */
+  stats?: {
+    input_tokens?: number,
+    total_output_tokens?: number,
+  };
   usage?: {
-    prompt_tokens?: number,
     completion_tokens?: number,
+    prompt_tokens?: number,
     total_tokens?: number,
   };
-  model?: string;
 }
 
 interface LMStudioChatResponseBody {
@@ -58,18 +66,49 @@ interface LMStudioChatResponseBody {
       content: string,
     },
   }>;
+  model?: string;
+  /**
+   * LM Studio native format - fallback when usage is not provided
+   */
+  stats?: {
+    input_tokens?: number,
+    total_output_tokens?: number,
+  };
   usage?: {
-    prompt_tokens?: number,
     completion_tokens?: number,
+    prompt_tokens?: number,
     total_tokens?: number,
   };
-  model?: string;
 }
 
 interface LMStudioModelsResponse {
   data: Array<{
     id: string,
   }>;
+}
+
+function extractStatistics(
+  data: { model?: string, stats?: { input_tokens?: number, total_output_tokens?: number }, usage?: { completion_tokens?: number, prompt_tokens?: number, total_tokens?: number } },
+): IMessageStatistics | undefined {
+  const promptTokens = data.usage?.prompt_tokens ?? data.stats?.input_tokens;
+  const completionTokens = data.usage?.completion_tokens ?? data.stats?.total_output_tokens;
+  const totalTokens = data.usage?.total_tokens ?? (promptTokens !== undefined && completionTokens !== undefined ? promptTokens + completionTokens : undefined);
+  const hasTokens = promptTokens !== undefined || completionTokens !== undefined || totalTokens !== undefined;
+
+  if (!hasTokens) {
+    return undefined;
+  }
+
+  return {
+    generatedAt: new Date(),
+    lmstudio: {
+      completionTokens,
+      promptTokens,
+      totalTokens,
+    },
+    model: data.model,
+    provider: 'lmstudio',
+  };
 }
 
 export class LMStudioClient {
@@ -111,19 +150,7 @@ export class LMStudioClient {
         throw new Error('No response from LM Studio');
       }
 
-      // Extract statistics from LM Studio response
-      const statistics: IMessageStatistics | undefined = data.usage !== undefined
-        ? {
-          provider: 'lmstudio',
-          model: data.model,
-          generatedAt: new Date(),
-          lmstudio: {
-            promptTokens: data.usage.prompt_tokens,
-            completionTokens: data.usage.completion_tokens,
-            totalTokens: data.usage.total_tokens,
-          },
-        }
-        : undefined;
+      const statistics = extractStatistics(data);
 
       return {
         response: data.choices[0].message.content.trimEnd(),
@@ -208,17 +235,11 @@ export class LMStudioClient {
               const data = JSON.parse(jsonStr) as LMStudioStreamChunkData;
 
               // Handle usage-only chunk (stream_options.include_usage sends final chunk with empty choices)
-              if (data.choices.length === 0 && data.usage !== undefined) {
-                statistics = {
-                  generatedAt: new Date(),
-                  lmstudio: {
-                    completionTokens: data.usage.completion_tokens,
-                    promptTokens: data.usage.prompt_tokens,
-                    totalTokens: data.usage.total_tokens,
-                  },
-                  model: data.model,
-                  provider: 'lmstudio',
-                };
+              if (data.choices.length === 0) {
+                const extracted = extractStatistics(data);
+                if (extracted !== undefined) {
+                  statistics = extracted;
+                }
                 continue;
               }
 
@@ -227,18 +248,12 @@ export class LMStudioClient {
                 const content = choice.delta.content ?? '';
                 const isDone = choice.finish_reason !== null;
 
-                // Extract statistics from the final chunk
-                if (isDone && data.usage !== undefined) {
-                  statistics = {
-                    provider: 'lmstudio',
-                    model: data.model,
-                    generatedAt: new Date(),
-                    lmstudio: {
-                      promptTokens: data.usage.prompt_tokens,
-                      completionTokens: data.usage.completion_tokens,
-                      totalTokens: data.usage.total_tokens,
-                    },
-                  };
+                // Extract statistics from the final chunk (usage or stats may be present)
+                if (isDone) {
+                  const extracted = extractStatistics(data);
+                  if (extracted !== undefined) {
+                    statistics = extracted;
+                  }
                 }
 
                 yield { content, done: isDone, statistics: isDone ? statistics : undefined };
@@ -251,7 +266,7 @@ export class LMStudioClient {
         }
       }
 
-      // Handle any remaining buffer content
+      // Handle any remaining buffer content (e.g. stream ended without [DONE])
       if (buffer.trim() !== '' && buffer.trim() !== 'data: [DONE]') {
         if (buffer.trim().startsWith('data: ')) {
           const jsonStr = buffer.trim().slice(6);
@@ -259,10 +274,25 @@ export class LMStudioClient {
           try {
             const data = JSON.parse(jsonStr) as LMStudioStreamChunkData;
 
-            if (data.choices.length > 0) {
+            if (data.choices.length === 0) {
+              const extracted = extractStatistics(data);
+              if (extracted !== undefined) {
+                statistics = extracted;
+              }
+              yield { content: '', done: true, statistics };
+            } else {
               const choice = data.choices[0];
               const content = choice.delta.content ?? '';
-              yield { content, done: true };
+              const isDone = choice.finish_reason !== null;
+
+              if (isDone) {
+                const extracted = extractStatistics(data);
+                if (extracted !== undefined) {
+                  statistics = extracted;
+                }
+              }
+
+              yield { content, done: true, statistics };
             }
           } catch {
             // Skip invalid JSON
