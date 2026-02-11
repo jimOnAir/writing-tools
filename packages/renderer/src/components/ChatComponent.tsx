@@ -17,7 +17,6 @@ interface ChatComponentProps {
   readonly settingsService: SettingsService;
 }
 
-// TODO: streaming and loading state are not working as expected
 // TODO: add context length indicator
 // TODO: make follow up questions more visible
 
@@ -47,13 +46,15 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
   const isSendingRef = useRef<boolean>(false);
   const isComposingRef = useRef<boolean>(false);
 
-  // Register callbacks
+  // Register callbacks and sync initial state from service
   useEffect(() => {
     const initialError = chatService.getError();
     if (initialError !== null) {
       setError(initialError);
       setErrorType(chatService.getErrorType());
     }
+    setIsLoading(chatService.getIsLoading());
+    setIsStreaming(chatService.getIsStreaming());
     chatService.setCallbacks({
       onErrorChange: (msg, type) => {
         setError(msg);
@@ -453,7 +454,9 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
             {messages.map((message, index) => {
               // Check if this is the last message and it's streaming
               const isLastMessage = index === messages.length - 1;
-              const isStreamingMessage = isStreaming && isLastMessage && message.role === 'assistant';
+              const isEmptyAssistantPlaceholder = isLastMessage && message.role === 'assistant' && message.content.trim() === '';
+              const hidePlaceholderBubble = isEmptyAssistantPlaceholder && (isLoading || isStreaming);
+              const isStreamingMessage = isStreaming && isLastMessage && message.role === 'assistant' && message.content.trim() !== '';
               const isErrorMessage = message.role === 'assistant' && message.content.startsWith('Error:');
               const messageBubbleStyle = isErrorMessage ? MessageStyles.error : MessageStyles[message.role];
               let errorTypeLabel: string | null = null;
@@ -467,6 +470,10 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
                 } else {
                   errorTypeLabel = 'Error';
                 }
+              }
+
+              if (hidePlaceholderBubble) {
+                return <div key={message.id} className="min-h-0" aria-hidden="true" />;
               }
 
               return (
@@ -616,17 +623,26 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
                 </div>
               );
             })()}
-            {isLoading && !isStreaming && (
-              <div className="flex justify-start">
-                <div className={`${BackgroundStyles.loadingBubble} ${ColorPalette.text.tertiary} p-3 rounded rounded-l-sm`}>
-                  <div className={LoadingStyles}>
-                    <div className={`w-2 h-2 ${ColorPalette.loading.dot} rounded-full animate-bounce`}></div>
-                    <div className={`w-2 h-2 ${ColorPalette.loading.dot} rounded-full animate-bounce`} style={{ animationDelay: '0.2s' }}></div>
-                    <div className={`w-2 h-2 ${ColorPalette.loading.dot} rounded-full animate-bounce`} style={{ animationDelay: '0.4s' }}></div>
+            {(() => {
+              const lastMessage = messages.at(-1);
+              const lastIsAssistantPlaceholder = lastMessage !== undefined && lastMessage.role === 'assistant' && lastMessage.content.trim() === '';
+              const showLoadingBubble = isLoading && (!isStreaming || lastIsAssistantPlaceholder);
+              if (!showLoadingBubble) {
+                return null;
+              }
+
+              return (
+                <div className="flex justify-start">
+                  <div className={`${BackgroundStyles.loadingBubble} ${ColorPalette.text.tertiary} p-3 rounded rounded-l-sm`}>
+                    <div className={LoadingStyles}>
+                      <div className={`w-2 h-2 ${ColorPalette.loading.dot} rounded-full animate-bounce`}></div>
+                      <div className={`w-2 h-2 ${ColorPalette.loading.dot} rounded-full animate-bounce`} style={{ animationDelay: '0.2s' }}></div>
+                      <div className={`w-2 h-2 ${ColorPalette.loading.dot} rounded-full animate-bounce`} style={{ animationDelay: '0.4s' }}></div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             <div ref={messagesEndRef} />
           </div>
         )}

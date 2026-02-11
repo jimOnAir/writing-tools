@@ -492,6 +492,40 @@ describe('ChatService', () => {
       expect(onMessagesChange).toHaveBeenCalledWith(messages);
     });
 
+    it('ignores CHAT_LOAD_MESSAGES_DATA when actively streaming and DB has no assistant yet', () => {
+      chatService.initializeListeners();
+
+      const onMessagesChange = jest.fn();
+      const onLoadingChange = jest.fn();
+      chatService.setCallbacks({ onMessagesChange, onLoadingChange });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const messagesCallback = (mockIpcAdapter.onChatLoadMessagesData as jest.Mock).mock.calls[0]?.[0] as (
+        data: { chatId: number, messages: IChatMessage[] },
+      ) => void;
+
+      // Simulate sendMessage: we have [user, placeholder] and are streaming
+      (chatService as unknown as { currentChatId: number | null }).currentChatId = 1;
+      (chatService as unknown as { streamingMessageId: string | null }).streamingMessageId = 'placeholder-1';
+      (chatService as unknown as { messages: IChatMessage[] }).messages = [
+        { id: '1', role: 'user', content: 'Hello', timestamp: new Date() },
+        { id: 'placeholder-1', role: 'assistant', content: '', timestamp: new Date() },
+      ];
+
+      onMessagesChange.mockClear();
+      onLoadingChange.mockClear();
+
+      // DbWatcher fires when user message is saved (before assistant) - DB has only [user]
+      messagesCallback({
+        chatId: 1,
+        messages: [{ id: '1', role: 'user', content: 'Hello', timestamp: new Date() }],
+      });
+
+      // Should NOT overwrite messages (would lose streaming placeholder) or set loading false
+      expect(onMessagesChange).not.toHaveBeenCalled();
+      expect(onLoadingChange).not.toHaveBeenCalled();
+    });
+
     it('handles stream chunk events', () => {
       chatService.initializeListeners();
 

@@ -48,6 +48,7 @@ const createMockChatService = (): jest.Mocked<ChatService> => {
     getHistoryIndex: jest.fn().mockReturnValue(-1),
     getIsHandlingResponse: jest.fn().mockReturnValue(false),
     getIsLoading: jest.fn().mockReturnValue(false),
+    getIsStreaming: jest.fn().mockReturnValue(false),
     getModelOverride: jest.fn().mockReturnValue(null),
     getMessages: jest.fn().mockReturnValue([]),
     getPreconfiguredPrompts: jest.fn().mockReturnValue([]),

@@ -216,36 +216,49 @@ export class ChatService {
     const handleChatLoadMessagesData = (data: { chatId: number, messages: IChatMessage[] }) => {
       // Only accept CHAT_LOAD_MESSAGES_DATA if currentChatId is null (new tab) or matches the event's chatId
       // This prevents other tabs from incorrectly adopting chatIds from load events meant for different tabs
-      if (this.currentChatId === null || this.currentChatId === data.chatId) {
-        this.logger.info('Loading messages for chat: chatId=%s, messageCount=%s', String(data.chatId), String(data.messages.length));
-        this.currentChatId = data.chatId;
-
-        const hasUserMessage = data.messages.some(m => m.role === 'user');
-        const hasAssistantMessage = data.messages.some(m => m.role === 'assistant');
-        const hasStreamingError = this.error !== null && this.error.startsWith('Streaming error:');
-
-        // If we have a streaming error and DB lacks assistant message, append error message
-        // (CHAT_LOAD_MESSAGES_DATA can arrive after CHAT_STREAM_END - would otherwise replace error with [user])
-        let messagesToSet = data.messages;
-        if (hasStreamingError && hasUserMessage && !hasAssistantMessage && this.error !== null) {
-          const errorText = this.error.replace(/^Streaming error: /, '');
-          const errorMessage: IChatMessage = {
-            content: `Error: ${errorText}`,
-            errorType: this.errorType,
-            id: `${Date.now().toString()}-error`,
-            role: 'assistant',
-            timestamp: new Date(),
-          };
-          messagesToSet = [...data.messages, errorMessage];
-        }
-
-        this.setMessages(messagesToSet);
-        this.setLoading(false);
-        // Do NOT clear error here - CHAT_LOAD_MESSAGES_DATA is pushed by DbWatcher when messages change.
-        // It can arrive after a streaming error, racing with CHAT_STREAM_END. Clearing would hide the error.
-      } else {
+      if (this.currentChatId !== null && this.currentChatId !== data.chatId) {
         this.logger.info('Ignoring CHAT_LOAD_MESSAGES_DATA: chatId=%s does not match currentChatId=%s', String(data.chatId), String(this.currentChatId));
+
+        return;
       }
+
+      this.logger.info('Loading messages for chat: chatId=%s, messageCount=%s', String(data.chatId), String(data.messages.length));
+      this.currentChatId = data.chatId;
+
+      const hasUserMessage = data.messages.some(m => m.role === 'user');
+      const hasAssistantMessage = data.messages.some(m => m.role === 'assistant');
+      const hasStreamingError = this.error !== null && this.error.startsWith('Streaming error:');
+      const isActivelyStreaming = this.streamingMessageId !== null;
+
+      // When actively streaming, never apply CHAT_LOAD_MESSAGES_DATA. For existing chats the first
+      // payload after send contains previous history (hasAssistantMessage true), which would
+      // overwrite [user, placeholder] and clear loading. Wait until CHAT_STREAM_END clears
+      // streaming state; the next CHAT_LOAD_MESSAGES_DATA (after assistant is saved) will apply.
+      if (isActivelyStreaming) {
+        this.logger.debug('Ignoring CHAT_LOAD_MESSAGES_DATA during streaming: chatId=%s', String(data.chatId));
+
+        return;
+      }
+
+      // If we have a streaming error and DB lacks assistant message, append error message
+      // (CHAT_LOAD_MESSAGES_DATA can arrive after CHAT_STREAM_END - would otherwise replace error with [user])
+      let messagesToSet = data.messages;
+      if (hasStreamingError && hasUserMessage && !hasAssistantMessage && this.error !== null) {
+        const errorText = this.error.replace(/^Streaming error: /, '');
+        const errorMessage: IChatMessage = {
+          content: `Error: ${errorText}`,
+          errorType: this.errorType,
+          id: `${Date.now().toString()}-error`,
+          role: 'assistant',
+          timestamp: new Date(),
+        };
+        messagesToSet = [...data.messages, errorMessage];
+      }
+
+      this.setMessages(messagesToSet);
+      this.setLoading(false);
+      // Do NOT clear error here - CHAT_LOAD_MESSAGES_DATA is pushed by DbWatcher when messages change.
+      // It can arrive after a streaming error, racing with CHAT_STREAM_END. Clearing would hide the error.
     };
 
     const handleChatDeleted = (data: { chatId: number }) => {
