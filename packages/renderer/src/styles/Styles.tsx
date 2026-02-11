@@ -144,6 +144,17 @@ export const CardStyles = {
   settingsCard: `${BackgroundStyles.card} p-6`,
 };
 
+// Follow-up questions styles
+export const FollowUpStyles: {
+  readonly button: string;
+  readonly container: string;
+  readonly label: string;
+} = {
+  button: `${ButtonStyles.base} px-4 py-2 rounded-lg border ${ColorPalette.border.defaultLight} ${ColorPalette.background.cardHover} ${ColorPalette.text.primary} text-sm whitespace-nowrap hover:border-purple-600/50 hover:shadow-md hover:shadow-purple-600/10 transition-all duration-300`,
+  container: `flex flex-col gap-2 justify-start items-start ${ColorPalette.background.card} rounded-xl p-4 mt-4 border ${ColorPalette.border.defaultLight} shadow-sm`,
+  label: `block text-sm font-medium mb-2 ${ColorPalette.text.secondary}`,
+};
+
 // Scrollbar styles
 // Note: Scrollbar styling is primarily CSS-based (see App.css)
 // This object documents the color scheme used for scrollbars

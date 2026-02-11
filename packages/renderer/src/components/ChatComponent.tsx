@@ -4,7 +4,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 
 import type { ChatService } from '../domains/chat';
 import type { SettingsService } from '../domains/settings';
-import { BackgroundStyles, ButtonSizeStyles, ButtonStyles, CardStyles, ColorPalette, InputStyles, LayoutStyles, MessageStyles, NotificationStyles, LoadingStyles, SpinnerIcon, TypographyStyles } from '../styles/Styles';
+import { BackgroundStyles, ButtonSizeStyles, ButtonStyles, CardStyles, ColorPalette, FollowUpStyles, InputStyles, LayoutStyles, LoadingStyles, MessageStyles, NotificationStyles, SpinnerIcon, TypographyStyles } from '../styles/Styles';
 import { formatStatistics } from '../utils/formatStatistics';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
@@ -18,7 +18,6 @@ interface ChatComponentProps {
 }
 
 // TODO: add context length indicator
-// TODO: make follow up questions more visible
 
 const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, settingsService }) => {
   const [messages, setMessages] = useState<IChatMessage[]>([]);
@@ -606,16 +605,14 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
               }
 
               return (
-                <div className={`flex flex-col gap-2 justify-start items-start mt-3 pt-2 border-t ${ColorPalette.border.defaultLight}`}>
-                  <span className={`text-xs ${ColorPalette.text.muted}`}>Suggested follow-ups</span>
+                <div className={FollowUpStyles.container}>
+                  <span className={FollowUpStyles.label}>Suggested follow-ups</span>
                   <div className="flex flex-wrap gap-2">
                     {followUpQuestions.map((question, index) => (
                       <button
                         key={`${String(index)}-${question.slice(0, 20)}`}
                         type="button"
-                        className={
-                          `${ButtonStyles.base} ${ButtonStyles.ghost} ${ColorPalette.text.primary} text-sm whitespace-nowrap hover:underline`
-                        }
+                        className={FollowUpStyles.button}
                         onClick={() => {
                           setFollowUpQuestions(null);
                           void handleSendMessage(question);
