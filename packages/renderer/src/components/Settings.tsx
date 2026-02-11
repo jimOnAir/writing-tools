@@ -3,6 +3,7 @@ import type { IPreconfiguredPrompt, ISettings } from '@writing-tools/shared';
 import React, { useState, useEffect, useMemo } from 'react';
 
 import type { SettingsService } from '../domains/settings';
+import type { TAvailableModelsByProvider } from '../domains/settings/SettingsTypes';
 import { BackgroundStyles, TypographyStyles, LayoutStyles, InputStyles } from '../styles/Styles';
 
 import { GlobalShortcutsSection } from './settings/GlobalShortcutsSection';
@@ -12,30 +13,34 @@ import { PreconfiguredPromptsSection } from './settings/PreconfiguredPromptsSect
 import { SettingsActions } from './settings/SettingsActions';
 import { SettingsNotifications } from './settings/SettingsNotifications';
 
+// TODO: Make save and cancel buttons sticky
 interface SettingsProps {
   readonly settingsService: SettingsService;
   readonly isModal?: boolean;
 }
-// TODO: fix lmstudio models are shown for ollama
 const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false }) => {
   const [settings, setSettings] = useState<ISettings>(useMemo(() => ({ ...DefaultSettings }), []));
   // originalSettings is managed via callback in SettingsService, but component doesn't need to track it
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [availableModelsByProvider, setAvailableModelsByProvider] = useState<TAvailableModelsByProvider>({
+    lmstudio: [],
+    ollama: [],
+  });
   const [loadingModels, setLoadingModels] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [newShortcut, setNewShortcut] = useState<string>('');
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Register callbacks
+  // Register callbacks and sync initial model lists from service
   useEffect(() => {
+    setAvailableModelsByProvider(settingsService.getAvailableModelsByProvider());
     settingsService.setCallbacks({
-      onSettingsChange: setSettings,
+      onAvailableModelsChange: setAvailableModelsByProvider,
+      onErrorChange: setError,
+      onLoadingModelsChange: setLoadingModels,
       onOriginalSettingsChange: () => {
         // Component doesn't need to track originalSettings, service handles it internally
       },
-      onAvailableModelsChange: setAvailableModels,
-      onLoadingModelsChange: setLoadingModels,
-      onErrorChange: setError,
+      onSettingsChange: setSettings,
       onSuccessChange: setSuccess,
     });
   }, [settingsService]);
@@ -179,7 +184,7 @@ const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false })
           address={settings.ollama.address}
           model={settings.ollama.model}
           apiKey={settings.ollama.apiKey}
-          availableModels={availableModels}
+          availableModels={availableModelsByProvider.ollama}
           loadingModels={loadingModels}
           onAddressChange={handleOllamaAddressChange}
           onModelChange={handleOllamaModelChange}
@@ -191,7 +196,7 @@ const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false })
           address={settings.lmstudio.address}
           model={settings.lmstudio.model}
           apiKey={settings.lmstudio.apiKey}
-          availableModels={availableModels}
+          availableModels={availableModelsByProvider.lmstudio}
           loadingModels={loadingModels}
           onAddressChange={handleLMStudioAddressChange}
           onModelChange={handleLMStudioModelChange}
@@ -202,7 +207,7 @@ const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false })
         <PreconfiguredPromptsSection
           prompts={settings.preconfiguredPrompts}
           settings={settings}
-          availableModels={availableModels}
+          availableModelsByProvider={availableModelsByProvider}
           onAdd={handleAddPreconfiguredPrompt}
           onIconUpload={handleIconUpload}
           onRemove={handleRemovePreconfiguredPrompt}

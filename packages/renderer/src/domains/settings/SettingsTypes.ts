@@ -4,11 +4,16 @@ import type { ISettings } from '@writing-tools/shared';
 // Most types are imported from @writing-tools/shared
 // This file is reserved for any settings-domain-specific type extensions
 
+export type TAvailableModelsByProvider = {
+  lmstudio: string[],
+  ollama: string[],
+};
+
 export type SettingsServiceCallbacks = {
-  onSettingsChange?: (settings: ISettings) => void,
-  onOriginalSettingsChange?: (settings: ISettings) => void,
-  onAvailableModelsChange?: (models: string[]) => void,
-  onLoadingModelsChange?: (loading: boolean) => void,
+  onAvailableModelsChange?: (payload: TAvailableModelsByProvider) => void,
   onErrorChange?: (error: string | null) => void,
+  onLoadingModelsChange?: (loading: boolean) => void,
+  onOriginalSettingsChange?: (settings: ISettings) => void,
+  onSettingsChange?: (settings: ISettings) => void,
   onSuccessChange?: (success: string | null) => void,
 };

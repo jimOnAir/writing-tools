@@ -7,6 +7,7 @@ import type { PreconfiguredPromptsSectionProps } from './PreconfiguredPromptsSec
 import { PreconfiguredPromptsSection } from './PreconfiguredPromptsSection';
 
 type MockPreconfiguredPromptItemProps = {
+  availableModelsByProvider: { lmstudio: string[], ollama: string[] },
   index: number,
   onRemove: (index: number) => void,
   prompt: IPreconfiguredPrompt,
@@ -48,14 +49,14 @@ jest.mock('../../utils/platformDetection', () => ({
 
 describe('PreconfiguredPromptsSection', () => {
   const defaultProps: PreconfiguredPromptsSectionProps = {
-    prompts: [] as IPreconfiguredPrompt[],
-    settings: DefaultSettings,
-    availableModels: [],
+    availableModelsByProvider: { lmstudio: [], ollama: [] },
     onAdd: jest.fn(),
     onIconUpload: jest.fn().mockResolvedValue(undefined),
     onRemove: jest.fn(),
     onReorder: jest.fn(),
     onUpdate: jest.fn(),
+    prompts: [] as IPreconfiguredPrompt[],
+    settings: DefaultSettings,
   };
 
   beforeEach(() => {

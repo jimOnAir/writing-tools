@@ -1,31 +1,32 @@
 import type { IPreconfiguredPrompt, ISettings } from '@writing-tools/shared';
 import React, { useState, useEffect, useRef } from 'react';
 
+import type { TAvailableModelsByProvider } from '../../domains/settings/SettingsTypes';
 import { ButtonStyles, ButtonSizeStyles, TypographyStyles, LayoutStyles, BackgroundStyles } from '../../styles/Styles';
 import { getPlatform } from '../../utils/platformDetection';
 
 import { PreconfiguredPromptItem } from './PreconfiguredPromptItem';
 
 export interface PreconfiguredPromptsSectionProps {
-  readonly prompts: IPreconfiguredPrompt[];
-  readonly settings: ISettings;
-  readonly availableModels: string[];
+  readonly availableModelsByProvider: TAvailableModelsByProvider;
   readonly onAdd: () => void;
   readonly onIconUpload: (index: number, file: globalThis.File) => Promise<void>;
   readonly onRemove: (index: number) => void;
   readonly onReorder: (fromIndex: number, toIndex: number) => void;
   readonly onUpdate: (index: number, field: keyof IPreconfiguredPrompt, value: string) => void;
+  readonly prompts: IPreconfiguredPrompt[];
+  readonly settings: ISettings;
 }
 // TOOD: Add optional global shortcut for prompts
 export const PreconfiguredPromptsSection: React.FC<PreconfiguredPromptsSectionProps> = ({
-  prompts,
-  settings,
-  availableModels,
+  availableModelsByProvider,
   onAdd,
   onReorder,
   onUpdate,
   onIconUpload,
   onRemove,
+  prompts,
+  settings,
 }) => {
   const [platform, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -176,7 +177,7 @@ export const PreconfiguredPromptsSection: React.FC<PreconfiguredPromptsSectionPr
               index={index}
               platform={platform}
               settings={settings}
-              availableModels={availableModels}
+              availableModelsByProvider={availableModelsByProvider}
               isDragging={draggedIndex === index}
               isDragOver={dragOverIndex === index}
               onDragStart={(e) => {

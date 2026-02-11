@@ -4,6 +4,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 
 import type { ChatService } from '../domains/chat';
 import type { SettingsService } from '../domains/settings';
+import type { TAvailableModelsByProvider } from '../domains/settings/SettingsTypes';
 import { BackgroundStyles, ButtonSizeStyles, ButtonStyles, CardStyles, ColorPalette, FollowUpStyles, InputStyles, LayoutStyles, LoadingStyles, MessageStyles, NotificationStyles, SpinnerIcon, TypographyStyles } from '../styles/Styles';
 import { formatStatistics } from '../utils/formatStatistics';
 import { renderMarkdown } from '../utils/markdownRenderer';
@@ -34,7 +35,10 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
   const [preconfiguredPrompts, setPreconfiguredPrompts] = useState<IPreconfiguredPrompt[]>([]);
   const [customPrompt, setCustomPrompt] = useState<string>('');
   const [modelOverride, setModelOverride] = useState<{ model: string, provider: 'ollama' | 'lmstudio' } | null>(() => chatService.getModelOverride());
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [availableModelsByProvider, setAvailableModelsByProvider] = useState<TAvailableModelsByProvider>(() => ({
+    lmstudio: [],
+    ollama: [],
+  }));
   const [loadingModels, setLoadingModels] = useState(false);
   const [settings, setSettings] = useState<ISettings | null>(null);
   const [followUpQuestions, setFollowUpQuestions] = useState<string[] | null>(null);
@@ -128,9 +132,10 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
   // Settings for display and available models for model dropdown (do not register onSettingsChange so chat never overwrites the service's settings)
   useEffect(() => {
     settingsService.setCallbacks({
-      onAvailableModelsChange: setAvailableModels,
+      onAvailableModelsChange: setAvailableModelsByProvider,
       onLoadingModelsChange: setLoadingModels,
     });
+    setAvailableModelsByProvider(settingsService.getAvailableModelsByProvider());
     const load = async () => {
       try {
         const loaded = await settingsService.loadSettingsForDisplay();
@@ -224,18 +229,19 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
   }, [chatInfo?.provider, modelOverride?.provider, settings?.provider]);
 
   const modelOptions = useMemo(() => {
-    if (effectiveModel !== '' && !availableModels.includes(effectiveModel)) {
-      return [effectiveModel, ...availableModels];
+    const list = effectiveProvider === 'lmstudio' ? availableModelsByProvider.lmstudio : availableModelsByProvider.ollama;
+    if (effectiveModel !== '' && !list.includes(effectiveModel)) {
+      return [effectiveModel, ...list];
     }
-    if (availableModels.length > 0) {
-      return availableModels;
+    if (list.length > 0) {
+      return list;
     }
     if (effectiveModel !== '') {
       return [effectiveModel];
     }
 
     return [];
-  }, [availableModels, effectiveModel]);
+  }, [availableModelsByProvider.lmstudio, availableModelsByProvider.ollama, effectiveModel, effectiveProvider]);
 
   // Handle sending a message
   const handleSendMessage = async (messageText?: string) => {

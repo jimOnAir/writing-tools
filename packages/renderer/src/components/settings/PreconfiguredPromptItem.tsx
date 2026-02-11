@@ -1,6 +1,7 @@
 import type { IPreconfiguredPrompt, ISettings } from '@writing-tools/shared';
 import React, { useMemo } from 'react';
 
+import type { TAvailableModelsByProvider } from '../../domains/settings/SettingsTypes';
 import { getNativeStyles } from '../../styles/NativeStyles';
 import {
   ButtonSizeStyles,
@@ -14,11 +15,11 @@ import {
 import { CloseIcon, GripIcon } from '../icons';
 
 export interface PreconfiguredPromptItemProps {
-  readonly prompt: IPreconfiguredPrompt;
+  readonly availableModelsByProvider: TAvailableModelsByProvider;
   readonly index: number;
   readonly platform: 'darwin' | 'win32' | 'linux';
+  readonly prompt: IPreconfiguredPrompt;
   readonly settings: ISettings;
-  readonly availableModels: string[];
   readonly isDragging?: boolean;
   readonly isDragOver?: boolean;
   readonly onDragStart?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -31,11 +32,11 @@ export interface PreconfiguredPromptItemProps {
 }
 
 export const PreconfiguredPromptItem: React.FC<PreconfiguredPromptItemProps> = ({
-  prompt,
+  availableModelsByProvider,
   index,
   platform,
+  prompt,
   settings,
-  availableModels,
   isDragging = false,
   isDragOver = false,
   onDragStart,
@@ -62,12 +63,12 @@ export const PreconfiguredPromptItem: React.FC<PreconfiguredPromptItemProps> = (
     return providers;
   }, [settings]);
 
-  // Get models to show based on selected provider or default provider
+  // Get models to show based on this prompt's provider or default provider
   const modelsToShow = useMemo(() => {
-    // For now, show availableModels which are for the currently selected provider in settings
-    // In the future, we could fetch models per provider separately
-    return availableModels;
-  }, [availableModels]);
+    const provider = prompt.provider ?? settings.provider ?? 'ollama';
+
+    return provider === 'lmstudio' ? availableModelsByProvider.lmstudio : availableModelsByProvider.ollama;
+  }, [availableModelsByProvider.lmstudio, availableModelsByProvider.ollama, prompt.provider, settings.provider]);
 
   const handleCardDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();

@@ -235,7 +235,10 @@ describe('SettingsService', () => {
 
       await settingsService.fetchAvailableModels();
 
-      expect(onAvailableModelsChange).toHaveBeenCalledWith(['model1', 'model2']);
+      expect(onAvailableModelsChange).toHaveBeenCalledWith({
+        lmstudio: [],
+        ollama: ['model1', 'model2'],
+      });
       expect(onLoadingModelsChange).toHaveBeenCalledWith(false);
     });
 
@@ -249,8 +252,11 @@ describe('SettingsService', () => {
       await settingsService.fetchAvailableModels();
 
       // Service first clears error (null), then sets formatted error message
-      // Even on error, models array should be set (empty array)
-      expect(onAvailableModelsChange).toHaveBeenCalledWith([]);
+      // Even on error, models for current provider are set (empty array)
+      expect(onAvailableModelsChange).toHaveBeenCalledWith({
+        lmstudio: [],
+        ollama: [],
+      });
       expect(onErrorChange).toHaveBeenCalledWith(null);
       expect(onErrorChange).toHaveBeenCalledWith('Failed to fetch available models from Ollama. Please check the address and ensure Ollama is running.');
     });
