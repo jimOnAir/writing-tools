@@ -11,11 +11,14 @@ import type { IWindowService } from '../../domains/windows';
 
 import type { IIpcMessageHandler } from './IIpcMessageHandler';
 
-type TMessageChannelEventPayload = TIpcEvent<EIpcChannel.MESSAGE, EIpcEvent.MESSAGE_SEND_STREAM>
- | TIpcEvent<EIpcChannel.MESSAGE, EIpcEvent.MESSAGES_LOAD>;
+type TMessageChannelEventPayload =
+  | TIpcEvent<EIpcChannel.MESSAGE, EIpcEvent.MESSAGE_SEND_STREAM>
+  | TIpcEvent<EIpcChannel.MESSAGE, EIpcEvent.MESSAGE_STOP_STREAM>
+  | TIpcEvent<EIpcChannel.MESSAGE, EIpcEvent.MESSAGES_LOAD>;
 
 export class IpcMessageHandler implements IIpcMessageHandler {
   private readonly processingChatIds = new Set<number>();
+  private readonly streamAbortControllers = new Map<number, AbortController>();
 
   public constructor(
     private readonly chatService: IChatService,
@@ -36,6 +39,8 @@ export class IpcMessageHandler implements IIpcMessageHandler {
             data.payload.messages,
             { model: data.payload.model, provider: data.payload.provider },
           );
+        case EIpcEvent.MESSAGE_STOP_STREAM:
+          return this.handleStopStream(data.payload.chatId);
         case EIpcEvent.MESSAGES_LOAD:
           return this.handleChatLoadMessages(data.payload.chatId);
         default:
@@ -74,12 +79,16 @@ export class IpcMessageHandler implements IIpcMessageHandler {
 
       const { window: mainWindow } = await this.windowService.getMainWindow();
 
+      const abortController = new AbortController();
+      this.streamAbortControllers.set(chatId, abortController);
+
       void this.llmStreamingService
         .streamToWindow({
           chatId,
           mainWindow,
           messages: messages.map((m) => ({ content: m.content, role: m.role })),
           override,
+          signal: abortController.signal,
         })
         .then((result) => {
           mainWindow.webContents.send(EIpcRendererEvent.CHAT_STREAM_END, {
@@ -109,6 +118,7 @@ export class IpcMessageHandler implements IIpcMessageHandler {
         })
         .finally(() => {
           this.processingChatIds.delete(chatId);
+          this.streamAbortControllers.delete(chatId);
         });
 
       return { started: true } as const;
@@ -119,6 +129,17 @@ export class IpcMessageHandler implements IIpcMessageHandler {
 
       return { error: errorText, started: false } as const;
     }
+  }
+
+  private handleStopStream(chatId: number): { stopped: boolean } {
+    const controller = this.streamAbortControllers.get(chatId);
+    if (controller === undefined) {
+      return { stopped: false };
+    }
+    controller.abort();
+    this.streamAbortControllers.delete(chatId);
+
+    return { stopped: true };
   }
 
   private handleChatLoadMessages(chatId: number) {

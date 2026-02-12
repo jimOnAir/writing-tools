@@ -898,4 +898,21 @@ describe('ChatService', () => {
       expect(currentMessages[1]?.content).toBe('Error: Request already processing');
     });
   });
+
+  describe('stopGeneration', () => {
+    it('invokes IPC with MESSAGE_STOP_STREAM and payload chatId', async () => {
+      mockIpcAdapter.invoke.mockResolvedValue({ stopped: true });
+
+      await chatService.stopGeneration(42);
+
+      expect(mockIpcAdapter.invoke).toHaveBeenCalledWith(
+        EIpcChannel.MESSAGE,
+        expect.objectContaining({
+          channel: EIpcChannel.MESSAGE,
+          event: EIpcEvent.MESSAGE_STOP_STREAM,
+          payload: { chatId: 42 },
+        }),
+      );
+    });
+  });
 });

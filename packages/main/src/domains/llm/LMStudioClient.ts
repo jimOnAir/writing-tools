@@ -171,8 +171,9 @@ export class LMStudioClient {
    * Stream chat responses from LM Studio
    * Yields chunks of content as they arrive from the model
    * Uses OpenAI-compatible SSE format
+   * @param signal - When aborted, cancels the fetch request
    */
-  public async *chatStream(model: string, messages: ChatMessage[]): AsyncGenerator<LMStudioStreamChunk, void> {
+  public async *chatStream(model: string, messages: ChatMessage[], signal?: AbortSignal): AsyncGenerator<LMStudioStreamChunk, void> {
     try {
       const url = `${this.config.host}/v1/chat/completions`;
       const requestBody: LMStudioChatRequest = {
@@ -183,9 +184,10 @@ export class LMStudioClient {
       };
 
       const response = await fetch(url, {
-        method: 'POST',
-        headers: this.getHeaders(),
         body: JSON.stringify(requestBody),
+        headers: this.getHeaders(),
+        method: 'POST',
+        signal,
       });
 
       if (!response.ok) {

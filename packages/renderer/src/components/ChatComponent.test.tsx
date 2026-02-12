@@ -62,6 +62,7 @@ const createMockChatService = (): jest.Mocked<ChatService> => {
     seedModelOverrideFromChatInfo: jest.fn(),
     sendMessage: jest.fn().mockResolvedValue(null),
     setCallbacks: jest.fn(),
+    stopGeneration: jest.fn().mockResolvedValue(undefined),
     setModelOverride: jest.fn(),
     setScrollPosition: jest.fn(),
   } as unknown as jest.Mocked<ChatService>;
@@ -704,6 +705,35 @@ describe('ChatComponent', () => {
     await waitFor(() => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockChatService.sendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  test('when isStreaming shows Stop button and clicking it calls stopGeneration with chatId', async () => {
+    mockChatService.getIsStreaming.mockReturnValue(true);
+
+    render(<ChatComponent chatId={1} chatService={mockChatService} settingsService={mockSettingsService} />);
+
+    const stopButton = screen.getByRole('button', { name: 'Stop generation' });
+    expect(stopButton).toBeInTheDocument();
+
+    fireEvent.click(stopButton);
+
+    await waitFor(() => {
+      expect(mockChatService.stopGeneration).toHaveBeenCalledWith(1);
+    });
+  });
+
+  test('when isStreaming and chatId is null calls stopGeneration with getCurrentChatId', async () => {
+    mockChatService.getIsStreaming.mockReturnValue(true);
+    mockChatService.getCurrentChatId.mockReturnValue(42);
+
+    render(<ChatComponent chatId={null} chatService={mockChatService} settingsService={mockSettingsService} />);
+
+    const stopButton = screen.getByRole('button', { name: 'Stop generation' });
+    fireEvent.click(stopButton);
+
+    await waitFor(() => {
+      expect(mockChatService.stopGeneration).toHaveBeenCalledWith(42);
     });
   });
 

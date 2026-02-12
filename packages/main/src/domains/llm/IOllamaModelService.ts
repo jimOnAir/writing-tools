@@ -20,8 +20,9 @@ export interface IOllamaModelService {
   /**
    * Send messages to Ollama and get streaming response
    * @param options.model - Override model; when omitted, uses settings
+   * @param signal - Optional AbortSignal to stop the stream
    */
-  sendMessagesStream: (messages: Message[], options?: { model?: string }) => AsyncGenerator<OllamaStreamChunk, void>;
+  sendMessagesStream: (messages: Message[], options?: { model?: string }, signal?: AbortSignal) => AsyncGenerator<OllamaStreamChunk, void>;
 
   /**
    * Get the model context length (num_ctx) from Ollama, or null if unavailable.

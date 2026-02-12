@@ -89,6 +89,8 @@ export type TChatSendMessageStreamFailedResponse = { error: string, started: fal
 
 export type TChatSendMessageStreamResponse = TChatSendMessageStreamSuccessResponse | TChatSendMessageStreamFailedResponse;
 
+export type TMESSAGE_STOP_STREAMResponse = { stopped: boolean };
+
 export type TIpcResponsePayloadMap = {
   [EIpcEvent.CHAT_CREATE]: TChatCreateSessionResponse,
   [EIpcEvent.CHAT_DELETE]: TChatDeleteResponse,
@@ -99,6 +101,7 @@ export type TIpcResponsePayloadMap = {
   [EIpcEvent.CHAT_OPEN]: TChatOpenResponse,
   [EIpcEvent.TABS_SAVE]: TChatSaveTabsResponse,
   [EIpcEvent.MESSAGE_SEND_STREAM]: TChatSendMessageStreamResponse,
+  [EIpcEvent.MESSAGE_STOP_STREAM]: TMESSAGE_STOP_STREAMResponse,
   [EIpcEvent.ENV_GET]: TEnvGetResponse,
   [EIpcEvent.MODEL_CONTEXT_LENGTH]: TModelContextLengthResponse,
   [EIpcEvent.MODEL_LIST]: TModelListResponse,

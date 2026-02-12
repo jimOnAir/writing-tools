@@ -10,7 +10,7 @@ import { estimateContextTokens } from '../utils/estimateContextTokens';
 import { formatStatistics } from '../utils/formatStatistics';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
-import { SendIcon } from './icons';
+import { SendIcon, StopIcon } from './icons';
 import { Tooltip } from './Tooltip';
 
 interface ChatComponentProps {
@@ -763,34 +763,57 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
               disabled={isLoading}
             />
           </div>
-          <Tooltip content="Send">
-            <button
-              aria-label="Send"
-              className={`${ButtonStyles.base} ${ButtonSizeStyles.default} flex h-10 w-10 flex-shrink-0 items-center justify-center p-0 ${
-                isLoading || !inputValue.trim()
-                  ? ButtonStyles.disabled
-                  : ButtonStyles.primary
-              }`}
-              disabled={isLoading || !inputValue.trim()}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                void handleSendMessage();
-              }}
-              type="button"
-            >
-              {isLoading ? (
-                <span className="flex [&_svg]:m-0">
-                  <SpinnerIcon />
-                </span>
-              ) : (
-                <SendIcon
+          {isStreaming ? (
+            <Tooltip content="Stop">
+              <button
+                aria-label="Stop generation"
+                className={`${ButtonStyles.base} ${ButtonSizeStyles.default} ${ButtonStyles.primary} flex h-10 w-10 flex-shrink-0 items-center justify-center p-0`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const currentId = chatId ?? chatService.getCurrentChatId();
+                  if (currentId !== null) {
+                    void chatService.stopGeneration(currentId);
+                  }
+                }}
+                type="button"
+              >
+                <StopIcon
                   className={`shrink-0 ${ColorPalette.text.primary}`}
                   size={20}
                 />
-              )}
-            </button>
-          </Tooltip>
+              </button>
+            </Tooltip>
+          ) : (
+            <Tooltip content="Send">
+              <button
+                aria-label="Send"
+                className={`${ButtonStyles.base} ${ButtonSizeStyles.default} flex h-10 w-10 flex-shrink-0 items-center justify-center p-0 ${
+                  isLoading || !inputValue.trim()
+                    ? ButtonStyles.disabled
+                    : ButtonStyles.primary
+                }`}
+                disabled={isLoading || !inputValue.trim()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  void handleSendMessage();
+                }}
+                type="button"
+              >
+                {isLoading ? (
+                  <span className="flex [&_svg]:m-0">
+                    <SpinnerIcon />
+                  </span>
+                ) : (
+                  <SendIcon
+                    className={`shrink-0 ${ColorPalette.text.primary}`}
+                    size={20}
+                  />
+                )}
+              </button>
+            </Tooltip>
+          )}
         </div>
       </div>
     </div>

@@ -48,6 +48,8 @@ export type TChatSendMessageStreamPayload = {
   provider?: 'ollama' | 'lmstudio',
 };
 
+export type TMESSAGE_STOP_STREAMPayload = { chatId: number };
+
 export type TIpcEventPayloadMap = {
   [EIpcEvent.CHAT_CREATE]: TChatCreateSessionPayload,
   [EIpcEvent.CHAT_DELETE]: TChatDeletePayload,
@@ -58,6 +60,7 @@ export type TIpcEventPayloadMap = {
   [EIpcEvent.CHAT_OPEN]: TChatOpenPayload,
   [EIpcEvent.TABS_SAVE]: TChatSaveTabsPayload,
   [EIpcEvent.MESSAGE_SEND_STREAM]: TChatSendMessageStreamPayload,
+  [EIpcEvent.MESSAGE_STOP_STREAM]: TMESSAGE_STOP_STREAMPayload,
   [EIpcEvent.ENV_GET]: TEnvGetPayload,
   [EIpcEvent.MODEL_CONTEXT_LENGTH]: TModelContextLengthPayload,
   [EIpcEvent.MODEL_LIST]: TModelListPayload,

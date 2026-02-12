@@ -34,6 +34,7 @@ export interface IModelService {
    * Send messages to the LLM and get streaming response
    * @param options.model - Override model (e.g. from chat session); when omitted, uses settings
    * @param options.provider - Override provider (e.g. from chat session); when omitted, uses settings
+   * @param signal - Optional AbortSignal to stop the stream (e.g. when user clicks Stop)
    */
-  sendMessagesStream: (messages: Message[], options?: { model?: string, provider?: 'ollama' | 'lmstudio' }) => AsyncGenerator<LLMStreamChunk, void>;
+  sendMessagesStream: (messages: Message[], options?: { model?: string, provider?: 'ollama' | 'lmstudio' }, signal?: AbortSignal) => AsyncGenerator<LLMStreamChunk, void>;
 }

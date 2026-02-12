@@ -580,6 +580,19 @@ export class ChatService {
   }
 
   /**
+   * Stop the current stream for the given chat.
+   * Main process will send CHAT_STREAM_END with partial content; existing handler clears streaming state.
+   */
+  public async stopGeneration(chatId: number): Promise<void> {
+    const message: TIpcEvent<EIpcChannel.MESSAGE, EIpcEvent.MESSAGE_STOP_STREAM> = {
+      channel: EIpcChannel.MESSAGE,
+      event: EIpcEvent.MESSAGE_STOP_STREAM,
+      payload: { chatId },
+    };
+    await this.ipcAdapter.invoke(message.channel, message);
+  }
+
+  /**
    * Navigate message history (Arrow Up)
    */
   public navigateHistoryUp(): string | null {

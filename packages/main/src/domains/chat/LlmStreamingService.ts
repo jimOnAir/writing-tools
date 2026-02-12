@@ -21,7 +21,7 @@ export class LlmStreamingService implements ILlmStreamingService {
   }
 
   public async streamToWindow(params: ILlmStreamingParams): Promise<ILlmStreamingResult> {
-    const { chatId, mainWindow, messages, override } = params;
+    const { chatId, mainWindow, messages, override, signal } = params;
 
     let fullContent = '';
     let statistics: IMessageStatistics | undefined;
@@ -42,10 +42,13 @@ export class LlmStreamingService implements ILlmStreamingService {
       };
     }
 
-    const streamGenerator = this.modelService.sendMessagesStream(messages, streamOptions);
+    const streamGenerator = this.modelService.sendMessagesStream(messages, streamOptions, signal);
 
     try {
       for await (const chunk of streamGenerator) {
+        if (signal?.aborted) {
+          break;
+        }
         fullContent += chunk.content;
 
         if (chunk.done && 'statistics' in chunk && chunk.statistics !== undefined) {
@@ -60,10 +63,16 @@ export class LlmStreamingService implements ILlmStreamingService {
         });
       }
     } catch (error: unknown) {
-      const errorText = error instanceof Error ? error.message : String(error);
-      this.logger.error('Streaming error for chatId=%s: %s', String(chatId), errorText);
+      const isAbort = signal?.aborted === true
+        || (error instanceof Error && error.name === 'AbortError');
+      if (isAbort) {
+        // Treat user-initiated stop as normal completion with partial content
+      } else {
+        const errorText = error instanceof Error ? error.message : String(error);
+        this.logger.error('Streaming error for chatId=%s: %s', String(chatId), errorText);
 
-      throw new LlmStreamingError(errorText, fullContent);
+        throw new LlmStreamingError(errorText, fullContent);
+      }
     }
 
     const trimmedContent = fullContent.trimEnd();

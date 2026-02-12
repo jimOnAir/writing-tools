@@ -49,6 +49,7 @@ export class LMStudioModelService implements ILMStudioModelService {
     this: LMStudioModelService,
     messages: Message[],
     options?: { model?: string },
+    signal?: AbortSignal,
   ): AsyncGenerator<LMStudioStreamChunk, void> {
     const settings = await this.settingsService.loadSettings();
     const { address, model: settingsModel, apiKey } = settings.lmstudio;
@@ -69,6 +70,6 @@ export class LMStudioModelService implements ILMStudioModelService {
       content: msg.content,
     }));
 
-    yield* client.chatStream(model, lmStudioMessages);
+    yield* client.chatStream(model, lmStudioMessages, signal);
   };
 }

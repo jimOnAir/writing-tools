@@ -20,6 +20,7 @@ export interface ILMStudioModelService {
   /**
    * Send messages to LM Studio and get streaming response
    * @param options.model - Override model; when omitted, uses settings
+   * @param signal - Optional AbortSignal to stop the stream
    */
-  sendMessagesStream: (messages: Message[], options?: { model?: string }) => AsyncGenerator<LMStudioStreamChunk, void>;
+  sendMessagesStream: (messages: Message[], options?: { model?: string }, signal?: AbortSignal) => AsyncGenerator<LMStudioStreamChunk, void>;
 }

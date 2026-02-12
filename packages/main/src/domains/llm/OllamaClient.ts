@@ -95,8 +95,9 @@ export class OllamaClient {
   /**
    * Stream chat responses from Ollama
    * Yields chunks of content as they arrive from the model
+   * @param signal - When aborted, calls the stream's .abort() so the request is cancelled
    */
-  public async *chatStream(model: string, messages: Message[]): AsyncGenerator<OllamaStreamChunk, void> {
+  public async *chatStream(model: string, messages: Message[], signal?: AbortSignal): AsyncGenerator<OllamaStreamChunk, void> {
     try {
       const ollama = new Ollama({ host: this.config.host });
       const response = await ollama.chat({
@@ -105,9 +106,18 @@ export class OllamaClient {
         stream: true,
       });
 
+      if (signal !== undefined && 'abort' in response && typeof (response as { abort: () => void }).abort === 'function') {
+        signal.addEventListener('abort', () => {
+          (response as { abort: () => void }).abort();
+        });
+      }
+
       let statistics: IMessageStatistics | undefined;
 
       for await (const part of response) {
+        if (signal?.aborted) {
+          break;
+        }
         // Extract statistics from the final chunk (when done is true)
         if (part.done) {
           const partWithStats = part as unknown as { total_duration?: number, eval_count?: number, load_duration?: number, prompt_eval_count?: number, prompt_eval_duration?: number, eval_duration?: number };

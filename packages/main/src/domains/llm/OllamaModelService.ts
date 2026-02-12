@@ -43,6 +43,7 @@ export class OllamaModelService implements IOllamaModelService {
     this: OllamaModelService,
     messages: Message[],
     options?: { model?: string },
+    signal?: AbortSignal,
   ): AsyncGenerator<OllamaStreamChunk, void> {
     const settings = await this.settingsService.loadSettings();
     const { address, model: settingsModel, apiKey } = settings.ollama;
@@ -57,7 +58,7 @@ export class OllamaModelService implements IOllamaModelService {
       apiKey,
     }, this.logger);
 
-    yield* client.chatStream(model, messages);
+    yield* client.chatStream(model, messages, signal);
   };
 
   public getModelContextLength = async (model: string): Promise<number | null> => {

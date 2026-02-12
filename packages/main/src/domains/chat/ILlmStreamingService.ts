@@ -5,6 +5,7 @@ export interface ILlmStreamingParams {
   mainWindow: Electron.BrowserWindow;
   messages: Array<{ content: string, role: 'assistant' | 'user' }>;
   override?: { model?: string, provider?: 'ollama' | 'lmstudio' };
+  signal?: AbortSignal;
 }
 
 export interface ILlmStreamingResult {

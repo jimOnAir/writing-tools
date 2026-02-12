@@ -180,6 +180,7 @@ describe('LlmStreamingService', () => {
       expect(mockModelService.sendMessagesStream).toHaveBeenCalledWith(
         [{ content: 'Hi', role: 'user' }],
         { model: 'custom-model', provider: 'lmstudio' },
+        undefined,
       );
     });
 
@@ -197,6 +198,7 @@ describe('LlmStreamingService', () => {
       expect(mockModelService.sendMessagesStream).toHaveBeenCalledWith(
         [{ content: 'Hi', role: 'user' }],
         { model: 'test-model', provider: 'ollama' },
+        undefined,
       );
     });
   });

@@ -7,3 +7,4 @@ export { LoadingIcon } from './LoadingIcon';
 export { PlusIcon } from './PlusIcon';
 export { SendIcon } from './SendIcon';
 export { SettingsIcon } from './SettingsIcon';
+export { StopIcon } from './StopIcon';
