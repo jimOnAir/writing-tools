@@ -657,27 +657,28 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
         )}
       </div>
 
-      {error !== null && !error.startsWith('Streaming error:') && (
-        <div className={`${NotificationStyles.errorInline} mb-3 flex-shrink-0`}>
-          {error}
-        </div>
-      )}
+      <div className={`flex flex-col flex-shrink-0 ${BackgroundStyles.main}`}>
+        {error !== null && !error.startsWith('Streaming error:') && (
+          <div className={`${NotificationStyles.errorInline} mb-3 flex-shrink-0`}>
+            {error}
+          </div>
+        )}
 
-      <div className="flex flex-col gap-2 flex-shrink-0 mb-3">
-        <label htmlFor="model" className={TypographyStyles.label}>
-          Model
-        </label>
-        <select
-          id="model"
-          value={effectiveModel}
-          onChange={(e) => {
-            const selectedModel = e.target.value;
-            const provider = (settings?.provider ?? 'ollama');
-            chatService.setModelOverride(selectedModel !== '' ? { model: selectedModel, provider } : null);
-          }}
-          className={InputStyles}
-          disabled={loadingModels}
-        >
+        <div className="flex flex-col gap-2 flex-shrink-0 mb-3">
+          <label htmlFor="model" className={TypographyStyles.label}>
+            Model
+          </label>
+          <select
+            id="model"
+            value={effectiveModel}
+            onChange={(e) => {
+              const selectedModel = e.target.value;
+              const provider = (settings?.provider ?? 'ollama');
+              chatService.setModelOverride(selectedModel !== '' ? { model: selectedModel, provider } : null);
+            }}
+            className={InputStyles}
+            disabled={loadingModels}
+          >
           {modelOptions.length === 0 && effectiveModel === '' ? (
             <option value="">—</option>
           ) : null}
@@ -686,63 +687,64 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
               {modelOption}
             </option>
           ))}
-        </select>
-        {loadingModels && (
-          <div className={`text-sm ${ColorPalette.text.muted}`}>
-            Fetching available models...
-          </div>
-        )}
-      </div>
-
-      <div className={`${LayoutStyles.inputGroup} flex-shrink-0 w-full`}>
-        <div className="min-w-0 flex-1">
-          <textarea
-            ref={inputRef}
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-            }}
-            onCompositionStart={() => {
-              isComposingRef.current = true;
-            }}
-            onCompositionEnd={() => {
-              isComposingRef.current = false;
-            }}
-            onKeyDown={handleKeyPress}
-            placeholder="Type your message..."
-            className={`${InputStyles} w-full resize-none`}
-            rows={4}
-            disabled={isLoading}
-          />
+          </select>
+          {loadingModels && (
+            <div className={`text-sm ${ColorPalette.text.muted}`}>
+              Fetching available models...
+            </div>
+          )}
         </div>
-        <Tooltip content="Send">
-          <button
-            aria-label="Send"
-            className={`${ButtonStyles.base} ${ButtonSizeStyles.default} flex h-10 w-10 flex-shrink-0 items-center justify-center p-0 ${
-              isLoading || !inputValue.trim()
-                ? ButtonStyles.disabled
-                : ButtonStyles.primary
-            }`}
-            disabled={isLoading || !inputValue.trim()}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              void handleSendMessage();
-            }}
-            type="button"
-          >
-            {isLoading ? (
-              <span className="flex [&_svg]:m-0">
-                <SpinnerIcon />
-              </span>
-            ) : (
-              <SendIcon
-                className={`shrink-0 ${ColorPalette.text.primary}`}
-                size={20}
-              />
-            )}
-          </button>
-        </Tooltip>
+
+        <div className={`${LayoutStyles.inputGroup} flex-shrink-0 w-full`}>
+          <div className="min-w-0 flex-1">
+            <textarea
+              ref={inputRef}
+              value={inputValue}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+              }}
+              onCompositionStart={() => {
+                isComposingRef.current = true;
+              }}
+              onCompositionEnd={() => {
+                isComposingRef.current = false;
+              }}
+              onKeyDown={handleKeyPress}
+              placeholder="Type your message..."
+              className={`${InputStyles} w-full resize-none`}
+              rows={4}
+              disabled={isLoading}
+            />
+          </div>
+          <Tooltip content="Send">
+            <button
+              aria-label="Send"
+              className={`${ButtonStyles.base} ${ButtonSizeStyles.default} flex h-10 w-10 flex-shrink-0 items-center justify-center p-0 ${
+                isLoading || !inputValue.trim()
+                  ? ButtonStyles.disabled
+                  : ButtonStyles.primary
+              }`}
+              disabled={isLoading || !inputValue.trim()}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                void handleSendMessage();
+              }}
+              type="button"
+            >
+              {isLoading ? (
+                <span className="flex [&_svg]:m-0">
+                  <SpinnerIcon />
+                </span>
+              ) : (
+                <SendIcon
+                  className={`shrink-0 ${ColorPalette.text.primary}`}
+                  size={20}
+                />
+              )}
+            </button>
+          </Tooltip>
+        </div>
       </div>
     </div>
   );

@@ -71,6 +71,7 @@ const createMockSettingsService = (): jest.Mocked<SettingsService> => {
   return {
     cancelChanges: jest.fn(),
     fetchAvailableModels: jest.fn().mockResolvedValue(undefined),
+    getAvailableModelsByProvider: jest.fn().mockReturnValue({ lmstudio: [], ollama: [] }),
     getSettings: jest.fn().mockReturnValue({ ollama: {}, lmstudio: {}, provider: 'ollama' }),
     hasUnsavedChanges: jest.fn().mockReturnValue(false),
     loadSettings: jest.fn().mockResolvedValue(undefined),

@@ -162,6 +162,13 @@ describe('Settings', () => {
     expect(screen.getByText('PreconfiguredPromptsSection')).toBeInTheDocument();
   });
 
+  it('does not render Save/Cancel when isModal is true', () => {
+    render(<Settings settingsService={mockSettingsService} isModal />);
+
+    expect(screen.queryByText('Save')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
+  });
+
   it('saves settings when save button is clicked', async () => {
     mockSettingsService.hasUnsavedChanges.mockReturnValue(true);
     mockSettingsService.saveSettings.mockResolvedValue(true);

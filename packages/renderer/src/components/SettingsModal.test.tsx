@@ -33,9 +33,11 @@ describe('SettingsModal', () => {
     jest.clearAllMocks();
 
     mockSettingsService = {
-      setCallbacks: jest.fn(),
+      cancelChanges: jest.fn(),
+      hasUnsavedChanges: jest.fn().mockReturnValue(false),
       loadSettings: jest.fn(),
       saveSettings: jest.fn(),
+      setCallbacks: jest.fn(),
     } as unknown as jest.Mocked<SettingsService>;
 
     onClose = jest.fn();

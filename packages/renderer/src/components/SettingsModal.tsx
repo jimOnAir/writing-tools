@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
 import type { SettingsService } from '../domains/settings';
+import { ColorPalette } from '../styles/Styles';
 import { getNativeStyles } from '../styles/NativeStyles';
 import { getPlatform } from '../utils/platformDetection';
 
 import Settings from './Settings';
+import { SettingsActions } from './settings/SettingsActions';
 
 interface SettingsModalProps {
   readonly isOpen: boolean;
@@ -14,6 +16,7 @@ interface SettingsModalProps {
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settingsService }) => {
   const [platform, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
+  const [, setRefreshKey] = useState(0);
 
   useEffect(() => {
     void getPlatform().then(p => {
@@ -37,6 +40,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
+
+  const handleSave = async () => {
+    const saveSuccess = await settingsService.saveSettings();
+    if (saveSuccess) {
+      alert('Settings saved successfully!');
+    }
+  };
+
+  const handleCancel = () => {
+    settingsService.cancelChanges();
+  };
+
+  const handleSettingsChange = () => {
+    setRefreshKey(k => k + 1);
+  };
 
   if (!isOpen) {
     return null;
@@ -91,7 +109,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto pr-2 pb-4">
-          <Settings settingsService={settingsService} isModal />
+          <Settings onChange={handleSettingsChange} settingsService={settingsService} isModal />
+        </div>
+        <div className={`flex shrink-0 pt-4 mt-4 border-t ${ColorPalette.border.defaultLight}`}>
+          <SettingsActions
+            hasUnsavedChanges={settingsService.hasUnsavedChanges()}
+            onCancel={handleCancel}
+            onSave={handleSave}
+          />
         </div>
       </div>
     </div>

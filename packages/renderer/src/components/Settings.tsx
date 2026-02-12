@@ -13,13 +13,13 @@ import { PreconfiguredPromptsSection } from './settings/PreconfiguredPromptsSect
 import { SettingsActions } from './settings/SettingsActions';
 import { SettingsNotifications } from './settings/SettingsNotifications';
 
-// TODO: Make save and cancel buttons sticky
 // TODO: Show user if provider is unavailable
 interface SettingsProps {
-  readonly settingsService: SettingsService;
   readonly isModal?: boolean;
+  readonly onChange?: () => void;
+  readonly settingsService: SettingsService;
 }
-const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false }) => {
+const Settings: React.FC<SettingsProps> = ({ isModal = false, onChange, settingsService }) => {
   const [settings, setSettings] = useState<ISettings>(useMemo(() => ({ ...DefaultSettings }), []));
   // originalSettings is managed via callback in SettingsService, but component doesn't need to track it
   const [availableModelsByProvider, setAvailableModelsByProvider] = useState<TAvailableModelsByProvider>({
@@ -39,12 +39,15 @@ const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false })
       onErrorChange: setError,
       onLoadingModelsChange: setLoadingModels,
       onOriginalSettingsChange: () => {
-        // Component doesn't need to track originalSettings, service handles it internally
+        onChange?.();
       },
-      onSettingsChange: setSettings,
+      onSettingsChange: (s) => {
+        setSettings(s);
+        onChange?.();
+      },
       onSuccessChange: setSuccess,
     });
-  }, [settingsService]);
+  }, [onChange, settingsService]);
 
   // Load settings on mount
   useEffect(() => {
@@ -224,11 +227,13 @@ const Settings: React.FC<SettingsProps> = ({ settingsService, isModal = false })
           onRemoveShortcut={handleRemoveShortcut}
         />
 
-        <SettingsActions
-          hasUnsavedChanges={hasUnsavedChanges()}
-          onSave={handleSave}
-          onCancel={handleCancel}
-        />
+        {!isModal && (
+          <SettingsActions
+            hasUnsavedChanges={hasUnsavedChanges()}
+            onCancel={handleCancel}
+            onSave={handleSave}
+          />
+        )}
       </div>
     </div>
   );
