@@ -22,4 +22,9 @@ export interface IOllamaModelService {
    * @param options.model - Override model; when omitted, uses settings
    */
   sendMessagesStream: (messages: Message[], options?: { model?: string }) => AsyncGenerator<OllamaStreamChunk, void>;
+
+  /**
+   * Get the model context length (num_ctx) from Ollama, or null if unavailable.
+   */
+  getModelContextLength: (model: string) => Promise<number | null>;
 }

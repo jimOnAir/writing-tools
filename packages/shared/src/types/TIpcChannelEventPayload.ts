@@ -10,6 +10,8 @@ export type TSettingsSavePayload = ISettings;
 
 export type TSettingsLoadPayload = Record<string, never>;
 
+export type TModelContextLengthPayload = { model: string, provider: 'ollama' | 'lmstudio' };
+
 export type TModelListPayload = { provider: 'ollama' | 'lmstudio' };
 
 export type TChatCreateSessionPayload = Record<string, never>;
@@ -57,6 +59,7 @@ export type TIpcEventPayloadMap = {
   [EIpcEvent.TABS_SAVE]: TChatSaveTabsPayload,
   [EIpcEvent.MESSAGE_SEND_STREAM]: TChatSendMessageStreamPayload,
   [EIpcEvent.ENV_GET]: TEnvGetPayload,
+  [EIpcEvent.MODEL_CONTEXT_LENGTH]: TModelContextLengthPayload,
   [EIpcEvent.MODEL_LIST]: TModelListPayload,
   [EIpcEvent.PROMPT_SELECT]: TPromptSelectPayload,
   [EIpcEvent.SETTINGS_LOAD]: TSettingsLoadPayload,

@@ -482,6 +482,27 @@ export class SettingsService {
   }
 
   /**
+   * Get the model context length (tokens) from the main process, or null if unavailable.
+   */
+  public async getModelContextLength(provider: 'ollama' | 'lmstudio', model: string): Promise<number | null> {
+    if (model.trim() === '') {
+      return null;
+    }
+    try {
+      const message: TIpcEvent<EIpcChannel.MODEL, EIpcEvent.MODEL_CONTEXT_LENGTH> = {
+        channel: EIpcChannel.MODEL,
+        event: EIpcEvent.MODEL_CONTEXT_LENGTH,
+        payload: { model, provider },
+      };
+      const result = await this.ipcAdapter.invoke(message.channel, message) as { contextLength: number | null };
+
+      return result.contextLength;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Get loading models state
    */
   public getLoadingModels(): boolean {

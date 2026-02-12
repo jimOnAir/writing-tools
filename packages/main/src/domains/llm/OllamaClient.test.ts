@@ -10,6 +10,7 @@ jest.mock('ollama', () => ({
   Ollama: jest.fn().mockImplementation(() => ({
     chat: jest.fn(),
     list: jest.fn(),
+    show: jest.fn(),
   })),
 }));
 
@@ -19,6 +20,7 @@ describe('OllamaClient', () => {
   let mockOllamaInstance: {
     chat: jest.Mock,
     list: jest.Mock,
+    show: jest.Mock,
   };
 
   beforeEach(() => {
@@ -36,6 +38,7 @@ describe('OllamaClient', () => {
     mockOllamaInstance = {
       chat: jest.fn(),
       list: jest.fn(),
+      show: jest.fn(),
     };
 
     (Ollama as jest.Mock).mockImplementation(() => mockOllamaInstance);
@@ -175,6 +178,42 @@ describe('OllamaClient', () => {
       await customClient.listModels();
 
       expect(Ollama).toHaveBeenCalledWith({ host: 'http://custom-host:11434' });
+    });
+  });
+
+  describe('getModelContextLength', () => {
+    it('returns num_ctx when parameters string contains it', async () => {
+      mockOllamaInstance.show.mockResolvedValue({
+        parameters: 'temperature 0.7\nnum_ctx 4096\n',
+      });
+
+      const result = await client.getModelContextLength('llama2');
+
+      expect(result).toBe(4096);
+      expect(mockOllamaInstance.show).toHaveBeenCalledWith({ model: 'llama2' });
+    });
+
+    it('returns null when model is empty string', async () => {
+      const result = await client.getModelContextLength('   ');
+
+      expect(result).toBe(null);
+      expect(mockOllamaInstance.show).not.toHaveBeenCalled();
+    });
+
+    it('returns null when parameters missing num_ctx', async () => {
+      mockOllamaInstance.show.mockResolvedValue({ parameters: 'temperature 0.7' });
+
+      const result = await client.getModelContextLength('llama2');
+
+      expect(result).toBe(null);
+    });
+
+    it('returns null on show error', async () => {
+      mockOllamaInstance.show.mockRejectedValue(new Error('Model not found'));
+
+      const result = await client.getModelContextLength('llama2');
+
+      expect(result).toBe(null);
     });
   });
 

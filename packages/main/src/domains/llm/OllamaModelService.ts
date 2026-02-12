@@ -59,4 +59,14 @@ export class OllamaModelService implements IOllamaModelService {
 
     yield* client.chatStream(model, messages);
   };
+
+  public getModelContextLength = async (model: string): Promise<number | null> => {
+    const settings = await this.settingsService.loadSettings();
+    const client = new OllamaClient({
+      apiKey: settings.ollama.apiKey,
+      host: settings.ollama.address,
+    }, this.logger);
+
+    return client.getModelContextLength(model);
+  };
 }

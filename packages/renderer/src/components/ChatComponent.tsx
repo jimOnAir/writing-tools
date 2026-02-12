@@ -6,6 +6,7 @@ import type { ChatService } from '../domains/chat';
 import type { SettingsService } from '../domains/settings';
 import type { TAvailableModelsByProvider } from '../domains/settings/SettingsTypes';
 import { BackgroundStyles, ButtonSizeStyles, ButtonStyles, CardStyles, ColorPalette, FollowUpStyles, InputStyles, LayoutStyles, LoadingStyles, MessageStyles, NotificationStyles, SpinnerIcon, TypographyStyles } from '../styles/Styles';
+import { estimateContextTokens } from '../utils/estimateContextTokens';
 import { formatStatistics } from '../utils/formatStatistics';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
@@ -18,7 +19,8 @@ interface ChatComponentProps {
   readonly settingsService: SettingsService;
 }
 
-// TODO: add context length indicator
+/** Default context limit (tokens) when model limit is unknown; used for progress bar. */
+const DEFAULT_CONTEXT_LIMIT = 32_000;
 
 const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, settingsService }) => {
   const [messages, setMessages] = useState<IChatMessage[]>([]);
@@ -40,6 +42,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
     ollama: [],
   }));
   const [loadingModels, setLoadingModels] = useState(false);
+  const [modelContextLength, setModelContextLength] = useState<number | null>(null);
   const [settings, setSettings] = useState<ISettings | null>(null);
   const [followUpQuestions, setFollowUpQuestions] = useState<string[] | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -238,6 +241,32 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
 
     return [];
   }, [availableModelsByProvider.lmstudio, availableModelsByProvider.ollama, effectiveModel, effectiveProvider]);
+
+  const estimatedTokens = useMemo(
+    () => estimateContextTokens(messages, inputValue),
+    [messages, inputValue],
+  );
+
+  const contextLimit = modelContextLength ?? DEFAULT_CONTEXT_LIMIT;
+
+  // Fetch model context length when effective model changes (Ollama only; LM Studio returns null)
+  useEffect(() => {
+    if (effectiveModel === '') {
+      setModelContextLength(null);
+
+      return;
+    }
+    let cancelled = false;
+    void settingsService.getModelContextLength(effectiveProvider, effectiveModel).then((length) => {
+      if (!cancelled) {
+        setModelContextLength(length);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveModel, effectiveProvider, settingsService]);
 
   // Handle sending a message
   const handleSendMessage = async (messageText?: string) => {
@@ -690,6 +719,28 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
             </div>
           )}
         </div>
+
+        <Tooltip content={modelContextLength !== null ? 'Estimated context tokens (messages + current input). Limit from model.' : 'Estimated context tokens (messages + current input). Bar uses a default limit when model context size is unknown.'}>
+          <output
+            className={`flex flex-col gap-1 flex-shrink-0 mb-3 ${ColorPalette.text.muted} text-sm block`}
+            aria-label="Context length"
+          >
+            <span className="tabular-nums">
+              ~{estimatedTokens.toLocaleString('en-US')} / {contextLimit.toLocaleString('en-US')} tokens
+            </span>
+            <div
+              className={`h-1 rounded-full overflow-hidden ${ColorPalette.background.card}`}
+              aria-hidden
+            >
+              <div
+                className={`h-full rounded-full ${ColorPalette.button.primary} transition-all duration-200`}
+                style={{
+                  width: `${String(Math.min(100, (100 * estimatedTokens) / contextLimit))}%`,
+                }}
+              />
+            </div>
+          </output>
+        </Tooltip>
 
         <div className={`${LayoutStyles.inputGroup} flex-shrink-0 w-full`}>
           <div className="min-w-0 flex-1">

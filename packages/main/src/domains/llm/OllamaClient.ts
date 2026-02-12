@@ -144,6 +144,38 @@ export class OllamaClient {
     }
   }
 
+  /**
+   * Get the context length (num_ctx) for a model via the show API.
+   * Returns null on error or when the value cannot be parsed.
+   */
+  public async getModelContextLength(model: string): Promise<number | null> {
+    if (model.trim() === '') {
+      return null;
+    }
+    try {
+      const ollama = new Ollama({ host: this.config.host });
+      const response = await ollama.show({ model });
+      const withParams = response as unknown as { parameters?: string };
+      const parameters = withParams.parameters;
+      if (typeof parameters !== 'string') {
+        return null;
+      }
+      const match = /num_ctx\s+(\d+)/.exec(parameters);
+      if (match === null) {
+        return null;
+      }
+      const value = Number.parseInt(match[1], 10);
+      return Number.isNaN(value) || value <= 0 ? null : value;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error);
+      this.logger.debug('Failed to get Ollama model context length for %s: %s', model, errorMessage);
+
+      return null;
+    }
+  }
+
   public async listModels(): Promise<{ models: string[] } | { error: string, models: string[] }> {
     try {
       const ollama = new Ollama({ host: this.config.host });

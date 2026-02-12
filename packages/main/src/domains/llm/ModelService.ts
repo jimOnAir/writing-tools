@@ -31,6 +31,14 @@ export class ModelService implements IModelService {
     }
   };
 
+  public getModelContextLength = async (provider: 'ollama' | 'lmstudio', model: string): Promise<number | null> => {
+    if (provider === 'lmstudio') {
+      return null;
+    }
+
+    return this.ollamaModelService.getModelContextLength(model);
+  };
+
   public sendMessages = async (messages: Message[], options?: { maxTokens?: number, model?: string, provider?: 'ollama' | 'lmstudio' }): Promise<LLMChatResponse> => {
     const provider = await this.getProvider(options?.provider);
 

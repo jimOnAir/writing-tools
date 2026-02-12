@@ -19,6 +19,11 @@ export interface IModelService {
   fetchModels: (providerOverride: 'ollama' | 'lmstudio') => Promise<{ models: string[] } | { error: string, models: string[] }>;
 
   /**
+   * Get the model context length (tokens) for the given provider and model, or null if unavailable.
+   */
+  getModelContextLength: (provider: 'ollama' | 'lmstudio', model: string) => Promise<number | null>;
+
+  /**
    * Send messages to the LLM and get response
    * @param options.model - Override model (e.g. from chat session); when omitted, uses settings
    * @param options.provider - Override provider (e.g. from chat session); when omitted, uses settings

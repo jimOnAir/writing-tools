@@ -23,6 +23,7 @@ describe('ModelService', () => {
 
     mockOllamaModelService = {
       fetchModels: jest.fn(),
+      getModelContextLength: jest.fn(),
       sendMessages: jest.fn(),
     } as unknown as jest.Mocked<IOllamaModelService>;
 
@@ -129,6 +130,24 @@ describe('ModelService', () => {
       ];
 
       await expect(modelService.sendMessages(messages)).rejects.toThrow('Unknown provider');
+    });
+  });
+
+  describe('getModelContextLength', () => {
+    it('returns context length from ollama when provider is ollama', async () => {
+      mockOllamaModelService.getModelContextLength.mockResolvedValue(8192);
+
+      const result = await modelService.getModelContextLength('ollama', 'llama2');
+
+      expect(mockOllamaModelService.getModelContextLength).toHaveBeenCalledWith('llama2');
+      expect(result).toBe(8192);
+    });
+
+    it('returns null for lmstudio provider', async () => {
+      const result = await modelService.getModelContextLength('lmstudio', 'some-model');
+
+      expect(mockOllamaModelService.getModelContextLength).not.toHaveBeenCalled();
+      expect(result).toBe(null);
     });
   });
 });

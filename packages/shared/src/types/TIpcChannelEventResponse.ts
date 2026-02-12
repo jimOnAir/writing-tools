@@ -12,6 +12,8 @@ export type TModelListSuccessResponse = { models: string[] };
 
 export type TModelListFailedResponse = { error: string, models: string[] };
 
+export type TModelContextLengthResponse = { contextLength: number | null };
+
 export type TModelListResponse = TModelListSuccessResponse | TModelListFailedResponse;
 
 export type TSettingsLoadResponse = ISettings;
@@ -98,6 +100,7 @@ export type TIpcResponsePayloadMap = {
   [EIpcEvent.TABS_SAVE]: TChatSaveTabsResponse,
   [EIpcEvent.MESSAGE_SEND_STREAM]: TChatSendMessageStreamResponse,
   [EIpcEvent.ENV_GET]: TEnvGetResponse,
+  [EIpcEvent.MODEL_CONTEXT_LENGTH]: TModelContextLengthResponse,
   [EIpcEvent.MODEL_LIST]: TModelListResponse,
   [EIpcEvent.PROMPT_SELECT]: TPromptSelectResponse,
   [EIpcEvent.SETTINGS_LOAD]: TSettingsLoadResponse,
