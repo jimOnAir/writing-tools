@@ -183,10 +183,6 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
   }, [chatService, chatId, messages]);
 
   const handleCopyMessage = async (messageId: string, content: string): Promise<void> => {
-    if (!navigator.clipboard || !navigator.clipboard.writeText) {
-      return;
-    }
-
     try {
       await navigator.clipboard.writeText(content);
       setCopiedMessageId(messageId);
@@ -679,14 +675,14 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ chatId, chatService, sett
             className={InputStyles}
             disabled={loadingModels}
           >
-          {modelOptions.length === 0 && effectiveModel === '' ? (
-            <option value="">—</option>
-          ) : null}
-          {modelOptions.map((modelOption) => (
-            <option key={modelOption} value={modelOption}>
-              {modelOption}
-            </option>
-          ))}
+            {modelOptions.length === 0 && effectiveModel === '' ? (
+              <option value="">—</option>
+            ) : null}
+            {modelOptions.map((modelOption) => (
+              <option key={modelOption} value={modelOption}>
+                {modelOption}
+              </option>
+            ))}
           </select>
           {loadingModels && (
             <div className={`text-sm ${ColorPalette.text.muted}`}>

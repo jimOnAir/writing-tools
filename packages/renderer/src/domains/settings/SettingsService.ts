@@ -1,10 +1,11 @@
 import type { IPreconfiguredPrompt, ISettings, TIpcEvent } from '@writing-tools/shared';
 import { DefaultSettings, logger, EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 
-import type { TAvailableModelsByProvider } from './SettingsTypes';
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import { isValidShortcut } from '../../utils/globalShortcuts';
 import { isErrorResponse } from '../../utils/responseTypeGuards';
+
+import type { TAvailableModelsByProvider } from './SettingsTypes';
 
 /**
  * Service for managing settings domain logic
@@ -94,7 +95,7 @@ export class SettingsService {
       payload: {},
     };
 
-    const loadedSettings = await this.ipcAdapter.invoke(message.channel, message) as ISettings;
+    const loadedSettings = await this.ipcAdapter.invoke(message.channel, message);
     const provider = loadedSettings.provider || 'ollama';
     const address = provider === 'lmstudio'
       ? loadedSettings.lmstudio.address
@@ -181,39 +182,6 @@ export class SettingsService {
       address,
       options?.clearModelIfNotInList !== false,
     );
-  }
-
-  private async fetchModelsWithProviderAddress(
-    provider: 'ollama' | 'lmstudio',
-    _address: string,
-    clearModelIfNotInList: boolean,
-  ): Promise<void> {
-    this.setLoadingModels(true);
-    this.setError(null);
-
-    try {
-      const message: TIpcEvent<EIpcChannel.MODEL, EIpcEvent.MODEL_LIST> = {
-        channel: EIpcChannel.MODEL,
-        event: EIpcEvent.MODEL_LIST,
-        payload: { provider },
-      };
-
-      const result = await this.ipcAdapter.invoke(message.channel, message);
-
-      if (isErrorResponse(result)) {
-        throw new Error(result.error);
-      } else {
-        this.setAvailableModels(provider, result.models, clearModelIfNotInList);
-      }
-    } catch (err: unknown) {
-      const errorText = err instanceof Error ? err.message : String(err);
-      const providerName = provider === 'lmstudio' ? 'LM Studio' : 'Ollama';
-      this.setAvailableModels(provider, [], clearModelIfNotInList);
-      this.setError(`Failed to fetch available models from ${providerName}. Please check the address and ensure ${providerName} is running.`);
-      logger.error('Failed to fetch models: %s', errorText);
-    } finally {
-      this.setLoadingModels(false);
-    }
   }
 
   /**
@@ -543,6 +511,39 @@ export class SettingsService {
   private setOriginalSettings(settings: ISettings): void {
     this.originalSettings = settings;
     this.onOriginalSettingsChange?.(settings);
+  }
+
+  private async fetchModelsWithProviderAddress(
+    provider: 'ollama' | 'lmstudio',
+    _address: string,
+    clearModelIfNotInList: boolean,
+  ): Promise<void> {
+    this.setLoadingModels(true);
+    this.setError(null);
+
+    try {
+      const message: TIpcEvent<EIpcChannel.MODEL, EIpcEvent.MODEL_LIST> = {
+        channel: EIpcChannel.MODEL,
+        event: EIpcEvent.MODEL_LIST,
+        payload: { provider },
+      };
+
+      const result = await this.ipcAdapter.invoke(message.channel, message);
+
+      if (isErrorResponse(result)) {
+        throw new Error(result.error);
+      } else {
+        this.setAvailableModels(provider, result.models, clearModelIfNotInList);
+      }
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : String(err);
+      const providerName = provider === 'lmstudio' ? 'LM Studio' : 'Ollama';
+      this.setAvailableModels(provider, [], clearModelIfNotInList);
+      this.setError(`Failed to fetch available models from ${providerName}. Please check the address and ensure ${providerName} is running.`);
+      logger.error('Failed to fetch models: %s', errorText);
+    } finally {
+      this.setLoadingModels(false);
+    }
   }
 
   private setAvailableModels(

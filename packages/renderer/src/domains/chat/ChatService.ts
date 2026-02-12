@@ -1,5 +1,5 @@
-import type { IChatFollowUpQuestions, IChatMessage, TChatResponse, TIpcEvent, IChatInfo, IChatStreamChunk, IChatStreamEnd, ILogger, IMessageStatistics, IPreconfiguredPrompt, IPromptSelectorData } from '@writing-tools/shared';
-import { classifyStreamingError, EStreamingErrorType, EIpcChannel, EIpcEvent } from '@writing-tools/shared';
+import type { IChatFollowUpQuestions, IChatMessage, TChatResponse, TIpcEvent, IChatInfo, IChatStreamChunk, IChatStreamEnd, ILogger, IMessageStatistics, IPreconfiguredPrompt, IPromptSelectorData, EStreamingErrorType } from '@writing-tools/shared';
+import { classifyStreamingError, EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';

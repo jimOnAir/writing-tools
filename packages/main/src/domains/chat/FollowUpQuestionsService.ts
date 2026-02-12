@@ -13,7 +13,7 @@ export class FollowUpQuestionsService {
     private readonly modelService: IModelService,
   ) {}
 
-  public async generate(messages: IChatMessage[], chatId?: number | null, messageId?: number | null,  options?: IFollowUpQuestionsGenerateOptions): Promise<string[]> {
+  public async generate(messages: IChatMessage[], chatId?: number | null, messageId?: number | null, options?: IFollowUpQuestionsGenerateOptions): Promise<string[]> {
     if (messages.length < 2) {
       this.logger.debug('Follow-up questions skipped: need at least 2 messages (user + assistant), got %d', messages.length.toString());
 

@@ -1,5 +1,5 @@
-import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 import type { IChatInfo, IChatMessage, TChatResponse, IChatStreamChunk, IChatStreamEnd } from '@writing-tools/shared';
+import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 import { EStreamingErrorType } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';

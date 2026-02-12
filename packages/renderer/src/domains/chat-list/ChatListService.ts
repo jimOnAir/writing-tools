@@ -125,7 +125,7 @@ export class ChatListService {
    * Load next page of chats and append to current list
    */
   public async loadMoreChats(): Promise<void> {
-    if (this.isLoadingMore === true || this.hasMore === false) {
+    if (this.isLoadingMore || !this.hasMore) {
       return;
     }
 

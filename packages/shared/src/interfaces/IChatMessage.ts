@@ -1,4 +1,5 @@
 import type { EStreamingErrorType } from '../enum/EStreamingErrorType';
+
 import type { IMessageStatistics } from './IMessageStatistics';
 
 export interface IChatMessage { // TODO: add message type: request, response. Add respondTo relation

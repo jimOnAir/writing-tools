@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 
 import type { SettingsService } from '../domains/settings';
-import { ColorPalette } from '../styles/Styles';
 import { getNativeStyles } from '../styles/NativeStyles';
+import { ColorPalette } from '../styles/Styles';
 import { getPlatform } from '../utils/platformDetection';
 
 import Settings from './Settings';
