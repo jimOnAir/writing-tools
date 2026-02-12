@@ -9,11 +9,19 @@ export type TAvailableModelsByProvider = {
   ollama: string[],
 };
 
+export type TProviderAvailability = 'available' | 'unavailable' | 'unknown';
+
+export type TProviderAvailabilityMap = {
+  lmstudio: TProviderAvailability,
+  ollama: TProviderAvailability,
+};
+
 export type SettingsServiceCallbacks = {
   onAvailableModelsChange?: (payload: TAvailableModelsByProvider) => void,
   onErrorChange?: (error: string | null) => void,
   onLoadingModelsChange?: (loading: boolean) => void,
   onOriginalSettingsChange?: (settings: ISettings) => void,
+  onProviderAvailabilityChange?: (payload: TProviderAvailabilityMap) => void,
   onSettingsChange?: (settings: ISettings) => void,
   onSuccessChange?: (success: string | null) => void,
 };

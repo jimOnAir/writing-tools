@@ -3,8 +3,8 @@ import type { IPreconfiguredPrompt, ISettings } from '@writing-tools/shared';
 import React, { useState, useEffect, useMemo } from 'react';
 
 import type { SettingsService } from '../domains/settings';
-import type { TAvailableModelsByProvider } from '../domains/settings/SettingsTypes';
-import { BackgroundStyles, TypographyStyles, LayoutStyles, InputStyles } from '../styles/Styles';
+import type { TAvailableModelsByProvider, TProviderAvailabilityMap } from '../domains/settings/SettingsTypes';
+import { BackgroundStyles, ColorPalette, InputStyles, LayoutStyles, TypographyStyles } from '../styles/Styles';
 
 import { GlobalShortcutsSection } from './settings/GlobalShortcutsSection';
 import { LMStudioSettingsSection } from './settings/LMStudioSettingsSection';
@@ -13,7 +13,6 @@ import { PreconfiguredPromptsSection } from './settings/PreconfiguredPromptsSect
 import { SettingsActions } from './settings/SettingsActions';
 import { SettingsNotifications } from './settings/SettingsNotifications';
 
-// TODO: Show user if provider is unavailable
 interface SettingsProps {
   readonly isModal?: boolean;
   readonly onChange?: () => void;
@@ -29,11 +28,15 @@ const Settings: React.FC<SettingsProps> = ({ isModal = false, onChange, settings
   const [loadingModels, setLoadingModels] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [newShortcut, setNewShortcut] = useState<string>('');
+  const [providerAvailability, setProviderAvailability] = useState<TProviderAvailabilityMap>(() =>
+    settingsService.getProviderAvailability(),
+  );
   const [success, setSuccess] = useState<string | null>(null);
 
   // Register callbacks and sync initial model lists from service
   useEffect(() => {
     setAvailableModelsByProvider(settingsService.getAvailableModelsByProvider());
+    setProviderAvailability(settingsService.getProviderAvailability());
     settingsService.setCallbacks({
       onAvailableModelsChange: setAvailableModelsByProvider,
       onErrorChange: setError,
@@ -41,6 +44,7 @@ const Settings: React.FC<SettingsProps> = ({ isModal = false, onChange, settings
       onOriginalSettingsChange: () => {
         onChange?.();
       },
+      onProviderAvailabilityChange: setProviderAvailability,
       onSettingsChange: (s) => {
         setSettings(s);
         onChange?.();
@@ -182,10 +186,18 @@ const Settings: React.FC<SettingsProps> = ({ isModal = false, onChange, settings
             <option value="ollama">Ollama</option>
             <option value="lmstudio">LM Studio</option>
           </select>
+          {(settings.provider === 'lmstudio' ? providerAvailability.lmstudio : providerAvailability.ollama) === 'unavailable' && (
+            <p className={`mt-2 text-sm ${ColorPalette.text.muted}`}>
+              {settings.provider === 'lmstudio'
+                ? 'LM Studio is unavailable. Check the address and ensure LM Studio is running.'
+                : 'Ollama is unavailable. Check the address and ensure Ollama is running.'}
+            </p>
+          )}
         </div>
 
         <OllamaSettingsSection
           address={settings.ollama.address}
+          availabilityStatus={providerAvailability.ollama}
           model={settings.ollama.model}
           apiKey={settings.ollama.apiKey}
           availableModels={availableModelsByProvider.ollama}
@@ -198,6 +210,7 @@ const Settings: React.FC<SettingsProps> = ({ isModal = false, onChange, settings
 
         <LMStudioSettingsSection
           address={settings.lmstudio.address}
+          availabilityStatus={providerAvailability.lmstudio}
           model={settings.lmstudio.model}
           apiKey={settings.lmstudio.apiKey}
           availableModels={availableModelsByProvider.lmstudio}

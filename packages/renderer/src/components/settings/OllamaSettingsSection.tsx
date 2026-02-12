@@ -4,30 +4,37 @@ import { ButtonStyles, ButtonSizeStyles, InputStyles, BackgroundStyles, Typograp
 
 export interface OllamaSettingsSectionProps {
   readonly address: string;
-  readonly model: string | undefined;
   readonly apiKey: string | undefined;
+  readonly availabilityStatus?: 'available' | 'unavailable' | 'unknown';
   readonly availableModels: string[];
   readonly loadingModels: boolean;
+  readonly model: string | undefined;
   readonly onAddressChange: (value: string) => void;
-  readonly onModelChange: (value: string) => void;
   readonly onApiKeyChange: (value: string) => void;
+  readonly onModelChange: (value: string) => void;
   readonly onRefreshModels: () => void;
 }
 
 export const OllamaSettingsSection: React.FC<OllamaSettingsSectionProps> = ({
   address,
-  model,
   apiKey,
+  availabilityStatus,
   availableModels,
   loadingModels,
+  model,
   onAddressChange,
-  onModelChange,
   onApiKeyChange,
+  onModelChange,
   onRefreshModels,
 }) => {
   return (
     <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card}`}>
       <h3 className={TypographyStyles.h2}>Ollama Settings</h3>
+      {availabilityStatus === 'unavailable' && (
+        <p className={`mb-2 text-sm ${ColorPalette.text.muted}`}>
+          Provider unavailable. Check the address and ensure Ollama is running.
+        </p>
+      )}
       <div className="space-y-3">
         <div>
           <label htmlFor="ollama-address" className={TypographyStyles.label}>

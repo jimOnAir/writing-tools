@@ -4,30 +4,37 @@ import { ButtonStyles, ButtonSizeStyles, InputStyles, BackgroundStyles, Typograp
 
 export interface LMStudioSettingsSectionProps {
   readonly address: string;
-  readonly model: string | undefined;
   readonly apiKey: string | undefined;
+  readonly availabilityStatus?: 'available' | 'unavailable' | 'unknown';
   readonly availableModels: string[];
   readonly loadingModels: boolean;
+  readonly model: string | undefined;
   readonly onAddressChange: (value: string) => void;
-  readonly onModelChange: (value: string) => void;
   readonly onApiKeyChange: (value: string) => void;
+  readonly onModelChange: (value: string) => void;
   readonly onRefreshModels: () => void;
 }
 
 export const LMStudioSettingsSection: React.FC<LMStudioSettingsSectionProps> = ({
   address,
-  model,
   apiKey,
+  availabilityStatus,
   availableModels,
   loadingModels,
+  model,
   onAddressChange,
-  onModelChange,
   onApiKeyChange,
+  onModelChange,
   onRefreshModels,
 }) => {
   return (
     <div className={`${LayoutStyles.sectionCard} ${BackgroundStyles.card}`}>
       <h3 className={TypographyStyles.h2}>LM Studio Settings</h3>
+      {availabilityStatus === 'unavailable' && (
+        <p className={`mb-2 text-sm ${ColorPalette.text.muted}`}>
+          Provider unavailable. Check the address and ensure LM Studio is running.
+        </p>
+      )}
       <div className="space-y-3">
         <div>
           <label htmlFor="lmstudio-address" className={TypographyStyles.label}>

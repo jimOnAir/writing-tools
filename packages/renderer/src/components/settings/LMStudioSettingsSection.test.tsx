@@ -77,4 +77,28 @@ describe('LMStudioSettingsSection', () => {
 
     expect(screen.getByText('Fetching available models...')).toBeInTheDocument();
   });
+
+  it('shows provider unavailable message when availabilityStatus is unavailable', () => {
+    render(<LMStudioSettingsSection {...defaultProps} availabilityStatus="unavailable" />);
+
+    expect(
+      screen.getByText('Provider unavailable. Check the address and ensure LM Studio is running.'),
+    ).toBeInTheDocument();
+  });
+
+  it('does not show provider unavailable message when availabilityStatus is available', () => {
+    render(<LMStudioSettingsSection {...defaultProps} availabilityStatus="available" />);
+
+    expect(
+      screen.queryByText('Provider unavailable. Check the address and ensure LM Studio is running.'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not show provider unavailable message when availabilityStatus is unknown', () => {
+    render(<LMStudioSettingsSection {...defaultProps} availabilityStatus="unknown" />);
+
+    expect(
+      screen.queryByText('Provider unavailable. Check the address and ensure LM Studio is running.'),
+    ).not.toBeInTheDocument();
+  });
 });

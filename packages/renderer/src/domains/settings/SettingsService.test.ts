@@ -41,11 +41,12 @@ describe('SettingsService', () => {
   describe('setCallbacks', () => {
     it('registers all callbacks', () => {
       const callbacks = {
-        onSettingsChange: jest.fn(),
-        onOriginalSettingsChange: jest.fn(),
         onAvailableModelsChange: jest.fn(),
-        onLoadingModelsChange: jest.fn(),
         onErrorChange: jest.fn(),
+        onLoadingModelsChange: jest.fn(),
+        onOriginalSettingsChange: jest.fn(),
+        onProviderAvailabilityChange: jest.fn(),
+        onSettingsChange: jest.fn(),
         onSuccessChange: jest.fn(),
       };
 
@@ -64,13 +65,14 @@ describe('SettingsService', () => {
 
       mockIpcAdapter.invoke
         .mockResolvedValueOnce(mockSettings)
+        .mockResolvedValueOnce({ models: ['model1', 'model2'] })
         .mockResolvedValueOnce({ models: ['model1', 'model2'] });
 
-      const onSettingsChange = jest.fn();
       const onOriginalSettingsChange = jest.fn();
+      const onSettingsChange = jest.fn();
       settingsService.setCallbacks({
-        onSettingsChange,
         onOriginalSettingsChange,
+        onSettingsChange,
       });
 
       await settingsService.loadSettings();
@@ -85,22 +87,30 @@ describe('SettingsService', () => {
       expect(onOriginalSettingsChange).toHaveBeenCalledWith(mockSettings);
     });
 
-    it('fetches models after loading settings', async () => {
+    it('fetches models for both providers after loading settings when both have addresses', async () => {
       const mockSettings: ISettings = {
         ...DefaultSettings,
+        ollama: { address: 'http://localhost:11434', apiKey: '', model: '' },
         provider: 'ollama',
-        ollama: { address: 'http://localhost:11434', model: '', apiKey: '' },
       };
 
       mockIpcAdapter.invoke
         .mockResolvedValueOnce(mockSettings)
-        .mockResolvedValueOnce({ models: ['model1'] });
+        .mockResolvedValueOnce({ models: ['model1'] })
+        .mockResolvedValueOnce({ models: ['lm-model'] });
 
       await settingsService.loadSettings();
 
-      expect(mockIpcAdapter.invoke).toHaveBeenCalledTimes(2);
+      expect(mockIpcAdapter.invoke).toHaveBeenCalledTimes(3);
       expect(mockIpcAdapter.invoke).toHaveBeenNthCalledWith(
         2,
+        EIpcChannel.MODEL,
+        expect.objectContaining({
+          event: EIpcEvent.MODEL_LIST,
+        }),
+      );
+      expect(mockIpcAdapter.invoke).toHaveBeenNthCalledWith(
+        3,
         EIpcChannel.MODEL,
         expect.objectContaining({
           event: EIpcEvent.MODEL_LIST,
@@ -245,9 +255,14 @@ describe('SettingsService', () => {
     it('handles errors when fetching models', async () => {
       mockIpcAdapter.invoke.mockResolvedValue({ error: 'Fetch failed', models: [] });
 
-      const onErrorChange = jest.fn();
       const onAvailableModelsChange = jest.fn();
-      settingsService.setCallbacks({ onErrorChange, onAvailableModelsChange });
+      const onErrorChange = jest.fn();
+      const onProviderAvailabilityChange = jest.fn();
+      settingsService.setCallbacks({
+        onAvailableModelsChange,
+        onErrorChange,
+        onProviderAvailabilityChange,
+      });
 
       await settingsService.fetchAvailableModels();
 
@@ -259,6 +274,90 @@ describe('SettingsService', () => {
       });
       expect(onErrorChange).toHaveBeenCalledWith(null);
       expect(onErrorChange).toHaveBeenCalledWith('Failed to fetch available models from Ollama. Please check the address and ensure Ollama is running.');
+      expect(onProviderAvailabilityChange).toHaveBeenCalledWith({
+        lmstudio: 'unknown',
+        ollama: 'unavailable',
+      });
+    });
+  });
+
+  describe('getProviderAvailability', () => {
+    it('returns unknown for both providers initially', () => {
+      const availability = settingsService.getProviderAvailability();
+
+      expect(availability).toEqual({
+        lmstudio: 'unknown',
+        ollama: 'unknown',
+      });
+    });
+
+    it('returns available for provider after successful fetch', async () => {
+      mockIpcAdapter.invoke.mockResolvedValue({ models: ['model1'] });
+
+      const onProviderAvailabilityChange = jest.fn();
+      settingsService.setCallbacks({ onProviderAvailabilityChange });
+
+      await settingsService.fetchAvailableModels();
+
+      expect(onProviderAvailabilityChange).toHaveBeenCalledWith({
+        lmstudio: 'unknown',
+        ollama: 'available',
+      });
+      expect(settingsService.getProviderAvailability().ollama).toBe('available');
+    });
+
+    it('sets global error and unavailable when default provider fetch fails', async () => {
+      mockIpcAdapter.invoke.mockResolvedValue({ error: 'Connection refused', models: [] });
+
+      const onErrorChange = jest.fn();
+      const onProviderAvailabilityChange = jest.fn();
+      settingsService.setCallbacks({
+        onErrorChange,
+        onProviderAvailabilityChange,
+      });
+
+      await settingsService.fetchAvailableModels();
+
+      expect(onErrorChange).toHaveBeenCalledWith(
+        'Failed to fetch available models from Ollama. Please check the address and ensure Ollama is running.',
+      );
+      expect(onProviderAvailabilityChange).toHaveBeenCalledWith({
+        lmstudio: 'unknown',
+        ollama: 'unavailable',
+      });
+    });
+
+    it('does not set global error when non-default provider fetch fails in loadSettings', async () => {
+      const mockSettings: ISettings = {
+        ...DefaultSettings,
+        ollama: { address: 'http://localhost:11434', apiKey: '', model: '' },
+        provider: 'ollama',
+      };
+
+      // First MODEL_LIST (ollama) succeeds, second (lmstudio) fails
+      mockIpcAdapter.invoke
+        .mockResolvedValueOnce(mockSettings)
+        .mockResolvedValueOnce({ models: ['model1'] })
+        .mockResolvedValueOnce({ error: 'Connection refused', models: [] });
+
+      const onErrorChange = jest.fn();
+      const onProviderAvailabilityChange = jest.fn();
+      settingsService.setCallbacks({
+        onErrorChange,
+        onProviderAvailabilityChange,
+      });
+
+      await settingsService.loadSettings();
+
+      // Global error should not be set because lmstudio is not the default provider
+      expect(onErrorChange).not.toHaveBeenCalledWith(
+        expect.stringContaining('LM Studio'),
+      );
+      expect(onProviderAvailabilityChange).toHaveBeenCalledWith(
+        expect.objectContaining({ lmstudio: 'unavailable' }),
+      );
+      expect(settingsService.getProviderAvailability().lmstudio).toBe('unavailable');
+      expect(settingsService.getProviderAvailability().ollama).toBe('available');
     });
   });
 

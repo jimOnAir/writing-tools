@@ -89,4 +89,28 @@ describe('OllamaSettingsSection', () => {
 
     expect(screen.getByText('Fetching available models...')).toBeInTheDocument();
   });
+
+  it('shows provider unavailable message when availabilityStatus is unavailable', () => {
+    render(<OllamaSettingsSection {...defaultProps} availabilityStatus="unavailable" />);
+
+    expect(
+      screen.getByText('Provider unavailable. Check the address and ensure Ollama is running.'),
+    ).toBeInTheDocument();
+  });
+
+  it('does not show provider unavailable message when availabilityStatus is available', () => {
+    render(<OllamaSettingsSection {...defaultProps} availabilityStatus="available" />);
+
+    expect(
+      screen.queryByText('Provider unavailable. Check the address and ensure Ollama is running.'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not show provider unavailable message when availabilityStatus is unknown', () => {
+    render(<OllamaSettingsSection {...defaultProps} availabilityStatus="unknown" />);
+
+    expect(
+      screen.queryByText('Provider unavailable. Check the address and ensure Ollama is running.'),
+    ).not.toBeInTheDocument();
+  });
 });

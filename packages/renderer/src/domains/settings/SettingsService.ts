@@ -5,7 +5,7 @@ import type { IIpcAdapter } from '../../infrastructure/ipc';
 import { isValidShortcut } from '../../utils/globalShortcuts';
 import { isErrorResponse } from '../../utils/responseTypeGuards';
 
-import type { TAvailableModelsByProvider } from './SettingsTypes';
+import type { TAvailableModelsByProvider, TProviderAvailability, TProviderAvailabilityMap } from './SettingsTypes';
 
 /**
  * Service for managing settings domain logic
@@ -19,6 +19,11 @@ export class SettingsService {
   private availableModelsLmStudio: string[] = [];
   private loadingModels = false;
   private error: string | null = null;
+  private providerAvailability: TProviderAvailabilityMap = {
+    lmstudio: 'unknown',
+    ollama: 'unknown',
+  };
+
   private success: string | null = null;
 
   // Callbacks for component state updates
@@ -27,6 +32,7 @@ export class SettingsService {
   private onAvailableModelsChange?: (payload: TAvailableModelsByProvider) => void;
   private onLoadingModelsChange?: (loading: boolean) => void;
   private onErrorChange?: (error: string | null) => void;
+  private onProviderAvailabilityChange?: (payload: TProviderAvailabilityMap) => void;
   private onSuccessChange?: (success: string | null) => void;
 
   public constructor(ipcAdapter: IIpcAdapter) {
@@ -41,6 +47,7 @@ export class SettingsService {
     onErrorChange?: (error: string | null) => void,
     onLoadingModelsChange?: (loading: boolean) => void,
     onOriginalSettingsChange?: (settings: ISettings) => void,
+    onProviderAvailabilityChange?: (payload: TProviderAvailabilityMap) => void,
     onSettingsChange?: (settings: ISettings) => void,
     onSuccessChange?: (success: string | null) => void,
   }): void {
@@ -48,6 +55,7 @@ export class SettingsService {
     this.onErrorChange = callbacks.onErrorChange;
     this.onLoadingModelsChange = callbacks.onLoadingModelsChange;
     this.onOriginalSettingsChange = callbacks.onOriginalSettingsChange;
+    this.onProviderAvailabilityChange = callbacks.onProviderAvailabilityChange;
     this.onSettingsChange = callbacks.onSettingsChange;
     this.onSuccessChange = callbacks.onSuccessChange;
   }
@@ -68,13 +76,9 @@ export class SettingsService {
       this.setSettings(loadedSettings);
       this.setOriginalSettings(loadedSettings);
 
-      const provider = loadedSettings.provider || 'ollama';
-      const address = provider === 'lmstudio'
-        ? loadedSettings.lmstudio.address
-        : loadedSettings.ollama.address;
-      if (address) {
-        await this.fetchAvailableModels({ clearModelIfNotInList: options?.skipClearModelOnFetch !== true });
-      }
+      await this.fetchBothProvidersAvailability({
+        clearModelIfNotInList: options?.skipClearModelOnFetch !== true,
+      });
     } catch (err) {
       const errorText = err instanceof Error ? err.message : String(err);
       logger.error('Failed to load settings: %s', errorText);
@@ -102,11 +106,9 @@ export class SettingsService {
       : loadedSettings.ollama.address;
 
     if (address) {
-      await this.fetchModelsWithProviderAddress(
-        provider,
-        address,
-        false,
-      );
+      await this.fetchModelsWithProviderAddress(provider, address, {
+        clearModelIfNotInList: false,
+      });
     }
 
     return loadedSettings;
@@ -177,11 +179,9 @@ export class SettingsService {
       return;
     }
 
-    await this.fetchModelsWithProviderAddress(
-      provider,
-      address,
-      options?.clearModelIfNotInList !== false,
-    );
+    await this.fetchModelsWithProviderAddress(provider, address, {
+      clearModelIfNotInList: options?.clearModelIfNotInList !== false,
+    });
   }
 
   /**
@@ -502,6 +502,13 @@ export class SettingsService {
     return this.success;
   }
 
+  /**
+   * Get per-provider availability (unknown / available / unavailable)
+   */
+  public getProviderAvailability(): TProviderAvailabilityMap {
+    return { ...this.providerAvailability };
+  }
+
   // Private setters that trigger callbacks
   private setSettings(settings: ISettings): void {
     this.settings = settings;
@@ -516,10 +523,15 @@ export class SettingsService {
   private async fetchModelsWithProviderAddress(
     provider: 'ollama' | 'lmstudio',
     _address: string,
-    clearModelIfNotInList: boolean,
+    options?: { clearModelIfNotInList?: boolean, skipLoadingState?: boolean },
   ): Promise<void> {
-    this.setLoadingModels(true);
-    this.setError(null);
+    const clearModelIfNotInList = options?.clearModelIfNotInList !== false;
+    const skipLoadingState = options?.skipLoadingState === true;
+
+    if (!skipLoadingState) {
+      this.setLoadingModels(true);
+      this.setError(null);
+    }
 
     try {
       const message: TIpcEvent<EIpcChannel.MODEL, EIpcEvent.MODEL_LIST> = {
@@ -533,17 +545,80 @@ export class SettingsService {
       if (isErrorResponse(result)) {
         throw new Error(result.error);
       } else {
+        this.setProviderAvailability(provider, 'available');
         this.setAvailableModels(provider, result.models, clearModelIfNotInList);
       }
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : String(err);
       const providerName = provider === 'lmstudio' ? 'LM Studio' : 'Ollama';
+      this.setProviderAvailability(provider, 'unavailable');
       this.setAvailableModels(provider, [], clearModelIfNotInList);
-      this.setError(`Failed to fetch available models from ${providerName}. Please check the address and ensure ${providerName} is running.`);
+      const isDefaultProvider = provider === (this.settings.provider || 'ollama');
+      if (isDefaultProvider) {
+        this.setError(`Failed to fetch available models from ${providerName}. Please check the address and ensure ${providerName} is running.`);
+      }
       logger.error('Failed to fetch models: %s', errorText);
+    } finally {
+      if (!skipLoadingState) {
+        this.setLoadingModels(false);
+      }
+    }
+  }
+
+  private async fetchBothProvidersAvailability(options?: { clearModelIfNotInList?: boolean }): Promise<void> {
+    const clearModelIfNotInList = options?.clearModelIfNotInList !== false;
+    const defaultProvider = this.settings.provider || 'ollama';
+
+    const ollamaAddress = this.settings.ollama.address.trim();
+    const lmstudioAddress = this.settings.lmstudio.address.trim();
+
+    const promises: Array<Promise<void>> = [];
+
+    if (ollamaAddress !== '') {
+      promises.push(
+        this.fetchModelsWithProviderAddress('ollama', ollamaAddress, {
+          clearModelIfNotInList: defaultProvider === 'ollama' ? clearModelIfNotInList : false,
+          skipLoadingState: true,
+        }),
+      );
+    }
+
+    if (lmstudioAddress !== '') {
+      promises.push(
+        this.fetchModelsWithProviderAddress('lmstudio', lmstudioAddress, {
+          clearModelIfNotInList: defaultProvider === 'lmstudio' ? clearModelIfNotInList : false,
+          skipLoadingState: true,
+        }),
+      );
+    }
+
+    if (promises.length === 0) {
+      return;
+    }
+
+    this.setLoadingModels(true);
+    this.setError(null);
+
+    try {
+      await Promise.all(promises);
     } finally {
       this.setLoadingModels(false);
     }
+  }
+
+  private setProviderAvailability(
+    provider: 'ollama' | 'lmstudio',
+    status: TProviderAvailability,
+  ): void {
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+    const prev: TProviderAvailabilityMap = this.providerAvailability;
+    const next: TProviderAvailabilityMap
+      = provider === 'ollama'
+        ? { lmstudio: prev.lmstudio, ollama: status }
+        : { lmstudio: status, ollama: prev.ollama };
+    this.providerAvailability = next;
+    this.onProviderAvailabilityChange?.(next);
+    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
   }
 
   private setAvailableModels(
