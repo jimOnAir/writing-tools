@@ -56,6 +56,7 @@ describe('Settings', () => {
       cancelChanges: jest.fn(() => undefined),
       fetchAvailableModels: jest.fn().mockResolvedValue(undefined),
       getAvailableModelsByProvider: jest.fn().mockReturnValue({ lmstudio: [], ollama: [] }),
+      getProviderAvailability: jest.fn().mockReturnValue({ lmstudio: 'unknown', ollama: 'unknown' }),
       hasUnsavedChanges: jest.fn(() => false),
       loadSettings: jest.fn().mockResolvedValue(undefined),
       removeGlobalShortcut: jest.fn(() => undefined),

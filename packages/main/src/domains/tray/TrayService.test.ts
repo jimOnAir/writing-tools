@@ -60,7 +60,7 @@ describe('TrayService', () => {
     trayMock.mockImplementation(() => mockTray);
 
     mockWindowService = {
-      getExistingMainWindow: jest.fn().mockResolvedValue(null),
+      getExistingMainWindow: jest.fn().mockReturnValue(null),
       getMainWindow: jest.fn().mockResolvedValue({ created: false, window: {} as Electron.BrowserWindow }),
       registerOnMainWindowReady: jest.fn(),
     } as unknown as jest.Mocked<IWindowService>;
@@ -114,7 +114,7 @@ describe('TrayService', () => {
       expect(menuTemplate[QUIT_INDEX]?.label).toBe('Quit');
     });
 
-    it('handles left click on tray icon to toggle window', async () => {
+    it('handles left click on tray icon to toggle window', () => {
       trayService.createTray();
 
       const onMock = mockTray.on as jest.Mock;
@@ -126,37 +126,34 @@ describe('TrayService', () => {
       const getMainWindowMock = mockWindowService.getMainWindow as jest.Mock;
 
       clickHandler();
-      await Promise.resolve();
 
       expect(getExistingMainWindowMock).toHaveBeenCalled();
       expect(getMainWindowMock).toHaveBeenCalled();
     });
 
-    it('hides window when tray clicked and window is visible', async () => {
+    it('hides window when tray clicked and window is visible', () => {
       const mockWin = { focus: jest.fn(), hide: jest.fn(), isVisible: jest.fn(() => true), show: jest.fn() };
-      (mockWindowService.getExistingMainWindow as jest.Mock).mockResolvedValue(mockWin);
+      (mockWindowService.getExistingMainWindow as jest.Mock).mockReturnValue(mockWin);
 
       trayService.createTray();
       const onMock = mockTray.on as jest.Mock;
       const clickHandler = onMock.mock.calls.find((call: unknown[]) => call[0] === 'click')?.[1];
 
       clickHandler();
-      await Promise.resolve();
 
       expect(mockWin.hide).toHaveBeenCalled();
       expect(mockWin.show).not.toHaveBeenCalled();
     });
 
-    it('shows window when tray clicked and window is hidden', async () => {
+    it('shows window when tray clicked and window is hidden', () => {
       const mockWin = { focus: jest.fn(), hide: jest.fn(), isVisible: jest.fn(() => false), show: jest.fn() };
-      (mockWindowService.getExistingMainWindow as jest.Mock).mockResolvedValue(mockWin);
+      (mockWindowService.getExistingMainWindow as jest.Mock).mockReturnValue(mockWin);
 
       trayService.createTray();
       const onMock = mockTray.on as jest.Mock;
       const clickHandler = onMock.mock.calls.find((call: unknown[]) => call[0] === 'click')?.[1];
 
       clickHandler();
-      await Promise.resolve();
 
       expect(mockWin.show).toHaveBeenCalled();
       expect(mockWin.focus).toHaveBeenCalled();

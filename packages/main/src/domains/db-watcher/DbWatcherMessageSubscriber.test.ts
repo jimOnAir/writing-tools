@@ -112,7 +112,7 @@ describe('DbWatcherMessageSubscriber', () => {
       messages,
     });
     expect(titleGenerationService.generateTitleIfNeeded).toHaveBeenCalledWith(5);
-    expect(followUpQuestionsService.generate).toHaveBeenCalledWith(messages, 5, undefined);
+    expect(followUpQuestionsService.generate).toHaveBeenCalledWith(messages, 5, '1', undefined);
     expect(mockSendToAllWindows).toHaveBeenCalledWith(EIpcRendererEvent.CHAT_FOLLOW_UP_QUESTIONS, {
       chatId: 5,
       questions: ['Q1?', 'Q2?'],
@@ -140,7 +140,7 @@ describe('DbWatcherMessageSubscriber', () => {
     });
     await flushPromises();
 
-    expect(followUpQuestionsService.generate).toHaveBeenCalledWith(messages, 7, {
+    expect(followUpQuestionsService.generate).toHaveBeenCalledWith(messages, 7, '2', {
       model: 'my-model',
       provider: 'ollama',
     });
