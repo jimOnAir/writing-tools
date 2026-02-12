@@ -631,7 +631,6 @@ export class SettingsService {
     provider: 'ollama' | 'lmstudio',
     status: TProviderAvailability,
   ): void {
-    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
     const prev: TProviderAvailabilityMap = this.providerAvailability;
     const next: TProviderAvailabilityMap
       = provider === 'ollama'
@@ -639,7 +638,6 @@ export class SettingsService {
         : { lmstudio: status, ollama: prev.ollama };
     this.providerAvailability = next;
     this.onProviderAvailabilityChange?.(next);
-    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
   }
 
   private setAvailableModels(
