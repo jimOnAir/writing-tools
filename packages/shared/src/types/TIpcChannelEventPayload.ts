@@ -16,7 +16,10 @@ export type TChatCreateSessionPayload = Record<string, never>;
 
 export type TChatLoadMessagesPayload = { chatId: number };
 
-export type TChatListChatsPayload = Record<string, never>;
+export type TChatListChatsPayload = {
+  limit?: number,
+  offset?: number,
+};
 
 export type TChatGetPayload = { chatId: number };
 

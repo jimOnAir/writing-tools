@@ -19,20 +19,24 @@ interface ChatListComponentProps {
 
 const SCROLL_TIMEOUT_MS = 500;
 // TODO: add chat renaming (regenerate title)
-// TODO: add infinite scroll
 const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, chatListState, multiChatService, onChatSelect }) => {
   const [uncontrolledChats, setUncontrolledChats] = useState<IChatInfo[]>([]);
-  const [uncontrolledLoading, setUncontrolledLoading] = useState(true);
-  const [uncontrolledError, setUncontrolledError] = useState<string | null>(null);
   const [uncontrolledDeletingChatId, setUncontrolledDeletingChatId] = useState<number | null>(null);
+  const [uncontrolledError, setUncontrolledError] = useState<string | null>(null);
+  const [uncontrolledHasMore, setUncontrolledHasMore] = useState(false);
+  const [uncontrolledLoading, setUncontrolledLoading] = useState(true);
+  const [uncontrolledLoadingMore, setUncontrolledLoadingMore] = useState(false);
   const [tabs, setTabs] = useState<readonly ITabInfo[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const isControlled = chatListState !== undefined;
   const chats: IChatInfo[] = isControlled ? chatListState.chats : uncontrolledChats;
-  const isLoading: boolean = isControlled ? chatListState.isLoading : uncontrolledLoading;
-  const error: string | null = isControlled ? chatListState.error : uncontrolledError;
   const deletingChatId: number | null = isControlled ? chatListState.deletingChatId : uncontrolledDeletingChatId;
+  const error: string | null = isControlled ? chatListState.error : uncontrolledError;
+  const hasMore: boolean = isControlled ? chatListState.hasMore : uncontrolledHasMore;
+  const isLoading: boolean = isControlled ? chatListState.isLoading : uncontrolledLoading;
+  const isLoadingMore: boolean = isControlled ? chatListState.isLoadingMore : uncontrolledLoadingMore;
 
   // Extract opened chat IDs from tabs
   const openedChatIds = useMemo(() => {
@@ -60,7 +64,9 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
       onChatsChange: setUncontrolledChats,
       onDeletingChatIdChange: setUncontrolledDeletingChatId,
       onErrorChange: setUncontrolledError,
+      onHasMoreChange: setUncontrolledHasMore,
       onLoadingChange: setUncontrolledLoading,
+      onLoadingMoreChange: setUncontrolledLoadingMore,
     });
     chatListService.initializeListeners();
     void chatListService.loadChats();
@@ -97,7 +103,7 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
   // Add scroll detection for scrollbar visibility
   useEffect(() => {
     const element = scrollContainerRef.current;
-    if (!element) {
+    if (element === null) {
       return;
     }
 
@@ -105,7 +111,7 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
 
     const handleScroll = (): void => {
       element.classList.add('scrolling');
-      if (scrollTimeout) {
+      if (scrollTimeout !== null) {
         clearTimeout(scrollTimeout);
       }
       scrollTimeout = setTimeout(() => {
@@ -117,11 +123,45 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
 
     return () => {
       element.removeEventListener('scroll', handleScroll);
-      if (scrollTimeout) {
+      if (scrollTimeout !== null) {
         clearTimeout(scrollTimeout);
       }
     };
   }, []);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    const sentinel = sentinelRef.current;
+    if (scrollContainer === null || sentinel === null) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries: IntersectionObserverEntry[]) => {
+        const entry = entries[0];
+        if (entry === undefined || !entry.isIntersecting) {
+          return;
+        }
+        if (!hasMore || isLoadingMore) {
+          return;
+        }
+
+        void chatListService.loadMoreChats();
+      },
+      {
+        root: scrollContainer,
+        rootMargin: '0px',
+        threshold: 0,
+      },
+    );
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [chatListService, hasMore, isLoadingMore]);
 
   const handleOpenChat = (chatId: number): void => {
     onChatSelect(chatId);
@@ -233,6 +273,12 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
                 </div>
               );
             })}
+            <div ref={sentinelRef} className="h-1 min-h-1" aria-hidden="true" />
+            {isLoadingMore && (
+              <div className={`flex items-center justify-center py-4 ${ColorPalette.text.muted}`}>
+                <LoadingIcon size={20} />
+              </div>
+            )}
           </div>
         </div>
       )}

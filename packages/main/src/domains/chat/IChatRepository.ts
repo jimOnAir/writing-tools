@@ -16,6 +16,12 @@ export interface IChatRepository {
   getAllChats: () => IChatInfo[];
 
   /**
+   * Get chat sessions with pagination
+   * @returns chats and hasMore (true if more items exist beyond this page)
+   */
+  getChatsPaginated: (limit: number, offset: number) => { chats: IChatInfo[], hasMore: boolean };
+
+  /**
    * Get a single chat session by ID
    */
   getChat: (chatId: number) => IChatInfo | null;

@@ -33,26 +33,48 @@ export class ChatRepository implements IChatRepository {
     const db = this.dbConnection.getDatabase();
 
     return db.select({
-      id: chats.id,
-      title: chats.title,
-      provider: chats.provider,
-      model: chats.model,
       created_at: chats.created_at,
+      id: chats.id,
+      model: chats.model,
+      provider: chats.provider,
+      title: chats.title,
       updated_at: chats.updated_at,
     }).from(chats)
       .orderBy(desc(chats.updated_at))
       .all();
   }
 
+  public getChatsPaginated(limit: number, offset: number): { chats: IChatInfo[], hasMore: boolean } {
+    const db = this.dbConnection.getDatabase();
+
+    const rows = db.select({
+      created_at: chats.created_at,
+      id: chats.id,
+      model: chats.model,
+      provider: chats.provider,
+      title: chats.title,
+      updated_at: chats.updated_at,
+    }).from(chats)
+      .orderBy(desc(chats.updated_at))
+      .limit(limit + 1)
+      .offset(offset)
+      .all();
+
+    const hasMore = rows.length > limit;
+    const resultChats = hasMore ? rows.slice(0, limit) : rows;
+
+    return { chats: resultChats, hasMore };
+  }
+
   public getChat(chatId: number): IChatInfo | null {
     const db = this.dbConnection.getDatabase();
 
     const result = db.select({
-      id: chats.id,
-      title: chats.title,
-      provider: chats.provider,
-      model: chats.model,
       created_at: chats.created_at,
+      id: chats.id,
+      model: chats.model,
+      provider: chats.provider,
+      title: chats.title,
       updated_at: chats.updated_at,
     }).from(chats)
       .where(eq(chats.id, chatId))

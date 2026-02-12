@@ -38,7 +38,7 @@ export type TChatLoadMessagesFailedResponse = { error: string };
 
 export type TChatLoadMessagesResponse = TChatLoadMessagesSuccessResponse | TChatLoadMessagesFailedResponse;
 
-export type TChatListChatsSuccessResponse = { chats: IChatInfo[] };
+export type TChatListChatsSuccessResponse = { chats: IChatInfo[], hasMore: boolean };
 
 export type TChatListChatsFailedResponse = { error: string };
 

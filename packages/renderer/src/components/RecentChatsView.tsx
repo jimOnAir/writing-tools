@@ -10,7 +10,7 @@ import { getPlatform } from '../utils/platformDetection';
 import { PlusIcon } from './icons';
 import { Tooltip } from './Tooltip';
 
-const RECENT_CHATS_LIMIT = 10;
+const RECENT_CHATS_LIMIT = 5;
 
 export interface RecentChatsViewProps {
   readonly chatListState: IChatListState;

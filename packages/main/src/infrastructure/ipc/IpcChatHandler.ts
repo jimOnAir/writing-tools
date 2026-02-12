@@ -35,7 +35,7 @@ export class IpcChatHandler implements IIpcChatHandler {
         case EIpcEvent.CHAT_CREATE:
           return this.handleChatCreateSession(data.payload);
         case EIpcEvent.CHAT_LIST:
-          return this.handleChatListChats();
+          return this.handleChatListChats(data.payload);
         case EIpcEvent.CHAT_GET:
           return this.handleChatGet(data.payload.chatId);
         case EIpcEvent.CHAT_DELETE:
@@ -78,11 +78,20 @@ export class IpcChatHandler implements IIpcChatHandler {
     }
   }
 
-  private handleChatListChats() {
+  private handleChatListChats(payload: { limit?: number, offset?: number }) {
     try {
+      const limit = payload.limit;
+      const offset = payload.offset;
+
+      if (typeof limit === 'number' && typeof offset === 'number') {
+        const result = this.chatService.getChatsPaginated(limit, offset);
+
+        return { chats: result.chats, hasMore: result.hasMore };
+      }
+
       const chats = this.chatService.getAllChats();
 
-      return { chats };
+      return { chats, hasMore: false };
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to list chats: %s', errorText);

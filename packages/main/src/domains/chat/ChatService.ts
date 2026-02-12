@@ -18,6 +18,10 @@ export class ChatService implements IChatService {
     return this.chatRepository.getAllChats();
   }
 
+  public getChatsPaginated(limit: number, offset: number): { chats: IChatInfo[], hasMore: boolean } {
+    return this.chatRepository.getChatsPaginated(limit, offset);
+  }
+
   public getChat(chatId: number): IChatInfo | null {
     return this.chatRepository.getChat(chatId);
   }

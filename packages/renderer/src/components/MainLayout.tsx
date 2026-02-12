@@ -32,7 +32,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [tabsVersion, setTabsVersion] = useState(0);
   const [chats, setChats] = useState<IChatInfo[]>([]);
   const [chatListError, setChatListError] = useState<string | null>(null);
+  const [chatListHasMore, setChatListHasMore] = useState(false);
   const [chatListLoading, setChatListLoading] = useState(true);
+  const [chatListLoadingMore, setChatListLoadingMore] = useState(false);
   const [deletingChatId, setDeletingChatId] = useState<number | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [, setPlatform] = useState<'darwin' | 'win32' | 'linux'>('linux');
@@ -43,7 +45,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       onChatsChange: setChats,
       onDeletingChatIdChange: setDeletingChatId,
       onErrorChange: setChatListError,
+      onHasMoreChange: setChatListHasMore,
       onLoadingChange: setChatListLoading,
+      onLoadingMoreChange: setChatListLoadingMore,
     });
     chatListService.initializeListeners();
     void chatListService.loadChats();
@@ -124,9 +128,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       chats,
       deletingChatId,
       error: chatListError,
+      hasMore: chatListHasMore,
       isLoading: chatListLoading,
+      isLoadingMore: chatListLoadingMore,
     }),
-    [chats, chatListError, chatListLoading, deletingChatId],
+    [chats, chatListError, chatListHasMore, chatListLoading, chatListLoadingMore, deletingChatId],
   );
 
   return (

@@ -71,7 +71,7 @@ describe('ChatListService', () => {
         },
       ];
 
-      mockIpcAdapter.invoke.mockResolvedValue({ chats: mockChats });
+      mockIpcAdapter.invoke.mockResolvedValue({ chats: mockChats, hasMore: false });
 
       const onChatsChange = jest.fn();
       const onLoadingChange = jest.fn();
@@ -86,6 +86,7 @@ describe('ChatListService', () => {
         EIpcChannel.CHAT,
         expect.objectContaining({
           event: EIpcEvent.CHAT_LIST,
+          payload: { limit: 20, offset: 0 },
         }),
       );
       expect(onChatsChange).toHaveBeenCalledWith(mockChats);
@@ -131,7 +132,7 @@ describe('ChatListService', () => {
       mockIpcAdapter.invoke.mockImplementation(async () => {
         return new Promise(resolve => {
           setTimeout(() => {
-            resolve({ chats: [] });
+            resolve({ chats: [], hasMore: false });
           }, delayMs);
         });
       });
@@ -145,6 +146,102 @@ describe('ChatListService', () => {
 
       // Should finish loading
       expect(loadingStates).toContain(false);
+    });
+  });
+
+  describe('loadMoreChats', () => {
+    it('appends chats and updates hasMore', async () => {
+      const initialChats: IChatInfo[] = [
+        {
+          created_at: new Date().toISOString(),
+          id: 1,
+          model: 'test',
+          provider: 'ollama',
+          title: 'Chat 1',
+          updated_at: new Date().toISOString(),
+        },
+      ];
+      const moreChats: IChatInfo[] = [
+        {
+          created_at: new Date().toISOString(),
+          id: 2,
+          model: 'test',
+          provider: 'ollama',
+          title: 'Chat 2',
+          updated_at: new Date().toISOString(),
+        },
+      ];
+
+      mockIpcAdapter.invoke
+        .mockResolvedValueOnce({ chats: initialChats, hasMore: true })
+        .mockResolvedValueOnce({ chats: moreChats, hasMore: false });
+
+      const onChatsChange = jest.fn();
+      const onHasMoreChange = jest.fn();
+      const onLoadingMoreChange = jest.fn();
+      chatListService.setCallbacks({
+        onChatsChange,
+        onHasMoreChange,
+        onLoadingMoreChange,
+      });
+
+      await chatListService.loadChats();
+      expect(onChatsChange).toHaveBeenLastCalledWith(initialChats);
+      expect(onHasMoreChange).toHaveBeenLastCalledWith(true);
+
+      await chatListService.loadMoreChats();
+
+      expect(mockIpcAdapter.invoke).toHaveBeenLastCalledWith(
+        EIpcChannel.CHAT,
+        expect.objectContaining({
+          event: EIpcEvent.CHAT_LIST,
+          payload: { limit: 20, offset: 1 },
+        }),
+      );
+      expect(onChatsChange).toHaveBeenLastCalledWith([...initialChats, ...moreChats]);
+      expect(onHasMoreChange).toHaveBeenLastCalledWith(false);
+      expect(onLoadingMoreChange).toHaveBeenCalledWith(true);
+      expect(onLoadingMoreChange).toHaveBeenCalledWith(false);
+    });
+
+    it('does nothing when hasMore is false', async () => {
+      mockIpcAdapter.invoke.mockResolvedValue({ chats: [], hasMore: false });
+
+      const onChatsChange = jest.fn();
+      chatListService.setCallbacks({
+        onChatsChange,
+        onHasMoreChange: jest.fn(),
+      });
+
+      await chatListService.loadChats();
+      const invokeCountBefore = mockIpcAdapter.invoke.mock.calls.length;
+
+      await chatListService.loadMoreChats();
+
+      expect(mockIpcAdapter.invoke).toHaveBeenCalledTimes(invokeCountBefore);
+    });
+
+    it('handles errors when loading more', async () => {
+      mockIpcAdapter.invoke
+        .mockResolvedValueOnce({
+          chats: [{ id: 1, title: 'Chat 1', provider: 'ollama', model: 'test', created_at: '', updated_at: '' }],
+          hasMore: true,
+        })
+        .mockResolvedValueOnce({ error: 'Load more failed' });
+
+      const onChatsChange = jest.fn();
+      const onErrorChange = jest.fn();
+      const onHasMoreChange = jest.fn();
+      chatListService.setCallbacks({
+        onChatsChange,
+        onErrorChange,
+        onHasMoreChange,
+      });
+
+      await chatListService.loadChats();
+      await chatListService.loadMoreChats();
+
+      expect(onErrorChange).toHaveBeenCalledWith('Load more failed');
     });
   });
 
@@ -191,7 +288,7 @@ describe('ChatListService', () => {
     it('deletes chat successfully', async () => {
       mockIpcAdapter.invoke
         .mockResolvedValueOnce({ success: true })
-        .mockResolvedValueOnce({ chats: [] });
+        .mockResolvedValueOnce({ chats: [], hasMore: false });
 
       const onDeletingChatIdChange = jest.fn();
       const onChatsChange = jest.fn();
@@ -234,7 +331,7 @@ describe('ChatListService', () => {
     it('refreshes chat list after successful deletion', async () => {
       mockIpcAdapter.invoke
         .mockResolvedValueOnce({ success: true })
-        .mockResolvedValueOnce({ chats: [] });
+        .mockResolvedValueOnce({ chats: [], hasMore: false });
 
       await chatListService.deleteChat(1);
 
@@ -252,7 +349,7 @@ describe('ChatListService', () => {
     it('sets deletingChatId during deletion', async () => {
       mockIpcAdapter.invoke
         .mockResolvedValueOnce({ success: true })
-        .mockResolvedValueOnce({ chats: [] });
+        .mockResolvedValueOnce({ chats: [], hasMore: false });
 
       const onDeletingChatIdChange = jest.fn();
       chatListService.setCallbacks({ onDeletingChatIdChange });

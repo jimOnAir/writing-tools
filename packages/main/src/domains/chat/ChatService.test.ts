@@ -10,13 +10,12 @@ describe('ChatService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRepository = {
-      close: jest.fn(),
       createChat: jest.fn(),
       deleteChat: jest.fn(),
       getAllChats: jest.fn(),
       getChat: jest.fn(),
-      getChatMessages: jest.fn(),
-      saveMessage: jest.fn(),
+      getChatsPaginated: jest.fn(),
+      updateChatModel: jest.fn(),
       updateChatTitle: jest.fn(),
     } as unknown as jest.Mocked<IChatRepository>;
 
@@ -53,6 +52,28 @@ describe('ChatService', () => {
 
       expect(mockRepository.getAllChats).toHaveBeenCalled();
       expect(chats).toEqual(mockChats);
+    });
+  });
+
+  describe('getChatsPaginated', () => {
+    it('returns paginated chats and hasMore', () => {
+      const mockChats: IChatInfo[] = [
+        {
+          created_at: '2024-01-01T00:00:00.000Z',
+          id: 1,
+          model: 'test',
+          provider: 'ollama',
+          title: 'Chat 1',
+          updated_at: '2024-01-01T00:00:00.000Z',
+        },
+      ];
+
+      mockRepository.getChatsPaginated.mockReturnValue({ chats: mockChats, hasMore: false });
+
+      const result = chatService.getChatsPaginated(20, 0);
+
+      expect(mockRepository.getChatsPaginated).toHaveBeenCalledWith(20, 0);
+      expect(result).toEqual({ chats: mockChats, hasMore: false });
     });
   });
 

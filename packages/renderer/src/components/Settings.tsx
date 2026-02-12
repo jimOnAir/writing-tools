@@ -14,6 +14,7 @@ import { SettingsActions } from './settings/SettingsActions';
 import { SettingsNotifications } from './settings/SettingsNotifications';
 
 // TODO: Make save and cancel buttons sticky
+// TODO: Show user if provider is unavailable
 interface SettingsProps {
   readonly settingsService: SettingsService;
   readonly isModal?: boolean;

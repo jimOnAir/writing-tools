@@ -40,7 +40,9 @@ const defaultChatListState = {
   chats: [],
   deletingChatId: null as number | null,
   error: null as string | null,
+  hasMore: false,
   isLoading: false,
+  isLoadingMore: false,
 };
 
 describe('Sidebar', () => {

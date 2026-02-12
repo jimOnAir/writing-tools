@@ -5,6 +5,8 @@ import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
 import { isErrorResponse, isFailedResponse } from '../../utils/responseTypeGuards';
 
+const PAGE_SIZE = 20;
+
 /**
  * Service for managing chat list domain logic
  * Handles chat list operations, IPC communication, and state management
@@ -12,17 +14,21 @@ import { isErrorResponse, isFailedResponse } from '../../utils/responseTypeGuard
 export class ChatListService {
   private readonly ipcAdapter: IIpcAdapter;
   private chats: IChatInfo[] = [];
-  private isLoading = false;
-  private error: string | null = null;
   private deletingChatId: number | null = null;
+  private error: string | null = null;
+  private hasMore = false;
+  private isLoading = false;
+  private isLoadingMore = false;
   private chatCreatedListener: TIpcRenderListener | null = null;
   private chatTitleUpdatedListener: TIpcRenderListener | null = null;
 
   // Callbacks for component state updates
   private onChatsChange?: (chats: IChatInfo[]) => void;
-  private onLoadingChange?: (isLoading: boolean) => void;
-  private onErrorChange?: (error: string | null) => void;
   private onDeletingChatIdChange?: (chatId: number | null) => void;
+  private onErrorChange?: (error: string | null) => void;
+  private onHasMoreChange?: (hasMore: boolean) => void;
+  private onLoadingChange?: (isLoading: boolean) => void;
+  private onLoadingMoreChange?: (isLoadingMore: boolean) => void;
 
   public constructor(ipcAdapter: IIpcAdapter) {
     this.ipcAdapter = ipcAdapter;
@@ -64,18 +70,22 @@ export class ChatListService {
    */
   public setCallbacks(callbacks: {
     onChatsChange?: (chats: IChatInfo[]) => void,
-    onLoadingChange?: (isLoading: boolean) => void,
-    onErrorChange?: (error: string | null) => void,
     onDeletingChatIdChange?: (chatId: number | null) => void,
+    onErrorChange?: (error: string | null) => void,
+    onHasMoreChange?: (hasMore: boolean) => void,
+    onLoadingChange?: (isLoading: boolean) => void,
+    onLoadingMoreChange?: (isLoadingMore: boolean) => void,
   }): void {
     this.onChatsChange = callbacks.onChatsChange;
-    this.onLoadingChange = callbacks.onLoadingChange;
-    this.onErrorChange = callbacks.onErrorChange;
     this.onDeletingChatIdChange = callbacks.onDeletingChatIdChange;
+    this.onErrorChange = callbacks.onErrorChange;
+    this.onHasMoreChange = callbacks.onHasMoreChange;
+    this.onLoadingChange = callbacks.onLoadingChange;
+    this.onLoadingMoreChange = callbacks.onLoadingMoreChange;
   }
 
   /**
-   * Load all chats from the database
+   * Load first page of chats from the database
    */
   public async loadChats(): Promise<void> {
     this.setLoading(true);
@@ -85,7 +95,7 @@ export class ChatListService {
       const message: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST> = {
         channel: EIpcChannel.CHAT,
         event: EIpcEvent.CHAT_LIST,
-        payload: {},
+        payload: { limit: PAGE_SIZE, offset: 0 },
       };
 
       const response = await this.ipcAdapter.invoke(message.channel, message);
@@ -96,6 +106,9 @@ export class ChatListService {
 
       if ('chats' in response && Array.isArray(response.chats)) {
         this.setChats(response.chats);
+        const hasMore = 'hasMore' in response && typeof response.hasMore === 'boolean' ? response.hasMore : false;
+
+        this.setHasMore(hasMore);
       } else {
         throw new Error('Invalid response: missing chats');
       }
@@ -105,6 +118,46 @@ export class ChatListService {
       this.setError(errorText);
     } finally {
       this.setLoading(false);
+    }
+  }
+
+  /**
+   * Load next page of chats and append to current list
+   */
+  public async loadMoreChats(): Promise<void> {
+    if (this.isLoadingMore === true || this.hasMore === false) {
+      return;
+    }
+
+    this.setLoadingMore(true);
+
+    try {
+      const message: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST> = {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_LIST,
+        payload: { limit: PAGE_SIZE, offset: this.chats.length },
+      };
+
+      const response = await this.ipcAdapter.invoke(message.channel, message);
+
+      if (isErrorResponse(response)) {
+        throw new Error(response.error);
+      }
+
+      if ('chats' in response && Array.isArray(response.chats)) {
+        this.appendChats(response.chats);
+        const hasMore = 'hasMore' in response && typeof response.hasMore === 'boolean' ? response.hasMore : false;
+
+        this.setHasMore(hasMore);
+      } else {
+        throw new Error('Invalid response: missing chats');
+      }
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to load more chats: %s', errorText);
+      this.setError(errorText);
+    } finally {
+      this.setLoadingMore(false);
     }
   }
 
@@ -166,9 +219,19 @@ export class ChatListService {
   }
 
   // Private setters that trigger callbacks
+  private appendChats(newChats: IChatInfo[]): void {
+    this.chats = [...this.chats, ...newChats];
+    this.onChatsChange?.(this.chats);
+  }
+
   private setChats(chats: IChatInfo[]): void {
     this.chats = chats;
     this.onChatsChange?.(chats);
+  }
+
+  private setHasMore(hasMore: boolean): void {
+    this.hasMore = hasMore;
+    this.onHasMoreChange?.(hasMore);
   }
 
   private setLoading(isLoading: boolean): void {
@@ -184,5 +247,10 @@ export class ChatListService {
   private setDeletingChatId(chatId: number | null): void {
     this.deletingChatId = chatId;
     this.onDeletingChatIdChange?.(chatId);
+  }
+
+  private setLoadingMore(isLoadingMore: boolean): void {
+    this.isLoadingMore = isLoadingMore;
+    this.onLoadingMoreChange?.(isLoadingMore);
   }
 }

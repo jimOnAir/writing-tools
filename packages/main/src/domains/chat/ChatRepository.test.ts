@@ -75,18 +75,22 @@ describe('ChatRepository', () => {
       }),
     });
 
+    const mockOrderByResult = {
+      all: jest.fn().mockReturnValue([]),
+      limit: jest.fn().mockReturnValue({
+        offset: jest.fn().mockReturnValue({
+          all: jest.fn().mockReturnValue([]),
+        }),
+      }),
+    };
+
     mockDrizzleDb.select.mockReturnValue({
       from: jest.fn().mockReturnValue({
+        orderBy: jest.fn().mockReturnValue(mockOrderByResult),
         where: jest.fn().mockReturnValue({
-          orderBy: jest.fn().mockReturnValue({
-            all: jest.fn().mockReturnValue([]),
-          }),
           limit: jest.fn().mockReturnValue({
             get: jest.fn().mockReturnValue(undefined),
           }),
-        }),
-        orderBy: jest.fn().mockReturnValue({
-          all: jest.fn().mockReturnValue([]),
         }),
       }),
     });
@@ -182,6 +186,128 @@ describe('ChatRepository', () => {
 
       expect(() => {
         uninitializedRepo.getAllChats();
+      }).toThrow('Database not initialized');
+    });
+  });
+
+  describe('getChatsPaginated', () => {
+    it('returns empty array and hasMore false when no chats exist', () => {
+      const mockOrderByResult = {
+        all: jest.fn().mockReturnValue([]),
+        limit: jest.fn().mockReturnValue({
+          offset: jest.fn().mockReturnValue({
+            all: jest.fn().mockReturnValue([]),
+          }),
+        }),
+      };
+
+      mockDrizzleDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          orderBy: jest.fn().mockReturnValue(mockOrderByResult),
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue({
+              get: jest.fn().mockReturnValue(undefined),
+            }),
+          }),
+        }),
+      });
+
+      const result = repository.getChatsPaginated(20, 0);
+
+      expect(result).toEqual({ chats: [], hasMore: false });
+    });
+
+    it('returns chats and hasMore false when page is partial', () => {
+      const mockChats: IChatInfo[] = [
+        {
+          created_at: '2024-01-01T00:00:00.000Z',
+          id: 1,
+          model: 'test',
+          provider: 'ollama',
+          title: 'Chat 1',
+          updated_at: '2024-01-02T00:00:00.000Z',
+        },
+      ];
+
+      const mockOrderByResult = {
+        all: jest.fn().mockReturnValue([]),
+        limit: jest.fn().mockReturnValue({
+          offset: jest.fn().mockReturnValue({
+            all: jest.fn().mockReturnValue(mockChats),
+          }),
+        }),
+      };
+
+      mockDrizzleDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          orderBy: jest.fn().mockReturnValue(mockOrderByResult),
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue({
+              get: jest.fn().mockReturnValue(undefined),
+            }),
+          }),
+        }),
+      });
+
+      const result = repository.getChatsPaginated(20, 0);
+
+      expect(result).toEqual({ chats: mockChats, hasMore: false });
+    });
+
+    it('returns full page and hasMore true when more items exist', () => {
+      const fullPage: IChatInfo[] = Array.from({ length: 20 }, (_, i) => ({
+        created_at: '2024-01-01T00:00:00.000Z',
+        id: i + 1,
+        model: 'test',
+        provider: 'ollama',
+        title: `Chat ${i + 1}`,
+        updated_at: '2024-01-02T00:00:00.000Z',
+      }));
+      const extraRow: IChatInfo = {
+        created_at: '2024-01-01T00:00:00.000Z',
+        id: 21,
+        model: 'test',
+        provider: 'ollama',
+        title: 'Chat 21',
+        updated_at: '2024-01-02T00:00:00.000Z',
+      };
+      const rowsWithExtra = [...fullPage, extraRow];
+
+      const mockOrderByResult = {
+        all: jest.fn().mockReturnValue([]),
+        limit: jest.fn().mockReturnValue({
+          offset: jest.fn().mockReturnValue({
+            all: jest.fn().mockReturnValue(rowsWithExtra),
+          }),
+        }),
+      };
+
+      mockDrizzleDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          orderBy: jest.fn().mockReturnValue(mockOrderByResult),
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue({
+              get: jest.fn().mockReturnValue(undefined),
+            }),
+          }),
+        }),
+      });
+
+      const result = repository.getChatsPaginated(20, 0);
+
+      expect(result.chats).toHaveLength(20);
+      expect(result.hasMore).toBe(true);
+      expect(result.chats).toEqual(fullPage);
+    });
+
+    it('throws error when database is not initialized', () => {
+      const uninitializedRepo = new ChatRepository(dbConnection);
+      mockDatabaseConnection.getDatabase.mockImplementationOnce(() => {
+        throw new Error('Database not initialized');
+      });
+
+      expect(() => {
+        uninitializedRepo.getChatsPaginated(20, 0);
       }).toThrow('Database not initialized');
     });
   });
