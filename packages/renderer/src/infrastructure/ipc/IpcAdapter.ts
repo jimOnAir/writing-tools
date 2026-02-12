@@ -1,4 +1,4 @@
-import type { TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, IChatWindowData, IChatMessage, TOpenTab, TChatResponse, IChatFollowUpQuestions, IChatStreamChunk, IChatStreamEnd } from '@writing-tools/shared';
+import type { TIpcResponsePayload, TIpcEvent, IPreconfiguredPrompt, IPromptSelectedData, IChatMessage, TOpenTab, TChatResponse, IChatFollowUpQuestions, IChatStreamChunk, IChatStreamEnd } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
@@ -17,14 +17,14 @@ export interface IIpcAdapter {
   ) => Promise<TIpcResponsePayload<K>>;
 
   /**
-   * Register a listener for chat window data events
+   * Register a listener for prompt selected events
    */
-  onChatWindowData: (callback: (data: IChatWindowData) => void) => TIpcRenderListener;
+  onPromptSelected: (callback: (data: IPromptSelectedData) => void) => TIpcRenderListener;
 
   /**
-   * Unregister a chat window data listener
+   * Unregister a prompt selected listener
    */
-  offChatWindowData: (listener: TIpcRenderListener) => void;
+  offPromptSelected: (listener: TIpcRenderListener) => void;
 
   /**
    * Register a listener for Ollama response events
@@ -130,12 +130,12 @@ export class ElectronIpcAdapter implements IIpcAdapter {
     return this.getElectronAPI().invoke(channel, data);
   }
 
-  public onChatWindowData(callback: (data: IChatWindowData) => void): TIpcRenderListener {
-    return this.getElectronAPI().onChatWindowData(callback);
+  public onPromptSelected(callback: (data: IPromptSelectedData) => void): TIpcRenderListener {
+    return this.getElectronAPI().onPromptSelected(callback);
   }
 
-  public offChatWindowData(listener: TIpcRenderListener): void {
-    this.getElectronAPI().offChatWindowData(listener);
+  public offPromptSelected(listener: TIpcRenderListener): void {
+    this.getElectronAPI().offPromptSelected(listener);
   }
 
   public onOllamaResponse(callback: (data: TChatResponse) => void): TIpcRenderListener {

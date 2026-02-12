@@ -22,7 +22,7 @@ export class ChatService {
   private isStreaming = false;
   private streamingMessageId: string | null = null;
   private streamingContent = '';
-  private chatWindowDataListener: TIpcRenderListener | null = null;
+  private promptSelectedListener: TIpcRenderListener | null = null;
   private ollamaResponseListener: TIpcRenderListener | null = null;
   private chatTitleUpdatedListener: TIpcRenderListener | null = null;
   private chatLoadMessagesDataListener: TIpcRenderListener | null = null;
@@ -108,12 +108,12 @@ export class ChatService {
 
   /**
    * Initialize IPC listeners for chat events
-   * Note: CHAT_WINDOW_DATA listener is disabled when used in multi-tab context
-   * MultiChatService handles routing CHAT_WINDOW_DATA events to the appropriate tab
+   * Note: PROMPT_SELECTED listener is disabled when used in multi-tab context
+   * MultiChatService handles routing PROMPT_SELECTED events to the appropriate tab
    */
   public initializeListeners(): void {
-    // CHAT_WINDOW_DATA listener is NOT set up here
-    // When used in multi-tab context, MultiChatService handles CHAT_WINDOW_DATA routing
+    // PROMPT_SELECTED listener is NOT set up here
+    // When used in multi-tab context, MultiChatService handles PROMPT_SELECTED routing
     // This prevents multiple ChatService instances from creating duplicate chats
 
     const handleOllamaResponse = (response: TChatResponse) => {
@@ -341,7 +341,7 @@ export class ChatService {
     };
 
     try {
-      // CHAT_WINDOW_DATA listener intentionally not set up - MultiChatService handles routing
+      // PROMPT_SELECTED listener intentionally not set up - MultiChatService handles routing
       this.ollamaResponseListener = this.ipcAdapter.onOllamaResponse(handleOllamaResponse);
       this.chatTitleUpdatedListener = this.ipcAdapter.onChatTitleUpdated(handleChatTitleUpdated);
       this.chatLoadMessagesDataListener = this.ipcAdapter.onChatLoadMessagesData(handleChatLoadMessagesData);
@@ -365,9 +365,9 @@ export class ChatService {
    * Cleanup IPC listeners
    */
   public cleanupListeners(): void {
-    if (this.chatWindowDataListener) {
-      this.ipcAdapter.offChatWindowData(this.chatWindowDataListener);
-      this.chatWindowDataListener = null;
+    if (this.promptSelectedListener) {
+      this.ipcAdapter.offPromptSelected(this.promptSelectedListener);
+      this.promptSelectedListener = null;
     }
 
     if (this.ollamaResponseListener) {

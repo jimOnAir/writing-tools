@@ -14,8 +14,8 @@ describe('ChatListService', () => {
 
     mockIpcAdapter = {
       invoke: jest.fn(),
-      onChatWindowData: jest.fn(),
-      offChatWindowData: jest.fn(),
+      onPromptSelected: jest.fn(),
+      offPromptSelected: jest.fn(),
       onOllamaResponse: jest.fn(),
       offOllamaResponse: jest.fn(),
       onPromptSelectorData: jest.fn(),

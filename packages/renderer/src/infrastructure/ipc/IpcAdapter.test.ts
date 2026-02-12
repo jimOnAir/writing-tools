@@ -8,8 +8,8 @@ describe('ElectronIpcAdapter', () => {
   let adapter: ElectronIpcAdapter;
   let mockElectronAPI: {
     invoke: jest.Mock,
-    onChatWindowData: jest.Mock,
-    offChatWindowData: jest.Mock,
+    onPromptSelected: jest.Mock,
+    offPromptSelected: jest.Mock,
     onOllamaResponse: jest.Mock,
     offOllamaResponse: jest.Mock,
     onPromptSelectorData: jest.Mock,
@@ -33,8 +33,8 @@ describe('ElectronIpcAdapter', () => {
   beforeEach(() => {
     mockElectronAPI = {
       invoke: jest.fn(),
-      onChatWindowData: jest.fn(() => ({ remove: jest.fn() })),
-      offChatWindowData: jest.fn(),
+      onPromptSelected: jest.fn(() => ({ remove: jest.fn() })),
+      offPromptSelected: jest.fn(),
       onOllamaResponse: jest.fn(() => ({ remove: jest.fn() })),
       offOllamaResponse: jest.fn(),
       onPromptSelectorData: jest.fn(() => ({ remove: jest.fn() })),
@@ -114,12 +114,12 @@ describe('ElectronIpcAdapter', () => {
     });
   });
 
-  describe('onChatWindowData', () => {
+  describe('onPromptSelected', () => {
     it('registers listener and returns listener object', () => {
       const callback = jest.fn();
-      const listener = adapter.onChatWindowData(callback);
+      const listener = adapter.onPromptSelected(callback);
 
-      expect(mockElectronAPI.onChatWindowData).toHaveBeenCalledWith(callback);
+      expect(mockElectronAPI.onPromptSelected).toHaveBeenCalledWith(callback);
       expect(listener).toBeDefined();
     });
 
@@ -130,18 +130,18 @@ describe('ElectronIpcAdapter', () => {
       const callback = jest.fn();
 
       expect(() => {
-        freshAdapter.onChatWindowData(callback);
+        freshAdapter.onPromptSelected(callback);
       }).toThrow('electronAPI is not available');
     });
   });
 
-  describe('offChatWindowData', () => {
+  describe('offPromptSelected', () => {
     it('unregisters listener', () => {
       const listener = { remove: jest.fn() } as unknown as TIpcRenderListener;
 
-      adapter.offChatWindowData(listener);
+      adapter.offPromptSelected(listener);
 
-      expect(mockElectronAPI.offChatWindowData).toHaveBeenCalledWith(listener);
+      expect(mockElectronAPI.offPromptSelected).toHaveBeenCalledWith(listener);
     });
 
     it('throws when electronAPI is not available', () => {
@@ -151,7 +151,7 @@ describe('ElectronIpcAdapter', () => {
       const listener = { remove: jest.fn() } as unknown as TIpcRenderListener;
 
       expect(() => {
-        freshAdapter.offChatWindowData(listener);
+        freshAdapter.offPromptSelected(listener);
       }).toThrow('electronAPI is not available');
     });
   });

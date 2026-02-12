@@ -7,17 +7,17 @@ type TIpcRenderListener = (event: IpcRendererEvent, ...args: any[]) => void;
 if (typeof window !== 'undefined') {
   contextBridge.exposeInMainWorld('electronAPI', {
     invoke: async (ch: string, data: any) => ipcRenderer.invoke(ch, data),
-    onChatWindowData: (cb: (message: any) => void) => {
-      const chatWindowDataListener = (_: IpcRendererEvent, message: any) => {
+    onPromptSelected: (cb: (message: any) => void) => {
+      const promptSelectedListener = (_: IpcRendererEvent, message: any) => {
         cb(message);
       };
 
-      ipcRenderer.on(EIpcRendererEvent.CHAT_WINDOW_DATA, chatWindowDataListener);
+      ipcRenderer.on(EIpcRendererEvent.PROMPT_SELECTED, promptSelectedListener);
 
-      return chatWindowDataListener;
+      return promptSelectedListener;
     },
-    offChatWindowData: (listener: TIpcRenderListener) => {
-      ipcRenderer.off(EIpcRendererEvent.CHAT_WINDOW_DATA, listener);
+    offPromptSelected: (listener: TIpcRenderListener) => {
+      ipcRenderer.off(EIpcRendererEvent.PROMPT_SELECTED, listener);
     },
     onOllamaResponse: (cb: (message: any) => void) => {
       const ollamaResponseListener = (_: IpcRendererEvent, message: any) => {

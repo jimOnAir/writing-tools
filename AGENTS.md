@@ -640,13 +640,13 @@ type Optional<T> = {
 };
 
 // ✅ Good: Interface properties sorted alphabetically (applies to mapped types too)
-interface IChatWindowData {
+interface IPromptSelectedData {
   chatId?: number;
   prompt: string;
 }
 
 // ❌ Bad: Interface properties not sorted
-interface IChatWindowData {
+interface IPromptSelectedData {
   prompt: string;
   chatId?: number;  // Out of order
 }
@@ -2297,8 +2297,8 @@ describe('ChatService', () => {
   beforeEach(() => {
     mockIpcAdapter = {
       invoke: jest.fn(),
-      onChatWindowData: jest.fn(() => jest.fn()),
-      offChatWindowData: jest.fn(),
+      onPromptSelected: jest.fn(() => jest.fn()),
+      offPromptSelected: jest.fn(),
       // ... other methods
     } as unknown as jest.Mocked<ElectronIpcAdapter>;
 
@@ -2517,8 +2517,8 @@ const mockElectronAPI = {
     }
     return Promise.resolve({ success: true });
   }),
-  onChatWindowData: jest.fn(() => jest.fn()),
-  offChatWindowData: jest.fn(),
+  onPromptSelected: jest.fn(() => jest.fn()),
+  offPromptSelected: jest.fn(),
   // ... other methods
 };
 
@@ -2813,7 +2813,7 @@ describe('Settings', () => {
  * Bug: When switching from preconfigured prompts to chat tab,
  * the LLM request was being sent twice.
  *
- * Fix: MultiChatService no longer calls sendMessage when receiving CHAT_WINDOW_DATA
+ * Fix: MultiChatService no longer calls sendMessage when receiving PROMPT_SELECTED
  * from prompt select. Instead, it loads messages and lets the OLLAMA_RESPONSE
  * listener handle the response.
  */

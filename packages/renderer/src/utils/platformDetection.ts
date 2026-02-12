@@ -37,7 +37,7 @@ export const getPlatform = async (): Promise<TPlatform> => {
 
       const platform = env.platform as TPlatform;
 
-      if (platform === 'darwin' || platform === 'win32' || platform === 'linux') {
+      if (platform === 'darwin' || platform === 'win32') {
         cachedPlatform = platform;
         platformPromise = null;
 

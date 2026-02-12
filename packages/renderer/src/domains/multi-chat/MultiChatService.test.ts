@@ -1,4 +1,4 @@
-import type { IChatWindowData, ILogger } from '@writing-tools/shared';
+import type { IPromptSelectedData, ILogger } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
 import type { TIpcRenderListener } from '../../types/TIpcRenderListener';
@@ -49,8 +49,8 @@ describe('MultiChatService', () => {
       offChatLoadMessagesData: jest.fn(),
       onChatTitleUpdated: jest.fn(() => mockListener),
       offChatTitleUpdated: jest.fn(),
-      onChatWindowData: jest.fn(() => mockListener),
-      offChatWindowData: jest.fn(),
+      onPromptSelected: jest.fn(() => mockListener),
+      offPromptSelected: jest.fn(),
       onOllamaResponse: jest.fn(() => mockListener),
       offOllamaResponse: jest.fn(),
       onPromptSelectorData: jest.fn(() => mockListener),
@@ -399,26 +399,26 @@ describe('MultiChatService', () => {
     it('registers all IPC listeners', () => {
       multiChatService.initializeListeners();
 
-      expect(mockIpcAdapter.onChatWindowData).toHaveBeenCalled();
+      expect(mockIpcAdapter.onPromptSelected).toHaveBeenCalled();
       expect(mockIpcAdapter.onChatDeleted).toHaveBeenCalled();
       expect(mockIpcAdapter.onPromptSelectorData).toHaveBeenCalled();
     });
 
-    it('handles CHAT_WINDOW_DATA event', () => {
+    it('handles PROMPT_SELECTED event', () => {
       multiChatService.initializeListeners();
 
-      const onChatWindowDataMock = mockIpcAdapter.onChatWindowData as jest.Mock;
-      const mockCalls = onChatWindowDataMock.mock.calls;
+      const onPromptSelectedMock = mockIpcAdapter.onPromptSelected as jest.Mock;
+      const mockCalls = onPromptSelectedMock.mock.calls;
       const firstCall = mockCalls[0] as unknown[] | undefined;
-      const dataCallback = firstCall?.[0] as ((data: IChatWindowData) => void) | undefined;
+      const dataCallback = firstCall?.[0] as ((data: IPromptSelectedData) => void) | undefined;
 
       if (!dataCallback) {
         throw new Error('Data callback not found');
       }
 
-      const data: IChatWindowData = {
-        prompt: 'Test prompt',
+      const data: IPromptSelectedData = {
         chatId: 1,
+        prompt: 'Test prompt',
       };
 
       dataCallback(data);
@@ -475,7 +475,7 @@ describe('MultiChatService', () => {
       multiChatService.initializeListeners();
       multiChatService.cleanupListeners();
 
-      expect(mockIpcAdapter.offChatWindowData).toHaveBeenCalled();
+      expect(mockIpcAdapter.offPromptSelected).toHaveBeenCalled();
       expect(mockIpcAdapter.offChatDeleted).toHaveBeenCalled();
       expect(mockIpcAdapter.offPromptSelectorData).toHaveBeenCalled();
     });

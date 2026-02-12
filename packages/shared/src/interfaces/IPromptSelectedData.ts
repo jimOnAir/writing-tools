@@ -1,4 +1,4 @@
-export interface IChatWindowData {
+export interface IPromptSelectedData {
   chatId?: number;
   prompt: string;
 }

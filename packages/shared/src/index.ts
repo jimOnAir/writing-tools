@@ -4,7 +4,7 @@ export type { IMessageStatistics } from './interfaces/IMessageStatistics';
 export type { IChatFollowUpQuestions } from './interfaces/IChatFollowUpQuestions';
 export type { IChatStreamChunk } from './interfaces/IChatStreamChunk';
 export type { IChatStreamEnd } from './interfaces/IChatStreamEnd';
-export type { IChatWindowData } from './interfaces/IChatWindowData';
+export type { IPromptSelectedData } from './interfaces/IPromptSelectedData';
 export type { ILogger } from './interfaces/ILogger';
 export type { IPreconfiguredPrompt } from './interfaces/IPreconfiguredPrompt';
 export type { IPromptSelectorData } from './interfaces/IPromptSelectorData';

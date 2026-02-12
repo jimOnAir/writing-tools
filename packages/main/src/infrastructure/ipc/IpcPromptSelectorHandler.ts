@@ -70,8 +70,8 @@ export class IpcPromptSelectorHandler implements IIpcPromptSelectorHandler {
       this.logger.error('Failed to save user message in prompt select: %s', errorText);
     }
 
-    this.logger.info('Send chat-window-data: %s, chatId=%s', payload.prompt, String(chatId));
-    mainWindow.webContents.send(EIpcRendererEvent.CHAT_WINDOW_DATA, {
+    this.logger.info('Send prompt-selected: %s, chatId=%s', payload.prompt, String(chatId));
+    mainWindow.webContents.send(EIpcRendererEvent.PROMPT_SELECTED, {
       chatId,
       prompt: payload.prompt,
     });

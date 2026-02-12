@@ -1,4 +1,4 @@
-import type { IChatWindowData, ILogger, IPromptSelectorData, TIpcEvent, TOpenTab } from '@writing-tools/shared';
+import type { IPromptSelectedData, ILogger, IPromptSelectorData, TIpcEvent, TOpenTab } from '@writing-tools/shared';
 import { EIpcChannel, EIpcEvent } from '@writing-tools/shared';
 
 import type { IIpcAdapter } from '../../infrastructure/ipc';
@@ -26,7 +26,7 @@ export class MultiChatService {
   private readonly logger: ILogger;
   private readonly tabs: ITabInfo[] = [];
   private activeTabId: string | null = null;
-  private chatWindowDataListener: TIpcRenderListener | null = null;
+  private promptSelectedListener: TIpcRenderListener | null = null;
   private chatDeletedListener: TIpcRenderListener | null = null;
   private promptSelectorDataListener: TIpcRenderListener | null = null;
   private isRestoringTabs = false;
@@ -90,17 +90,17 @@ export class MultiChatService {
    * Initialize IPC listeners for chat events
    */
   public initializeListeners(): void {
-    const handleChatWindowData = (data: IChatWindowData) => {
+    const handlePromptSelected = (data: IPromptSelectedData) => {
       const promptText = data.prompt === '' ? 'none' : data.prompt;
       const chatIdText = data.chatId === undefined ? 'undefined' : String(data.chatId);
-      this.logger.info('MultiChatService received CHAT_WINDOW_DATA: prompt=%s, chatId=%s', promptText, chatIdText);
+      this.logger.info('MultiChatService received PROMPT_SELECTED: prompt=%s, chatId=%s', promptText, chatIdText);
 
       if (data.prompt === '' || data.chatId === undefined) {
         return;
       }
 
       const activeTab = this.getActiveTab();
-      // CHAT_WINDOW_DATA is only sent from prompt-select (IpcPromptSelectorHandler); always reuse active tab when present
+      // PROMPT_SELECTED is only sent from prompt-select (IpcPromptSelectorHandler); always reuse active tab when present
       let tab: ITabInfo;
       if (activeTab?.chatService !== undefined) {
         tab = activeTab;
@@ -132,7 +132,7 @@ export class MultiChatService {
       newTab.chatService.setPromptSelectorData(data);
     };
 
-    this.chatWindowDataListener = this.ipcAdapter.onChatWindowData(handleChatWindowData);
+    this.promptSelectedListener = this.ipcAdapter.onPromptSelected(handlePromptSelected);
     this.chatDeletedListener = this.ipcAdapter.onChatDeleted(handleChatDeleted);
     this.promptSelectorDataListener = this.ipcAdapter.onPromptSelectorData(handlePromptSelectorData);
 
@@ -173,9 +173,9 @@ export class MultiChatService {
    * Cleanup IPC listeners
    */
   public cleanupListeners(): void {
-    if (this.chatWindowDataListener !== null) {
-      this.ipcAdapter.offChatWindowData(this.chatWindowDataListener);
-      this.chatWindowDataListener = null;
+    if (this.promptSelectedListener !== null) {
+      this.ipcAdapter.offPromptSelected(this.promptSelectedListener);
+      this.promptSelectedListener = null;
     }
     if (this.chatDeletedListener !== null) {
       this.ipcAdapter.offChatDeleted(this.chatDeletedListener);

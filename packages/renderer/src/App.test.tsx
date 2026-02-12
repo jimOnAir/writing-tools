@@ -28,8 +28,8 @@ const mockElectronAPI = {
     // Default response for other events
     return { success: true };
   }),
-  onChatWindowData: jest.fn(() => jest.fn()),
-  offChatWindowData: jest.fn(),
+  onPromptSelected: jest.fn(() => jest.fn()),
+  offPromptSelected: jest.fn(),
   onOllamaResponse: jest.fn(() => jest.fn()),
   offOllamaResponse: jest.fn(),
   onPromptSelectorData: jest.fn(() => jest.fn()),

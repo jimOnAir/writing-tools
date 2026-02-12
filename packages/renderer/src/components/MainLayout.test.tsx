@@ -67,8 +67,8 @@ describe('MainLayout', () => {
     // Mock electronAPI for IpcAdapter (used by real ChatService instances)
     const mockElectronAPI = {
       invoke: jest.fn(),
-      onChatWindowData: jest.fn(() => jest.fn()),
-      offChatWindowData: jest.fn(),
+      onPromptSelected: jest.fn(() => jest.fn()),
+      offPromptSelected: jest.fn(),
       onOllamaResponse: jest.fn(() => jest.fn()),
       offOllamaResponse: jest.fn(),
       onPromptSelectorData: jest.fn(() => jest.fn()),
