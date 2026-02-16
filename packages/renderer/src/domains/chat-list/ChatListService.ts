@@ -22,6 +22,8 @@ export class ChatListService {
   private chatCreatedListener: TIpcRenderListener | null = null;
   private chatTitleUpdatedListener: TIpcRenderListener | null = null;
 
+  private regeneratingChatId: number | null = null;
+
   // Callbacks for component state updates
   private onChatsChange?: (chats: IChatInfo[]) => void;
   private onDeletingChatIdChange?: (chatId: number | null) => void;
@@ -29,6 +31,7 @@ export class ChatListService {
   private onHasMoreChange?: (hasMore: boolean) => void;
   private onLoadingChange?: (isLoading: boolean) => void;
   private onLoadingMoreChange?: (isLoadingMore: boolean) => void;
+  private onRegeneratingChatIdChange?: (chatId: number | null) => void;
 
   public constructor(ipcAdapter: IIpcAdapter) {
     this.ipcAdapter = ipcAdapter;
@@ -75,6 +78,7 @@ export class ChatListService {
     onHasMoreChange?: (hasMore: boolean) => void,
     onLoadingChange?: (isLoading: boolean) => void,
     onLoadingMoreChange?: (isLoadingMore: boolean) => void,
+    onRegeneratingChatIdChange?: (chatId: number | null) => void,
   }): void {
     this.onChatsChange = callbacks.onChatsChange;
     this.onDeletingChatIdChange = callbacks.onDeletingChatIdChange;
@@ -82,6 +86,7 @@ export class ChatListService {
     this.onHasMoreChange = callbacks.onHasMoreChange;
     this.onLoadingChange = callbacks.onLoadingChange;
     this.onLoadingMoreChange = callbacks.onLoadingMoreChange;
+    this.onRegeneratingChatIdChange = callbacks.onRegeneratingChatIdChange;
   }
 
   /**
@@ -218,6 +223,66 @@ export class ChatListService {
     }
   }
 
+  /**
+   * Regenerate chat title via LLM (does not save to DB; returns title for UI to display/save).
+   */
+  public async regenerateTitle(chatId: number): Promise<{ ok: true, title: string } | { ok: false, error: string }> {
+    this.setRegeneratingChatId(chatId);
+
+    try {
+      const message: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_REGENERATE_TITLE> = {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_REGENERATE_TITLE,
+        payload: { chatId },
+      };
+
+      const response = await this.ipcAdapter.invoke(message.channel, message);
+
+      if ('success' in response && response.success === true && 'title' in response) {
+        return { ok: true, title: response.title };
+      }
+
+      const errorMsg = 'error' in response && typeof response.error === 'string'
+        ? response.error
+        : 'Failed to generate title';
+
+      return { ok: false, error: errorMsg };
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to regenerate title: %s', errorText);
+
+      return { ok: false, error: errorText };
+    } finally {
+      this.setRegeneratingChatId(null);
+    }
+  }
+
+  /**
+   * Update chat title (save to DB).
+   */
+  public async updateTitle(chatId: number, title: string): Promise<string | null> {
+    try {
+      const message: TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_UPDATE_TITLE> = {
+        channel: EIpcChannel.CHAT,
+        event: EIpcEvent.CHAT_UPDATE_TITLE,
+        payload: { chatId, title },
+      };
+
+      const response = await this.ipcAdapter.invoke(message.channel, message);
+
+      if ('success' in response && response.success === true) {
+        return null;
+      }
+
+      return 'error' in response && typeof response.error === 'string' ? response.error : 'Failed to update title';
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to update title: %s', errorText);
+
+      return errorText;
+    }
+  }
+
   // Private setters that trigger callbacks
   private appendChats(newChats: IChatInfo[]): void {
     this.chats = [...this.chats, ...newChats];
@@ -247,6 +312,11 @@ export class ChatListService {
   private setDeletingChatId(chatId: number | null): void {
     this.deletingChatId = chatId;
     this.onDeletingChatIdChange?.(chatId);
+  }
+
+  private setRegeneratingChatId(chatId: number | null): void {
+    this.regeneratingChatId = chatId;
+    this.onRegeneratingChatIdChange?.(chatId);
   }
 
   private setLoadingMore(isLoadingMore: boolean): void {

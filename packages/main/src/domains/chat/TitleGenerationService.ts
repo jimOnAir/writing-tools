@@ -112,4 +112,90 @@ Title:`;
       return null;
     }
   }
+
+  /**
+   * Regenerate title using more messages (first 6 or first 3 exchanges) as context.
+   * Does not save to DB; returns the generated title for the UI to display/save.
+   */
+  public async regenerateTitle(chatId: number): Promise<string | null> {
+    this.logger.info('regenerateTitle called for chatId=%s', String(chatId));
+    try {
+      const messages = this.messageService.loadChatMessages(chatId);
+
+      if (messages.length < 2) {
+        this.logger.info('Title regeneration skipped: message count is %s (need at least 2)', String(messages.length));
+
+        return null;
+      }
+
+      const chat = this.chatService.getChat(chatId);
+      if (chat === null) {
+        this.logger.error('Title regeneration failed: chat not found for chatId=%s', String(chatId));
+
+        return null;
+      }
+
+      // Use first 6 messages (up to 3 exchanges) for better context
+      const MAX_MESSAGES = 6;
+      const snippetMessages = messages.slice(0, MAX_MESSAGES);
+      const conversationSnippet = snippetMessages
+        .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+        .join('\n\n');
+
+      this.logger.info('Generating title for chatId=%s using %s messages', String(chatId), String(snippetMessages.length));
+
+      const title = await this.generateChatTitleFromSnippet(conversationSnippet);
+
+      if (title !== null && title.trim() !== '') {
+        this.logger.info('Title regenerated: chatId=%s, title="%s"', String(chatId), title);
+
+        return title;
+      }
+
+      this.logger.error('Title regeneration returned empty result for chatId=%s', String(chatId));
+
+      return null;
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to regenerate chat title: %s', errorText);
+
+      return null;
+    }
+  }
+
+  private async generateChatTitleFromSnippet(conversationSnippet: string): Promise<string | null> {
+    try {
+      const prompt = `Generate a concise title (maximum 5-6 words) for this conversation:
+
+${conversationSnippet}
+
+Title:`;
+
+      const response = await this.modelService.sendMessages([
+        {
+          content: prompt,
+          role: 'user',
+        },
+      ], { maxTokens: 10 });
+
+      if (!response.success) {
+        this.logger.error('Failed to generate chat title: %s', response.error);
+
+        return null;
+      }
+
+      let title = response.response.trim();
+      if ((title.startsWith('"') && title.endsWith('"')) || (title.startsWith("'") && title.endsWith("'"))) {
+        title = title.slice(1, -1);
+      }
+      title = title.trim();
+
+      return title || null;
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.logger.error('Error generating chat title: %s', errorText);
+
+      return null;
+    }
+  }
 }

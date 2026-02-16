@@ -3,11 +3,11 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 
 import type { ChatListService } from '../domains/chat-list';
 import type { ITabInfo, MultiChatService } from '../domains/multi-chat';
-import { BackgroundStyles, TypographyStyles, ColorPalette } from '../styles/Styles';
+import { BackgroundStyles, ButtonStyles, ButtonSizeStyles, ChatListStyles, ColorPalette, InputStyles, TypographyStyles } from '../styles/Styles';
 import type { IChatListState } from '../types/IChatListState';
 import { renderMarkdown } from '../utils/markdownRenderer';
 
-import { CloseIcon, LoadingIcon } from './icons';
+import { CheckIcon, CloseIcon, LoadingIcon, PencilIcon, RefreshIcon } from './icons';
 import { Tooltip } from './Tooltip';
 
 interface ChatListComponentProps {
@@ -18,7 +18,7 @@ interface ChatListComponentProps {
 }
 
 const SCROLL_TIMEOUT_MS = 500;
-// TODO: add chat renaming (regenerate title)
+
 const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, chatListState, multiChatService, onChatSelect }) => {
   const [uncontrolledChats, setUncontrolledChats] = useState<IChatInfo[]>([]);
   const [uncontrolledDeletingChatId, setUncontrolledDeletingChatId] = useState<number | null>(null);
@@ -26,7 +26,11 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
   const [uncontrolledHasMore, setUncontrolledHasMore] = useState(false);
   const [uncontrolledLoading, setUncontrolledLoading] = useState(true);
   const [uncontrolledLoadingMore, setUncontrolledLoadingMore] = useState(false);
+  const [uncontrolledRegeneratingChatId, setUncontrolledRegeneratingChatId] = useState<number | null>(null);
   const [tabs, setTabs] = useState<readonly ITabInfo[]>([]);
+  const [editingChatId, setEditingChatId] = useState<number | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [renameError, setRenameError] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -37,6 +41,9 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
   const hasMore: boolean = isControlled ? chatListState.hasMore : uncontrolledHasMore;
   const isLoading: boolean = isControlled ? chatListState.isLoading : uncontrolledLoading;
   const isLoadingMore: boolean = isControlled ? chatListState.isLoadingMore : uncontrolledLoadingMore;
+  const regeneratingChatId: number | null = isControlled
+    ? (chatListState.regeneratingChatId ?? null)
+    : uncontrolledRegeneratingChatId;
 
   // Extract opened chat IDs from tabs
   const openedChatIds = useMemo(() => {
@@ -67,6 +74,7 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
       onHasMoreChange: setUncontrolledHasMore,
       onLoadingChange: setUncontrolledLoading,
       onLoadingMoreChange: setUncontrolledLoadingMore,
+      onRegeneratingChatIdChange: setUncontrolledRegeneratingChatId,
     });
     chatListService.initializeListeners();
     void chatListService.loadChats();
@@ -180,6 +188,45 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
     await chatListService.deleteChat(chatId);
   };
 
+  const handleStartRename = (chat: IChatInfo, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setEditingChatId(chat.id);
+    setEditingTitle(chat.title);
+    setRenameError(null);
+  };
+
+  const handleAcceptRename = async () => {
+    if (editingChatId === null) {
+      return;
+    }
+    const errorMessage = await chatListService.updateTitle(editingChatId, editingTitle);
+    if (errorMessage === null) {
+      setEditingChatId(null);
+      setRenameError(null);
+    } else {
+      setRenameError(errorMessage);
+    }
+  };
+
+  const handleGenerateTitle = async () => {
+    if (editingChatId === null) {
+      return;
+    }
+    type RegenerateResult = { ok: true, title: string } | { ok: false, error: string };
+    const result = await chatListService.regenerateTitle(editingChatId) as RegenerateResult;
+    if (result.ok) {
+      setEditingTitle(result.title);
+      setRenameError(null);
+    } else {
+      setRenameError(result.error);
+    }
+  };
+
+  const handleCancelRename = () => {
+    setEditingChatId(null);
+    setRenameError(null);
+  };
+
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
@@ -227,6 +274,8 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
               const displayTitle = hasTitle ? chat.title : 'New Chat';
               const isDeleting = deletingChatId === chat.id;
               const isOpened = openedChatIds.has(chat.id);
+              const isEditing = editingChatId === chat.id;
+              const isRegenerating = regeneratingChatId === chat.id;
 
               const openedBorder = isOpened ? `border-l-4 ${ColorPalette.border.accent}` : '';
               const baseCard
@@ -234,6 +283,80 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
               const cardClassName = `${baseCard} ${openedBorder}`;
               const titleClassName
                 = `${TypographyStyles.h3} ${ColorPalette.text.primary} truncate markdown-content chat-title mb-1 min-w-0 overflow-hidden`;
+
+              if (isEditing) {
+                return (
+                  <div key={chat.id} className={`${cardClassName} flex-col items-stretch`}>
+                    <div className="min-w-0 flex flex-col gap-2">
+                      <label htmlFor={`chat-title-input-${String(chat.id)}`} className="sr-only">
+                        Chat title
+                      </label>
+                      <input
+                        id={`chat-title-input-${String(chat.id)}`}
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => {
+                          setEditingTitle(e.target.value);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            void handleAcceptRename();
+                          } else if (e.key === 'Escape') {
+                            handleCancelRename();
+                          }
+                        }}
+                        className={`${InputStyles} text-sm`}
+                        aria-label="Chat title"
+                        autoFocus
+                      />
+                      {renameError !== null && (
+                        <p className={`text-xs ${ColorPalette.text.secondary}`}>{renameError}</p>
+                      )}
+                    </div>
+                    <div className={`flex flex-row items-center ${ChatListStyles.actionButtonGap} self-end pt-2`}>
+                      <Tooltip content="Accept">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleAcceptRename();
+                          }}
+                          className={`${ButtonStyles.base} ${ButtonSizeStyles.small} ${ButtonStyles.primary} flex items-center justify-center`}
+                          aria-label="Accept"
+                        >
+                          <CheckIcon size={16} />
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Generate title">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleGenerateTitle();
+                          }}
+                          disabled={isRegenerating}
+                          className={`${ButtonStyles.base} ${ButtonSizeStyles.small} ${ButtonStyles.ghost} flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed`}
+                          aria-label="Generate title"
+                        >
+                          {isRegenerating ? (
+                            <LoadingIcon size={16} />
+                          ) : (
+                            <RefreshIcon size={16} />
+                          )}
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Cancel">
+                        <button
+                          type="button"
+                          onClick={handleCancelRename}
+                          className={`${ButtonStyles.base} ${ButtonSizeStyles.small} ${ButtonStyles.ghost} flex items-center justify-center`}
+                          aria-label="Cancel"
+                        >
+                          <CloseIcon size={16} />
+                        </button>
+                      </Tooltip>
+                    </div>
+                  </div>
+                );
+              }
 
               return (
                 <div key={chat.id} className={cardClassName}>
@@ -255,21 +378,37 @@ const ChatListComponent: React.FC<ChatListComponentProps> = ({ chatListService, 
                       </div>
                     </button>
                   </Tooltip>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      void handleDeleteChat(chat.id, e);
-                    }}
-                    disabled={isDeleting}
-                    className="ml-3 p-1.5 rounded hover:bg-gray-700/50 text-gray-400 hover:text-red-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                    aria-label="Delete chat"
-                  >
-                    {isDeleting ? (
-                      <LoadingIcon size={14} className="text-gray-400" />
-                    ) : (
-                      <CloseIcon size={16} />
-                    )}
-                  </button>
+                  <div className="ml-auto flex shrink-0 items-center -mr-1">
+                    <Tooltip content="Rename">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          handleStartRename(chat, e);
+                        }}
+                        className={`${ChatListStyles.actionButtonSpacing} p-1.5 rounded hover:bg-gray-700/50 text-gray-400 hover:text-gray-200 transition-all duration-200 flex items-center justify-center`}
+                        aria-label="Rename"
+                      >
+                        <PencilIcon size={16} />
+                      </button>
+                    </Tooltip>
+                    <Tooltip content="Remove">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          void handleDeleteChat(chat.id, e);
+                        }}
+                        disabled={isDeleting}
+                        className={`${ChatListStyles.actionButtonSpacing} p-1.5 rounded hover:bg-gray-700/50 text-gray-400 hover:text-red-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
+                        aria-label="Remove"
+                      >
+                        {isDeleting ? (
+                          <LoadingIcon size={14} className="text-gray-400" />
+                        ) : (
+                          <CloseIcon size={16} />
+                        )}
+                      </button>
+                    </Tooltip>
+                  </div>
                 </div>
               );
             })}

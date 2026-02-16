@@ -73,11 +73,23 @@ export type TChatOpenFailedResponse = { error: string, success: false };
 
 export type TChatOpenResponse = TChatOpenSuccessResponse | TChatOpenFailedResponse;
 
+export type TChatRegenerateTitleSuccessResponse = { success: true, title: string };
+
+export type TChatRegenerateTitleFailedResponse = { error: string, success: false };
+
+export type TChatRegenerateTitleResponse = TChatRegenerateTitleSuccessResponse | TChatRegenerateTitleFailedResponse;
+
 export type TChatSaveTabsSuccessResponse = { success: true };
 
 export type TChatSaveTabsFailedResponse = { error: string, success: false };
 
 export type TChatSaveTabsResponse = TChatSaveTabsSuccessResponse | TChatSaveTabsFailedResponse;
+
+export type TChatUpdateTitleSuccessResponse = { success: true };
+
+export type TChatUpdateTitleFailedResponse = { error: string, success: false };
+
+export type TChatUpdateTitleResponse = TChatUpdateTitleSuccessResponse | TChatUpdateTitleFailedResponse;
 
 export type TPromptSelectResponse = Record<string, never>;
 
@@ -99,6 +111,8 @@ export type TIpcResponsePayloadMap = {
   [EIpcEvent.MESSAGES_LOAD]: TChatLoadMessagesResponse,
   [EIpcEvent.TABS_LOAD]: TChatLoadTabsResponse,
   [EIpcEvent.CHAT_OPEN]: TChatOpenResponse,
+  [EIpcEvent.CHAT_REGENERATE_TITLE]: TChatRegenerateTitleResponse,
+  [EIpcEvent.CHAT_UPDATE_TITLE]: TChatUpdateTitleResponse,
   [EIpcEvent.TABS_SAVE]: TChatSaveTabsResponse,
   [EIpcEvent.MESSAGE_SEND_STREAM]: TChatSendMessageStreamResponse,
   [EIpcEvent.MESSAGE_STOP_STREAM]: TMESSAGE_STOP_STREAMResponse,

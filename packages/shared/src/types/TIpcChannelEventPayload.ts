@@ -31,7 +31,11 @@ export type TChatLoadTabsPayload = Record<string, never>;
 
 export type TChatOpenPayload = { chatId: number };
 
+export type TChatRegenerateTitlePayload = { chatId: number };
+
 export type TChatSaveTabsPayload = { tabs: TOpenTab[] };
+
+export type TChatUpdateTitlePayload = { chatId: number, title: string };
 
 export type TEnvGetPayload = Record<string, never>;
 
@@ -58,6 +62,8 @@ export type TIpcEventPayloadMap = {
   [EIpcEvent.MESSAGES_LOAD]: TChatLoadMessagesPayload,
   [EIpcEvent.TABS_LOAD]: TChatLoadTabsPayload,
   [EIpcEvent.CHAT_OPEN]: TChatOpenPayload,
+  [EIpcEvent.CHAT_REGENERATE_TITLE]: TChatRegenerateTitlePayload,
+  [EIpcEvent.CHAT_UPDATE_TITLE]: TChatUpdateTitlePayload,
   [EIpcEvent.TABS_SAVE]: TChatSaveTabsPayload,
   [EIpcEvent.MESSAGE_SEND_STREAM]: TChatSendMessageStreamPayload,
   [EIpcEvent.MESSAGE_STOP_STREAM]: TMESSAGE_STOP_STREAMPayload,

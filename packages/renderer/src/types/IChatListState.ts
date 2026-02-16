@@ -7,4 +7,5 @@ export interface IChatListState {
   readonly hasMore: boolean;
   readonly isLoading: boolean;
   readonly isLoadingMore: boolean;
+  readonly regeneratingChatId?: number | null;
 }

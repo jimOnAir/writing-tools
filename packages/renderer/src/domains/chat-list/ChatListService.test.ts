@@ -360,4 +360,75 @@ describe('ChatListService', () => {
       expect(onDeletingChatIdChange).toHaveBeenCalledWith(null);
     });
   });
+
+  describe('regenerateTitle', () => {
+    it('returns title on success', async () => {
+      mockIpcAdapter.invoke.mockResolvedValue({ success: true, title: 'New Title' });
+
+      const onRegeneratingChatIdChange = jest.fn();
+      chatListService.setCallbacks({ onRegeneratingChatIdChange });
+
+      const result = await chatListService.regenerateTitle(1);
+
+      expect(result).toEqual({ ok: true, title: 'New Title' });
+      expect(mockIpcAdapter.invoke).toHaveBeenCalledWith(
+        EIpcChannel.CHAT,
+        expect.objectContaining({
+          event: EIpcEvent.CHAT_REGENERATE_TITLE,
+          payload: { chatId: 1 },
+        }),
+      );
+      expect(onRegeneratingChatIdChange).toHaveBeenCalledWith(1);
+      expect(onRegeneratingChatIdChange).toHaveBeenCalledWith(null);
+    });
+
+    it('returns error on failure', async () => {
+      mockIpcAdapter.invoke.mockResolvedValue({ success: false, error: 'Failed to generate title' });
+
+      const result = await chatListService.regenerateTitle(1);
+
+      expect(result).toEqual({ ok: false, error: 'Failed to generate title' });
+    });
+
+    it('returns error on IPC throw', async () => {
+      mockIpcAdapter.invoke.mockRejectedValue(new Error('Network error'));
+
+      const result = await chatListService.regenerateTitle(1);
+
+      expect(result).toEqual({ ok: false, error: 'Network error' });
+    });
+  });
+
+  describe('updateTitle', () => {
+    it('returns null on success', async () => {
+      mockIpcAdapter.invoke.mockResolvedValue({ success: true });
+
+      const result = await chatListService.updateTitle(1, 'My Chat Title');
+
+      expect(result).toBeNull();
+      expect(mockIpcAdapter.invoke).toHaveBeenCalledWith(
+        EIpcChannel.CHAT,
+        expect.objectContaining({
+          event: EIpcEvent.CHAT_UPDATE_TITLE,
+          payload: { chatId: 1, title: 'My Chat Title' },
+        }),
+      );
+    });
+
+    it('returns error string on failure', async () => {
+      mockIpcAdapter.invoke.mockResolvedValue({ success: false, error: 'Chat not found' });
+
+      const result = await chatListService.updateTitle(999, 'Title');
+
+      expect(result).toBe('Chat not found');
+    });
+
+    it('returns error string on IPC throw', async () => {
+      mockIpcAdapter.invoke.mockRejectedValue(new Error('IPC error'));
+
+      const result = await chatListService.updateTitle(1, 'Title');
+
+      expect(result).toBe('IPC error');
+    });
+  });
 });

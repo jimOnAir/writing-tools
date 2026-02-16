@@ -201,7 +201,7 @@ describe('ChatListComponent', () => {
       });
     }
 
-    const deleteButton = screen.getByLabelText('Delete chat');
+    const deleteButton = screen.getByLabelText('Remove');
     fireEvent.click(deleteButton);
 
     await waitFor(() => {
@@ -247,7 +247,7 @@ describe('ChatListComponent', () => {
       });
     }
 
-    const deleteButton = screen.getByLabelText('Delete chat');
+    const deleteButton = screen.getByLabelText('Remove');
     fireEvent.click(deleteButton);
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -297,8 +297,8 @@ describe('ChatListComponent', () => {
       });
     }
 
-    // When deleting, the delete button should be disabled
-    const deleteButton = screen.getByLabelText('Delete chat');
+    // When deleting, the remove button should be disabled
+    const deleteButton = screen.getByLabelText('Remove');
     expect((deleteButton as HTMLButtonElement).disabled).toBe(true);
   });
 

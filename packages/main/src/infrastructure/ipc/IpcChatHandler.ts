@@ -4,6 +4,7 @@ import { ipcMain } from 'electron';
 
 import type { IChatService } from '../../domains/chat/IChatService';
 import type { IMessageService } from '../../domains/chat/IMessageService';
+import type { ITitleGenerationService } from '../../domains/chat/ITitleGenerationService';
 import type { IOpenTabsService } from '../../domains/open-tabs/IOpenTabsService';
 import type { ISettingsService } from '../../domains/settings';
 import type { IWindowService } from '../../domains/windows/IWindowService';
@@ -16,6 +17,8 @@ type TChatChannelEventPayload = TIpcEvent<EIpcChannel.CHAT, EIpcEvent.MESSAGE_SE
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_GET>
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_LIST>
   | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_OPEN>
+  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_REGENERATE_TITLE>
+  | TIpcEvent<EIpcChannel.CHAT, EIpcEvent.CHAT_UPDATE_TITLE>
   | TIpcEvent<EIpcChannel.MESSAGE, EIpcEvent.MESSAGES_LOAD>;
 
 export class IpcChatHandler implements IIpcChatHandler {
@@ -24,6 +27,7 @@ export class IpcChatHandler implements IIpcChatHandler {
     private readonly logger: ILogger,
     private readonly openTabsService: IOpenTabsService,
     private readonly settingsService: ISettingsService,
+    private readonly titleGenerationService: ITitleGenerationService,
     private readonly windowService: IWindowService,
     private readonly messageService: IMessageService,
   ) {}
@@ -42,6 +46,10 @@ export class IpcChatHandler implements IIpcChatHandler {
           return this.handleChatDelete(data.payload.chatId);
         case EIpcEvent.CHAT_OPEN:
           return this.handleChatOpen(data.payload.chatId);
+        case EIpcEvent.CHAT_REGENERATE_TITLE:
+          return this.handleChatRegenerateTitle(data.payload.chatId);
+        case EIpcEvent.CHAT_UPDATE_TITLE:
+          return this.handleChatUpdateTitle(data.payload.chatId, data.payload.title);
         default:
           throw new Error(`Unsupported event: ${eventType}`);
       }
@@ -163,6 +171,46 @@ export class IpcChatHandler implements IIpcChatHandler {
     } catch (error: unknown) {
       const errorText = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to open chat: %s', errorText);
+
+      return { success: false, error: errorText };
+    }
+  }
+
+  private async handleChatRegenerateTitle(chatId: number) {
+    try {
+      const chat = this.chatService.getChat(chatId);
+      if (chat === null) {
+        return { success: false, error: `Chat with id ${String(chatId)} not found` };
+      }
+
+      const title = await this.titleGenerationService.regenerateTitle(chatId);
+
+      if (title !== null && title.trim() !== '') {
+        return { success: true, title };
+      }
+
+      return { success: false, error: 'Failed to generate title' };
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to regenerate chat title: %s', errorText);
+
+      return { success: false, error: errorText };
+    }
+  }
+
+  private handleChatUpdateTitle(chatId: number, title: string) {
+    try {
+      const chat = this.chatService.getChat(chatId);
+      if (chat === null) {
+        return { success: false, error: `Chat with id ${String(chatId)} not found` };
+      }
+
+      this.chatService.updateChatTitle(chatId, title);
+
+      return { success: true };
+    } catch (error: unknown) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to update chat title: %s', errorText);
 
       return { success: false, error: errorText };
     }

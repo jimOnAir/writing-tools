@@ -1,10 +1,13 @@
 export { ChevronLeftIcon } from './ChevronLeftIcon';
 export { ChevronRightIcon } from './ChevronRightIcon';
+export { CheckIcon } from './CheckIcon';
 export { CloseIcon } from './CloseIcon';
 export { GripIcon } from './GripIcon';
 export { GearIcon } from './GearIcon';
 export { LoadingIcon } from './LoadingIcon';
+export { PencilIcon } from './PencilIcon';
 export { PlusIcon } from './PlusIcon';
+export { RefreshIcon } from './RefreshIcon';
 export { SendIcon } from './SendIcon';
 export { SettingsIcon } from './SettingsIcon';
 export { StopIcon } from './StopIcon';

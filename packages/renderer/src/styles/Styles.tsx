@@ -137,6 +137,12 @@ export const LayoutStyles = {
   divider: '',
 };
 
+// Chat list action button spacing (same distance for editing row and rename/remove buttons)
+export const ChatListStyles = {
+  actionButtonGap: 'gap-1',
+  actionButtonSpacing: 'ml-1',
+};
+
 // Card styles
 export const CardStyles = {
   promptCard: `${BackgroundStyles.cardHover} p-4 text-left cursor-pointer hover:shadow-lg hover:shadow-purple-600/20 transition-all duration-300 active:scale-[0.98]`,

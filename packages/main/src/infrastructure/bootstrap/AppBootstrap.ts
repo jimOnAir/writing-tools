@@ -180,6 +180,7 @@ export class AppBootstrap {
       this.logger,
       this.openTabsService,
       this.settingsService,
+      this.titleGenerationService,
       this.windowService,
       this.messageService,
     );
